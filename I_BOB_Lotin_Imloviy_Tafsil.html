@@ -1,0 +1,459 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>I BOB Lotin - Imloviy Xata Batafsil Hisoboti</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            color: #333;
+            padding: 20px;
+            min-height: 100vh;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+        .header {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            padding: 20px 30px;
+            background: #f8f9fa;
+            border-bottom: 1px solid #e9ecef;
+        }
+        .stat-box {
+            text-align: center;
+            padding: 15px;
+            background: white;
+            border-radius: 8px;
+            border-left: 4px solid #f5576c;
+        }
+        .stat-box h3 {
+            font-size: 2em;
+            color: #f5576c;
+            margin-bottom: 5px;
+        }
+        .stat-box p {
+            color: #666;
+            font-size: 0.9em;
+        }
+        .content {
+            padding: 30px;
+        }
+        .error-type-section {
+            margin-bottom: 40px;
+        }
+        .error-type-header {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            color: white;
+            padding: 15px 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .error-type-header h2 {
+            font-size: 1.3em;
+        }
+        .error-count {
+            background: rgba(255, 255, 255, 0.2);
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-weight: bold;
+        }
+        .error-item {
+            background: #fff5f5;
+            border: 1px solid #ffdddd;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 15px;
+            border-left: 4px solid #f5576c;
+        }
+        .error-item-header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 10px;
+            font-weight: bold;
+        }
+        .para-info {
+            color: #f5576c;
+        }
+        .correction-box {
+            background: #ffe6e6;
+            padding: 10px;
+            border-radius: 5px;
+            margin: 10px 0;
+            font-family: 'Courier New', monospace;
+            display: flex;
+            justify-content: space-between;
+        }
+        .correction-box .wrong {
+            color: #d32f2f;
+            text-decoration: line-through;
+        }
+        .correction-box .correct {
+            color: #388e3c;
+            font-weight: bold;
+        }
+        .footer {
+            background: #f8f9fa;
+            padding: 20px;
+            text-align: center;
+            color: #666;
+            border-top: 1px solid #e9ecef;
+        }
+        .summary-list {
+            background: #e8f5e9;
+            border: 2px solid #4caf50;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 30px;
+        }
+        .summary-list h3 {
+            color: #2e7d32;
+            margin-bottom: 15px;
+        }
+        .summary-list ul {
+            list-style: none;
+            padding-left: 0;
+        }
+        .summary-list li {
+            padding: 8px 0;
+            color: #2e7d32;
+            border-bottom: 1px solid #c8e6c9;
+            display: flex;
+            justify-content: space-between;
+        }
+        .summary-list li:last-child {
+            border-bottom: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📝 I BOB LOTIN</h1>
+            <p>Imloviy Xata Batafsil Hisoboti</p>
+        </div>
+        
+        <div class="stats">
+            <div class="stat-box">
+                <h3>209</h3>
+                <p>Jami Abzatslar</p>
+            </div>
+            <div class="stat-box">
+                <h3>182</h3>
+                <p>Topilgan Imlo Xatalar</p>
+            </div>
+            <div class="stat-box">
+                <h3>2</h3>
+                <p>Xata Turlari</p>
+            </div>
+        </div>
+        
+        <div class="content">
+            <div class="summary-list">
+                <h3>📊 XTA TURLARI BO'YICHA STATISTIKA:</h3>
+                <ul>
+
+                    <li>
+                        <span>Noto'g'ri qo'shtirnoq</span>
+                        <strong style="color: #f5576c;">177 ta</strong>
+                    </li>
+
+                    <li>
+                        <span>Noto'g'ri "bulgan" - "bo'lgan" bo'lishi kerak</span>
+                        <strong style="color: #f5576c;">5 ta</strong>
+                    </li>
+
+                </ul>
+            </div>
+
+            <div class="error-type-section">
+                <div class="error-type-header">
+                    <h2>⚠️ Noto'g'ri qo'shtirnoq</h2>
+                    <span class="error-count">177 ta</span>
+                </div>
+
+                <div class="error-item">
+                    <div class="error-item-header">
+                        <span class="para-info">➤ TO'RTINCHI</span>
+                        <span>1. Xata</span>
+                    </div>
+                    <div class="correction-box">
+                        <span class="wrong">"</span>
+                        <span style="color: #999;">→</span>
+                        <span class="correct">"</span>
+                    </div>
+                </div>
+
+                <div class="error-item">
+                    <div class="error-item-header">
+                        <span class="para-info">➤ TO'RTINCHI</span>
+                        <span>2. Xata</span>
+                    </div>
+                    <div class="correction-box">
+                        <span class="wrong">"</span>
+                        <span style="color: #999;">→</span>
+                        <span class="correct">"</span>
+                    </div>
+                </div>
+
+                <div class="error-item">
+                    <div class="error-item-header">
+                        <span class="para-info">➤ ABZATS 13</span>
+                        <span>3. Xata</span>
+                    </div>
+                    <div class="correction-box">
+                        <span class="wrong">"</span>
+                        <span style="color: #999;">→</span>
+                        <span class="correct">"</span>
+                    </div>
+                </div>
+
+                <div class="error-item">
+                    <div class="error-item-header">
+                        <span class="para-info">➤ ABZATS 13</span>
+                        <span>4. Xata</span>
+                    </div>
+                    <div class="correction-box">
+                        <span class="wrong">"</span>
+                        <span style="color: #999;">→</span>
+                        <span class="correct">"</span>
+                    </div>
+                </div>
+
+                <div class="error-item">
+                    <div class="error-item-header">
+                        <span class="para-info">➤ ABZATS 14</span>
+                        <span>5. Xata</span>
+                    </div>
+                    <div class="correction-box">
+                        <span class="wrong">"</span>
+                        <span style="color: #999;">→</span>
+                        <span class="correct">"</span>
+                    </div>
+                </div>
+
+                <div class="error-item">
+                    <div class="error-item-header">
+                        <span class="para-info">➤ ABZATS 14</span>
+                        <span>6. Xata</span>
+                    </div>
+                    <div class="correction-box">
+                        <span class="wrong">"</span>
+                        <span style="color: #999;">→</span>
+                        <span class="correct">"</span>
+                    </div>
+                </div>
+
+                <div class="error-item">
+                    <div class="error-item-header">
+                        <span class="para-info">➤ ABZATS 19</span>
+                        <span>7. Xata</span>
+                    </div>
+                    <div class="correction-box">
+                        <span class="wrong">"</span>
+                        <span style="color: #999;">→</span>
+                        <span class="correct">"</span>
+                    </div>
+                </div>
+
+                <div class="error-item">
+                    <div class="error-item-header">
+                        <span class="para-info">➤ ABZATS 19</span>
+                        <span>8. Xata</span>
+                    </div>
+                    <div class="correction-box">
+                        <span class="wrong">"</span>
+                        <span style="color: #999;">→</span>
+                        <span class="correct">"</span>
+                    </div>
+                </div>
+
+                <div class="error-item">
+                    <div class="error-item-header">
+                        <span class="para-info">➤ ABZATS 19</span>
+                        <span>9. Xata</span>
+                    </div>
+                    <div class="correction-box">
+                        <span class="wrong">"</span>
+                        <span style="color: #999;">→</span>
+                        <span class="correct">"</span>
+                    </div>
+                </div>
+
+                <div class="error-item">
+                    <div class="error-item-header">
+                        <span class="para-info">➤ ABZATS 20</span>
+                        <span>10. Xata</span>
+                    </div>
+                    <div class="correction-box">
+                        <span class="wrong">"</span>
+                        <span style="color: #999;">→</span>
+                        <span class="correct">"</span>
+                    </div>
+                </div>
+
+                <div class="error-item">
+                    <div class="error-item-header">
+                        <span class="para-info">➤ ABZATS 20</span>
+                        <span>11. Xata</span>
+                    </div>
+                    <div class="correction-box">
+                        <span class="wrong">"</span>
+                        <span style="color: #999;">→</span>
+                        <span class="correct">"</span>
+                    </div>
+                </div>
+
+                <div class="error-item">
+                    <div class="error-item-header">
+                        <span class="para-info">➤ ABZATS 20</span>
+                        <span>12. Xata</span>
+                    </div>
+                    <div class="correction-box">
+                        <span class="wrong">"</span>
+                        <span style="color: #999;">→</span>
+                        <span class="correct">"</span>
+                    </div>
+                </div>
+
+                <div class="error-item">
+                    <div class="error-item-header">
+                        <span class="para-info">➤ ABZATS 20</span>
+                        <span>13. Xata</span>
+                    </div>
+                    <div class="correction-box">
+                        <span class="wrong">"</span>
+                        <span style="color: #999;">→</span>
+                        <span class="correct">"</span>
+                    </div>
+                </div>
+
+                <div class="error-item">
+                    <div class="error-item-header">
+                        <span class="para-info">➤ ABZATS 20</span>
+                        <span>14. Xata</span>
+                    </div>
+                    <div class="correction-box">
+                        <span class="wrong">"</span>
+                        <span style="color: #999;">→</span>
+                        <span class="correct">"</span>
+                    </div>
+                </div>
+
+                <div class="error-item">
+                    <div class="error-item-header">
+                        <span class="para-info">➤ ABZATS 20</span>
+                        <span>15. Xata</span>
+                    </div>
+                    <div class="correction-box">
+                        <span class="wrong">"</span>
+                        <span style="color: #999;">→</span>
+                        <span class="correct">"</span>
+                    </div>
+                </div>
+
+                <div style="text-align: center; padding: 20px; color: #666; font-style: italic;">
+                    📌 Va yana 162 ta xata...
+                </div>
+
+            </div>
+
+            <div class="error-type-section">
+                <div class="error-type-header">
+                    <h2>⚠️ Noto'g'ri "bulgan" - "bo'lgan" bo'lishi kerak</h2>
+                    <span class="error-count">5 ta</span>
+                </div>
+
+                <div class="error-item">
+                    <div class="error-item-header">
+                        <span class="para-info">➤ ABZATS 13</span>
+                        <span>1. Xata</span>
+                    </div>
+                    <div class="correction-box">
+                        <span class="wrong">bulgan</span>
+                        <span style="color: #999;">→</span>
+                        <span class="correct">bo'lgan</span>
+                    </div>
+                </div>
+
+                <div class="error-item">
+                    <div class="error-item-header">
+                        <span class="para-info">➤ ABZATS 22</span>
+                        <span>2. Xata</span>
+                    </div>
+                    <div class="correction-box">
+                        <span class="wrong">bulgan</span>
+                        <span style="color: #999;">→</span>
+                        <span class="correct">bo'lgan</span>
+                    </div>
+                </div>
+
+                <div class="error-item">
+                    <div class="error-item-header">
+                        <span class="para-info">➤ ABZATS 83</span>
+                        <span>3. Xata</span>
+                    </div>
+                    <div class="correction-box">
+                        <span class="wrong">bulgan</span>
+                        <span style="color: #999;">→</span>
+                        <span class="correct">bo'lgan</span>
+                    </div>
+                </div>
+
+                <div class="error-item">
+                    <div class="error-item-header">
+                        <span class="para-info">➤ ABZATS 109</span>
+                        <span>4. Xata</span>
+                    </div>
+                    <div class="correction-box">
+                        <span class="wrong">bulgan</span>
+                        <span style="color: #999;">→</span>
+                        <span class="correct">bo'lgan</span>
+                    </div>
+                </div>
+
+                <div class="error-item">
+                    <div class="error-item-header">
+                        <span class="para-info">➤ ABZATS 188</span>
+                        <span>5. Xata</span>
+                    </div>
+                    <div class="correction-box">
+                        <span class="wrong">bulgan</span>
+                        <span style="color: #999;">→</span>
+                        <span class="correct">bo'lgan</span>
+                    </div>
+                </div>
+
+            </div>
+
+        </div>
+        
+        <div class="footer">
+            <p>📊 Tahlil tugallandi</p>
+            <p>✅ 182 ta imlo xatasi topildi va batafsil tahlil qilindi</p>
+        </div>
+    </div>
+</body>
+</html>
