@@ -13,9 +13,12 @@ import { GradleBuildConfig } from '../editors/GradleBuildConfig';
 import { DimensionEditor } from '../editors/DimensionEditor';
 import { AdvancementEditor } from '../editors/AdvancementEditor';
 import { EventHandler } from '../editors/EventHandler';
-import { Package, Settings, Code2, Palette, Globe, Zap, Box, FileCode, Trophy, Layers } from 'lucide-react';
+import { AIChat } from '../editors/AIChat';
+import { AICodeGenerator } from '../editors/AICodeGenerator';
+import { AIModAdvisor } from '../editors/AIModAdvisor';
+import { Package, Settings, Code2, Palette, Globe, Zap, Box, FileCode, Trophy, Layers, Bot, Wand2, Lightbulb } from 'lucide-react';
 
-type EditorTab = 'overview' | 'recipes' | 'entities' | 'enchantments' | 'biomes' | 'textures' | 'resources' | 'export' | 'model' | 'gradle' | 'dimensions' | 'advancements' | 'events';
+type EditorTab = 'overview' | 'recipes' | 'entities' | 'enchantments' | 'biomes' | 'textures' | 'resources' | 'export' | 'model' | 'gradle' | 'dimensions' | 'advancements' | 'events' | 'ai-chat' | 'ai-codegen' | 'ai-advisor';
 
 const Workspace: FC = () => {
   const { currentProject } = useProjectStore();
@@ -131,6 +134,24 @@ const Workspace: FC = () => {
               isActive={activeTab === 'events'}
               onClick={() => setActiveTab('events')}
             />
+            <TabButton
+              icon={<Bot size={18} />}
+              label="AI Chat"
+              isActive={activeTab === 'ai-chat'}
+              onClick={() => setActiveTab('ai-chat')}
+            />
+            <TabButton
+              icon={<Wand2 size={18} />}
+              label="AI CodeGen"
+              isActive={activeTab === 'ai-codegen'}
+              onClick={() => setActiveTab('ai-codegen')}
+            />
+            <TabButton
+              icon={<Lightbulb size={18} />}
+              label="AI Advisor"
+              isActive={activeTab === 'ai-advisor'}
+              onClick={() => setActiveTab('ai-advisor')}
+            />
           </div>
         </div>
 
@@ -215,6 +236,23 @@ const Workspace: FC = () => {
             {/* Events Tab */}
             {activeTab === 'events' && (
               <EventHandler />
+            )}
+
+            {/* AI Chat Tab */}
+            {activeTab === 'ai-chat' && (
+              <div className="h-[calc(100vh-240px)]">
+                <AIChat />
+              </div>
+            )}
+
+            {/* AI Code Generator Tab */}
+            {activeTab === 'ai-codegen' && (
+              <AICodeGenerator />
+            )}
+
+            {/* AI Mod Advisor Tab */}
+            {activeTab === 'ai-advisor' && (
+              <AIModAdvisor />
             )}
           </div>
         </div>

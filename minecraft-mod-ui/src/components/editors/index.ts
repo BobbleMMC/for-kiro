@@ -13,3 +13,6 @@ export { GradleBuildConfig, type GradleConfig } from './GradleBuildConfig';
 export { DimensionEditor, type Dimension } from './DimensionEditor';
 export { AdvancementEditor, type Advancement } from './AdvancementEditor';
 export { EventHandler, type EventListener, type CustomEvent } from './EventHandler';
+export { AIChat } from './AIChat';
+export { AICodeGenerator } from './AICodeGenerator';
+export { AIModAdvisor } from './AIModAdvisor';
