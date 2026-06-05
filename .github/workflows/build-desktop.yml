@@ -1,0 +1,128 @@
+name: Build Desktop Installers
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Build for ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            arch: x64
+            platform: win
+          - os: macos-latest
+            arch: universal
+            platform: mac
+          - os: ubuntu-latest
+            arch: x64
+            platform: linux
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+          cache-dependency-path: minecraft-mod-ui/package-lock.json
+
+      - name: Install dependencies
+        working-directory: minecraft-mod-ui
+        run: npm install --legacy-peer-deps
+
+      - name: Type check
+        working-directory: minecraft-mod-ui
+        run: npm run type-check
+
+      - name: Build and package
+        working-directory: minecraft-mod-ui
+        run: npm run build:electron
+        env:
+          CI: true
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: installers-${{ matrix.platform }}-${{ matrix.arch }}
+          path: minecraft-mod-ui/release/
+          retention-days: 30
+
+      - name: Create Release (Windows)
+        if: matrix.os == 'windows-latest' && startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v1
+        with:
+          files: minecraft-mod-ui/release/**/*.exe
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Create Release (macOS)
+        if: matrix.os == 'macos-latest' && startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v1
+        with:
+          files: minecraft-mod-ui/release/**/*.{dmg,zip}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Create Release (Linux)
+        if: matrix.os == 'ubuntu-latest' && startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v1
+        with:
+          files: minecraft-mod-ui/release/**/*.AppImage
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  create-release:
+    name: Create GitHub Release
+    needs: build
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/')
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          body: |
+            # Minecraft Mod Generator v${{ github.ref_name }}
+
+            Desktop application installers for all platforms.
+
+            ## Downloads
+
+            ### Windows
+            - NSIS Installer (.exe) - Full installation wizard
+            - Portable Executable (.exe) - No installation required
+
+            ### macOS
+            - DMG Image (.dmg) - Drag & drop installation
+            - ZIP Archive (.zip) - Manual installation
+
+            ### Linux
+            - AppImage (.AppImage) - Universal executable, no installation needed
+
+            ## Installation Instructions
+
+            See [INSTALLER_GUIDE.md](https://github.com/BobbleMMC/for-kiro/blob/main/INSTALLER_GUIDE.md) for detailed installation instructions.
+
+            ## Release Notes
+
+            - Version: ${{ github.ref_name }}
+            - Built with Electron 28
+            - React 19 + TypeScript
+            - All platforms supported
+          files: artifacts/**/*
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

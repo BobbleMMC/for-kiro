@@ -3,13 +3,20 @@
   "private": true,
   "version": "1.0.0",
   "type": "module",
+  "main": "main.js",
   "description": "React UI for Minecraft Mod Generator - Desktop Application",
-  "author": "BobbleMMC",
+  "homepage": "https://github.com/BobbleMMC/for-kiro",
+  "author": {
+    "name": "BobbleMMC",
+    "email": "contact@bobblemmc.com"
+  },
+  "license": "MIT",
   "scripts": {
     "dev": "vite",
     "dev:electron": "concurrently \"npm run dev\" \"wait-on http://localhost:5173 && electron .\"",
     "build": "tsc -b && vite build",
-    "build:electron": "npm run build && electron-builder",
+    "build:electron": "npm run build && npm run compile:electron && electron-builder",
+    "compile:electron": "tsc --ignoreConfig electron/main.ts electron/preload.ts --outDir . --module node20 --target es2020 --skipLibCheck --esModuleInterop --declaration false",
     "lint": "eslint .",
     "preview": "vite preview",
     "type-check": "tsc --noEmit",
@@ -56,21 +63,49 @@
     "appId": "com.bobblemmc.minecraftmodui",
     "productName": "Minecraft Mod Generator",
     "directories": {
-      "buildResources": "public"
+      "buildResources": "public",
+      "output": "release"
     },
     "files": [
       "dist/**/*",
       "public/**/*",
-      "electron/**/*"
+      "main.js",
+      "preload.js",
+      "package.json"
     ],
+    "extraMetadata": {
+      "main": "main.js"
+    },
     "win": {
-      "target": ["nsis", "portable"]
+      "target": [
+        {
+          "target": "nsis",
+          "arch": ["x64"]
+        },
+        {
+          "target": "portable",
+          "arch": ["x64"]
+        }
+      ],
+      "icon": "public/favicon.svg"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Minecraft Mod Generator"
     },
     "mac": {
-      "target": ["dmg", "zip"]
+      "target": ["dmg", "zip"],
+      "category": "public.app-category.productivity",
+      "icon": "public/favicon.svg"
     },
     "linux": {
-      "target": ["AppImage", "deb"]
+      "target": ["AppImage", "deb"],
+      "category": "Development",
+      "icon": "public/favicon.svg",
+      "maintainer": "BobbleMMC <contact@bobblemmc.com>"
     }
   }
 }
