@@ -7,32 +7,104 @@ on:
     branches: [main]
   workflow_dispatch:
 
+env:
+  NODE_VERSION: '18'
+  CACHE_DIR: minecraft-mod-ui
+
 jobs:
-  build:
-    name: Build for ${{ matrix.os }}
-    runs-on: ${{ matrix.os }}
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - os: windows-latest
-            arch: x64
-            platform: win
-          - os: macos-latest
-            arch: universal
-            platform: mac
-          - os: ubuntu-latest
-            arch: x64
-            platform: linux
+  build-windows:
+    name: Build Windows Installer
+    runs-on: windows-latest
+    timeout-minutes: 45
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '18'
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: minecraft-mod-ui/package-lock.json
+
+      - name: Install dependencies
+        working-directory: minecraft-mod-ui
+        run: npm install --legacy-peer-deps
+        env:
+          npm_config_build_from_source: true
+
+      - name: Type check
+        working-directory: minecraft-mod-ui
+        run: npm run type-check
+
+      - name: Build React app
+        working-directory: minecraft-mod-ui
+        run: npm run build
+        env:
+          CI: true
+          VITE_API_URL: ${{ secrets.VITE_API_URL || '' }}
+
+      - name: Compile Electron files
+        working-directory: minecraft-mod-ui
+        run: npm run compile:electron
+
+      - name: Build Windows installer (NSIS)
+        working-directory: minecraft-mod-ui
+        run: npx electron-builder --win nsis --publish never
+        env:
+          CI: true
+
+      - name: Build Windows portable (Standalone EXE)
+        working-directory: minecraft-mod-ui
+        run: npx electron-builder --win portable --publish never
+        env:
+          CI: true
+
+      - name: List generated artifacts
+        run: ls -R minecraft-mod-ui/release/
+
+      - name: Upload Windows artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: installer-windows-x64
+          path: minecraft-mod-ui/release/*.exe
+          retention-days: 30
+          if-no-files-found: warn
+
+      - name: Create checksums
+        working-directory: minecraft-mod-ui/release
+        run: |
+          certutil -hashfile *.exe SHA256 | Out-File -FilePath checksums.txt
+          Get-ChildItem *.exe | ForEach-Object { 
+            $hash = (Get-FileHash $_.FullName -Algorithm SHA256).Hash
+            Add-Content checksums.txt "$hash  $($_.Name)"
+          }
+
+      - name: Upload checksums
+        uses: actions/upload-artifact@v4
+        with:
+          name: checksums-windows
+          path: minecraft-mod-ui/release/checksums.txt
+          retention-days: 30
+
+  build-macos:
+    name: Build macOS Installer
+    runs-on: macos-latest
+    timeout-minutes: 45
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
           cache-dependency-path: minecraft-mod-ui/package-lock.json
 
@@ -44,53 +116,118 @@ jobs:
         working-directory: minecraft-mod-ui
         run: npm run type-check
 
-      - name: Build and package
+      - name: Build React app
         working-directory: minecraft-mod-ui
-        run: npm run build:electron
+        run: npm run build
         env:
           CI: true
 
-      - name: Upload artifacts
+      - name: Compile Electron files
+        working-directory: minecraft-mod-ui
+        run: npm run compile:electron
+
+      - name: Build macOS DMG
+        working-directory: minecraft-mod-ui
+        run: npx electron-builder --mac dmg --publish never
+        env:
+          CI: true
+
+      - name: Build macOS ZIP
+        working-directory: minecraft-mod-ui
+        run: npx electron-builder --mac zip --publish never
+        env:
+          CI: true
+
+      - name: Upload macOS artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: installers-${{ matrix.platform }}-${{ matrix.arch }}
-          path: minecraft-mod-ui/release/
+          name: installer-macos-universal
+          path: minecraft-mod-ui/release/*.{dmg,zip}
           retention-days: 30
+          if-no-files-found: warn
 
-      - name: Create Release (Windows)
-        if: matrix.os == 'windows-latest' && startsWith(github.ref, 'refs/tags/')
-        uses: softprops/action-gh-release@v1
-        with:
-          files: minecraft-mod-ui/release/**/*.exe
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  build-linux:
+    name: Build Linux Installer
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
 
-      - name: Create Release (macOS)
-        if: matrix.os == 'macos-latest' && startsWith(github.ref, 'refs/tags/')
-        uses: softprops/action-gh-release@v1
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
         with:
-          files: minecraft-mod-ui/release/**/*.{dmg,zip}
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 0
 
-      - name: Create Release (Linux)
-        if: matrix.os == 'ubuntu-latest' && startsWith(github.ref, 'refs/tags/')
-        uses: softprops/action-gh-release@v1
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
         with:
-          files: minecraft-mod-ui/release/**/*.AppImage
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: minecraft-mod-ui/package-lock.json
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libfuse2 libxss1 libappindicator1
+
+      - name: Install dependencies
+        working-directory: minecraft-mod-ui
+        run: npm install --legacy-peer-deps
+
+      - name: Type check
+        working-directory: minecraft-mod-ui
+        run: npm run type-check
+
+      - name: Build React app
+        working-directory: minecraft-mod-ui
+        run: npm run build
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CI: true
+
+      - name: Compile Electron files
+        working-directory: minecraft-mod-ui
+        run: npm run compile:electron
+
+      - name: Build Linux AppImage
+        working-directory: minecraft-mod-ui
+        run: npx electron-builder --linux AppImage --publish never
+        env:
+          CI: true
+
+      - name: Build Linux DEB
+        working-directory: minecraft-mod-ui
+        run: npx electron-builder --linux deb --publish never
+        env:
+          CI: true
+
+      - name: Upload Linux artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: installer-linux-x64
+          path: minecraft-mod-ui/release/*.{AppImage,deb}
+          retention-days: 30
+          if-no-files-found: warn
 
   create-release:
     name: Create GitHub Release
-    needs: build
+    needs: [build-windows, build-macos, build-linux]
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/')
+    timeout-minutes: 30
+
     steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
       - name: Download all artifacts
         uses: actions/download-artifact@v4
         with:
           path: artifacts
+
+      - name: Organize artifacts
+        run: |
+          mkdir -p release
+          find artifacts -type f \( -name "*.exe" -o -name "*.dmg" -o -name "*.zip" -o -name "*.AppImage" -o -name "*.deb" -o -name "checksums.txt" \) -exec mv {} release/ \;
+          ls -lah release/
 
       - name: Create Release
         uses: softprops/action-gh-release@v1
@@ -100,29 +237,46 @@ jobs:
 
             Desktop application installers for all platforms.
 
-            ## Downloads
+            ## 📥 Downloads
 
-            ### Windows
-            - NSIS Installer (.exe) - Full installation wizard
-            - Portable Executable (.exe) - No installation required
+            ### 🪟 Windows
+            - **NSIS Installer** (`MinecraftModGenerator Setup.exe`) - Full installation wizard with registry integration
+            - **Portable Executable** (`MinecraftModGenerator.exe`) - No installation required, run anywhere
 
-            ### macOS
-            - DMG Image (.dmg) - Drag & drop installation
-            - ZIP Archive (.zip) - Manual installation
+            ### 🍎 macOS
+            - **DMG Image** (`.dmg`) - Drag & drop installation
+            - **ZIP Archive** (`.zip`) - Manual installation
 
-            ### Linux
-            - AppImage (.AppImage) - Universal executable, no installation needed
+            ### 🐧 Linux
+            - **AppImage** (`.AppImage`) - Universal executable, no installation needed
+            - **DEB Package** (`.deb`) - Debian/Ubuntu package manager installation
 
-            ## Installation Instructions
+            ## 📋 Installation Instructions
 
-            See [INSTALLER_GUIDE.md](https://github.com/BobbleMMC/for-kiro/blob/main/INSTALLER_GUIDE.md) for detailed installation instructions.
+            See [INSTALLER_GUIDE.md](https://github.com/BobbleMMC/for-kiro/blob/main/INSTALLER_GUIDE.md) for detailed installation instructions for your platform.
 
-            ## Release Notes
+            ## ℹ️ Release Notes
 
-            - Version: ${{ github.ref_name }}
-            - Built with Electron 28
-            - React 19 + TypeScript
-            - All platforms supported
-          files: artifacts/**/*
+            - **Version:** ${{ github.ref_name }}
+            - **Built with:** Electron 28, React 19, TypeScript
+            - **Platforms:** Windows (x64), macOS (Universal), Linux (x64)
+            - **Date:** $(date -u +'%Y-%m-%d %H:%M:%S UTC')
+
+            ## 🔐 Verify Downloads
+
+            SHA256 checksums are available in `checksums-windows.txt` for Windows builds.
+
+            ## 🚀 Quick Start
+
+            1. Download the installer for your platform
+            2. Run the installer or extract the portable version
+            3. Launch Minecraft Mod Generator
+            4. Create your first mod!
+
+            ---
+            *Built and packaged by GitHub Actions CI/CD*
+          files: release/*
+          draft: false
+          prerelease: false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
