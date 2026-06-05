@@ -24,7 +24,7 @@ jobs:
 
       - name: Install dependencies
         working-directory: minecraft-mod-ui
-        run: npm ci --legacy-peer-deps
+        run: npm install --legacy-peer-deps
 
       - name: Build React app
         working-directory: minecraft-mod-ui
@@ -82,7 +82,7 @@ jobs:
 
       - name: Install dependencies
         working-directory: minecraft-mod-ui
-        run: npm ci --legacy-peer-deps
+        run: npm install --legacy-peer-deps
 
       - name: Build React app
         working-directory: minecraft-mod-ui
@@ -124,7 +124,7 @@ jobs:
 
       - name: Install dependencies
         working-directory: minecraft-mod-ui
-        run: npm ci --legacy-peer-deps
+        run: npm install --legacy-peer-deps
 
       - name: Build React app
         working-directory: minecraft-mod-ui
