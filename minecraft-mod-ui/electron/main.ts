@@ -1,14 +1,12 @@
-import { app, BrowserWindow, Menu, ipcMain, dialog } from 'electron';
-import path from 'path';
-import fs from 'fs';
+import { app, BrowserWindow, Menu, ipcMain, dialog, shell } from 'electron';
+import * as path from 'path';
+import * as fs from 'fs';
 
 let mainWindow: BrowserWindow | null = null;
 
-// Check if we're in development mode
 const isDev = process.env.VITE_DEV_SERVER_URL !== undefined;
 const preloadPath = path.join(__dirname, 'preload.js');
 
-// Create the browser window
 function createWindow() {
   mainWindow = new BrowserWindow({
     width: 1600,
@@ -23,14 +21,11 @@ function createWindow() {
     },
   });
 
-  // Load the app
   if (isDev) {
-    // Load from development server
-    mainWindow.loadURL(process.env.VITE_DEV_SERVER_URL as string);
+    mainWindow.loadURL(process.env.VITE_DEV_SERVER_URL!);
     mainWindow.webContents.openDevTools();
   } else {
-    // Load from production build
-    mainWindow.loadFile(path.join(__dirname, '../dist/index.html'));
+    mainWindow.loadFile(path.join(__dirname, 'dist', 'index.html'));
   }
 
   mainWindow.on('closed', () => {
@@ -40,9 +35,8 @@ function createWindow() {
   createMenu();
 }
 
-// Create application menu
 function createMenu() {
-  const template = [
+  const template: Electron.MenuItemConstructorOptions[] = [
     {
       label: 'File',
       submenu: [
@@ -69,50 +63,36 @@ function createMenu() {
         },
         { type: 'separator' },
         {
-          label: 'Import',
-          submenu: [
-            {
-              label: 'Import Project...',
-              click: async () => {
-                const result = await dialog.showOpenDialog(mainWindow as BrowserWindow, {
-                  properties: ['openFile'],
-                  filters: [{ name: 'Minecraft Mod Projects', extensions: ['json'] }],
-                });
-
-                if (!result.canceled) {
-                  const filePath = result.filePaths[0];
-                  const fileContent = fs.readFileSync(filePath, 'utf-8');
-                  mainWindow?.webContents.send('file:import-project', { path: filePath, data: fileContent });
-                }
-              },
-            },
-          ],
+          label: 'Import Project...',
+          click: async () => {
+            const result = await dialog.showOpenDialog(mainWindow!, {
+              properties: ['openFile'],
+              filters: [{ name: 'Minecraft Mod Projects', extensions: ['json'] }],
+            });
+            if (!result.canceled && result.filePaths[0]) {
+              const filePath = result.filePaths[0];
+              const fileContent = fs.readFileSync(filePath, 'utf-8');
+              mainWindow?.webContents.send('file:import-project', { path: filePath, data: fileContent });
+            }
+          },
         },
         {
-          label: 'Export',
-          submenu: [
-            {
-              label: 'Export Project...',
-              click: async () => {
-                const result = await dialog.showSaveDialog(mainWindow as BrowserWindow, {
-                  filters: [{ name: 'Minecraft Mod Projects', extensions: ['json'] }],
-                  defaultPath: 'mod-project.json',
-                });
-
-                if (!result.canceled) {
-                  mainWindow?.webContents.send('file:export-project', { path: result.filePath });
-                }
-              },
-            },
-          ],
+          label: 'Export Project...',
+          click: async () => {
+            const result = await dialog.showSaveDialog(mainWindow!, {
+              filters: [{ name: 'Minecraft Mod Projects', extensions: ['json'] }],
+              defaultPath: 'mod-project.json',
+            });
+            if (!result.canceled) {
+              mainWindow?.webContents.send('file:export-project', { path: result.filePath });
+            }
+          },
         },
         { type: 'separator' },
         {
           label: 'Exit',
           accelerator: 'CmdOrCtrl+Q',
-          click: () => {
-            app.quit();
-          },
+          click: () => { app.quit(); },
         },
       ],
     },
@@ -146,8 +126,7 @@ function createMenu() {
       submenu: [
         {
           label: 'Documentation',
-          click: async () => {
-            const { shell } = await import('electron');
+          click: () => {
             shell.openExternal('https://github.com/BobbleMMC/for-kiro#readme');
           },
         },
@@ -155,11 +134,10 @@ function createMenu() {
     },
   ];
 
-  const menu = Menu.buildFromTemplate(template as any);
+  const menu = Menu.buildFromTemplate(template);
   Menu.setApplicationMenu(menu);
 }
 
-// App event listeners
 app.on('ready', createWindow);
 
 app.on('window-all-closed', () => {
@@ -174,60 +152,55 @@ app.on('activate', () => {
   }
 });
 
-// IPC Handlers for file operations
-ipcMain.handle('file:save-project', async (event: any, projectData: Record<string, any>) => {
+// IPC Handlers
+ipcMain.handle('file:save-project', async (_event, projectData: Record<string, unknown>) => {
   try {
-    const result = await dialog.showSaveDialog(mainWindow as BrowserWindow, {
+    const result = await dialog.showSaveDialog(mainWindow!, {
       filters: [{ name: 'Minecraft Mod Projects', extensions: ['json'] }],
-      defaultPath: `${projectData.name || 'mod-project'}.json`,
+      defaultPath: `${(projectData.name as string) || 'mod-project'}.json`,
     });
-
-    if (!result.canceled) {
+    if (!result.canceled && result.filePath) {
       fs.writeFileSync(result.filePath, JSON.stringify(projectData, null, 2));
       return { success: true, path: result.filePath };
     }
     return { success: false };
-  } catch (error) {
-    console.error('Save project error:', error);
+  } catch (error: unknown) {
     return { success: false, error: (error as Error).message };
   }
 });
 
 ipcMain.handle('file:load-project', async () => {
   try {
-    const result = await dialog.showOpenDialog(mainWindow as BrowserWindow, {
+    const result = await dialog.showOpenDialog(mainWindow!, {
       properties: ['openFile'],
       filters: [{ name: 'Minecraft Mod Projects', extensions: ['json'] }],
     });
-
-    if (!result.canceled) {
+    if (!result.canceled && result.filePaths[0]) {
       const filePath = result.filePaths[0];
       const fileContent = fs.readFileSync(filePath, 'utf-8');
       return { success: true, path: filePath, data: JSON.parse(fileContent) };
     }
     return { success: false };
-  } catch (error) {
-    console.error('Load project error:', error);
+  } catch (error: unknown) {
     return { success: false, error: (error as Error).message };
   }
 });
 
-ipcMain.handle('file:export-project', async (event: any, projectData: Record<string, any>, format: 'json' | 'zip') => {
+ipcMain.handle('file:export-project', async (_event, projectData: Record<string, unknown>, format: string) => {
   try {
-    const result = await dialog.showSaveDialog(mainWindow as BrowserWindow, {
-      filters: [{ name: 'Export File', extensions: [format === 'zip' ? 'zip' : 'json'] }],
-      defaultPath: `${projectData.name || 'mod-project'}.${format}`,
+    const ext = format === 'zip' ? 'zip' : 'json';
+    const result = await dialog.showSaveDialog(mainWindow!, {
+      filters: [{ name: 'Export File', extensions: [ext] }],
+      defaultPath: `${(projectData.name as string) || 'mod-project'}.${ext}`,
     });
-
-    if (!result.canceled) {
+    if (!result.canceled && result.filePath) {
       if (format === 'json') {
         fs.writeFileSync(result.filePath, JSON.stringify(projectData, null, 2));
       }
       return { success: true, path: result.filePath };
     }
     return { success: false };
-  } catch (error) {
-    console.error('Export project error:', error);
+  } catch (error: unknown) {
     return { success: false, error: (error as Error).message };
   }
 });
@@ -239,27 +212,3 @@ ipcMain.handle('app:get-user-data-path', () => {
 ipcMain.handle('app:get-app-version', () => {
   return app.getVersion();
 });
-
-// Add security headers and CSP
-if (isDev) {
-  // Development: use Vite dev server
-} else {
-  // Production: add security headers
-  app.on('web-contents-created', (event, contents) => {
-    contents.on('will-navigate', (event, navigationUrl) => {
-      const parsedUrl = new URL(navigationUrl);
-      if (parsedUrl.origin !== 'file://') {
-        event.preventDefault();
-      }
-    });
-
-    contents.setWindowOpenHandler(({ url }) => {
-      if (url.startsWith('https:')) {
-        return { action: 'allow' };
-      }
-      return { action: 'deny' };
-    });
-  });
-}
-
-export {};

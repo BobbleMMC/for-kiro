@@ -2,7 +2,6 @@
   "name": "minecraft-mod-ui",
   "private": true,
   "version": "1.0.0",
-  "type": "module",
   "main": "main.js",
   "description": "React UI for Minecraft Mod Generator - Desktop Application",
   "homepage": "https://github.com/BobbleMMC/for-kiro",
@@ -14,15 +13,12 @@
   "scripts": {
     "dev": "vite",
     "dev:electron": "concurrently \"npm run dev\" \"wait-on http://localhost:5173 && electron .\"",
-    "build": "tsc -b && vite build",
+    "build": "vite build",
     "build:electron": "npm run build && npm run compile:electron && electron-builder",
-    "build:windows": "npm run build && npm run compile:electron && node build-windows.js",
-    "build:windows:nsis": "npm run build && npm run compile:electron && npx electron-builder --win nsis --publish never",
-    "build:windows:portable": "npm run build && npm run compile:electron && npx electron-builder --win portable --publish never",
+    "build:windows": "npm run build && npm run compile:electron && electron-builder --win --publish never",
     "compile:electron": "tsc --project electron/tsconfig.json",
     "lint": "eslint .",
     "preview": "vite preview",
-    "type-check": "tsc --noEmit",
     "test": "jest",
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage"
@@ -40,27 +36,26 @@
     "@testing-library/react": "^14.1.2",
     "@testing-library/user-event": "^14.5.1",
     "@types/jest": "^29.5.10",
-    "@types/node": "^24.12.3",
+    "@types/node": "^22.0.0",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
-    "@vitejs/plugin-react": "^6.0.1",
+    "@vitejs/plugin-react": "^4.3.4",
     "autoprefixer": "^10.5.0",
     "concurrently": "^8.2.2",
     "electron": "^28.0.0",
     "electron-builder": "^24.9.1",
-    "eslint": "^10.3.0",
-    "eslint-plugin-react-hooks": "^7.1.1",
-    "eslint-plugin-react-refresh": "^0.5.2",
-    "globals": "^17.6.0",
+    "eslint": "^9.0.0",
+    "eslint-plugin-react-hooks": "^5.0.0",
+    "eslint-plugin-react-refresh": "^0.4.0",
+    "globals": "^15.0.0",
     "jest": "^29.7.0",
     "jest-environment-jsdom": "^29.7.0",
     "postcss": "^8.5.15",
-    "sharp": "^0.34.5",
     "tailwindcss": "^4.3.0",
     "ts-jest": "^29.1.1",
-    "typescript": "~6.0.2",
-    "typescript-eslint": "^8.59.2",
-    "vite": "^8.0.12",
+    "typescript": "~5.6.0",
+    "typescript-eslint": "^8.0.0",
+    "vite": "^5.4.0",
     "wait-on": "^7.2.0"
   },
   "build": {
@@ -72,7 +67,6 @@
     },
     "files": [
       "dist/**/*",
-      "public/**/*",
       "main.js",
       "preload.js",
       "package.json"
@@ -84,15 +78,7 @@
       "target": [
         {
           "target": "nsis",
-          "arch": [
-            "x64"
-          ]
-        },
-        {
-          "target": "portable",
-          "arch": [
-            "x64"
-          ]
+          "arch": ["x64"]
         }
       ],
       "icon": "public/icon.png"
@@ -105,21 +91,14 @@
       "shortcutName": "Minecraft Mod Generator"
     },
     "mac": {
-      "target": [
-        "dmg",
-        "zip"
-      ],
-      "category": "public.app-category.productivity",
+      "target": ["dmg"],
+      "category": "public.app-category.developer-tools",
       "icon": "public/icon.png"
     },
     "linux": {
-      "target": [
-        "AppImage",
-        "deb"
-      ],
+      "target": ["AppImage"],
       "category": "Development",
-      "icon": "public/icon.png",
-      "maintainer": "BobbleMMC <contact@bobblemmc.com>"
+      "icon": "public/icon.png"
     }
   }
 }

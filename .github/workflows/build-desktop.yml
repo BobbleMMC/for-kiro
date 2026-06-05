@@ -2,274 +2,173 @@ name: Build Desktop Installers
 
 on:
   push:
-    branches: [main, develop]
-  pull_request:
     branches: [main]
   workflow_dispatch:
-
-env:
-  NODE_VERSION: '18'
-  CACHE_DIR: minecraft-mod-ui
 
 jobs:
   build-windows:
     name: Build Windows Installer
     runs-on: windows-latest
-    timeout-minutes: 45
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: 'npm'
-          cache-dependency-path: minecraft-mod-ui/package-lock.json
-
-      - name: Install dependencies
-        working-directory: minecraft-mod-ui
-        run: npm install --legacy-peer-deps
-        env:
-          npm_config_build_from_source: true
-
-      - name: Build React app
-        working-directory: minecraft-mod-ui
-        run: npx vite build
-        env:
-          CI: true
-
-      - name: Compile Electron files
-        working-directory: minecraft-mod-ui
-        run: npm run compile:electron
-
-      - name: Build Windows installer (NSIS)
-        working-directory: minecraft-mod-ui
-        run: npx electron-builder --win nsis --publish never
-        env:
-          CI: true
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Build Windows portable (Standalone EXE)
-        working-directory: minecraft-mod-ui
-        run: npx electron-builder --win portable --publish never
-        env:
-          CI: true
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: List generated artifacts
-        run: ls -R minecraft-mod-ui/release/
-
-      - name: Upload Windows artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: installer-windows-x64
-          path: minecraft-mod-ui/release/*.exe
-          retention-days: 30
-          if-no-files-found: warn
-
-      - name: Create checksums
-        working-directory: minecraft-mod-ui/release
-        run: |
-          certutil -hashfile *.exe SHA256 | Out-File -FilePath checksums.txt
-          Get-ChildItem *.exe | ForEach-Object { 
-            $hash = (Get-FileHash $_.FullName -Algorithm SHA256).Hash
-            Add-Content checksums.txt "$hash  $($_.Name)"
-          }
-
-      - name: Upload checksums
-        uses: actions/upload-artifact@v4
-        with:
-          name: checksums-windows
-          path: minecraft-mod-ui/release/checksums.txt
-          retention-days: 30
-
-  build-macos:
-    name: Build macOS Installer
-    runs-on: macos-latest
-    timeout-minutes: 45
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: 'npm'
-          cache-dependency-path: minecraft-mod-ui/package-lock.json
-
-      - name: Install dependencies
-        working-directory: minecraft-mod-ui
-        run: npm install --legacy-peer-deps
-
-      - name: Build React app
-        working-directory: minecraft-mod-ui
-        run: npx vite build
-        env:
-          CI: true
-
-      - name: Compile Electron files
-        working-directory: minecraft-mod-ui
-        run: npm run compile:electron
-
-      - name: Build macOS DMG
-        working-directory: minecraft-mod-ui
-        run: npx electron-builder --mac dmg --publish never
-        env:
-          CI: true
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Build macOS ZIP
-        working-directory: minecraft-mod-ui
-        run: npx electron-builder --mac zip --publish never
-        env:
-          CI: true
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Upload macOS artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: installer-macos-universal
-          path: minecraft-mod-ui/release/*.{dmg,zip}
-          retention-days: 30
-          if-no-files-found: warn
-
-  build-linux:
-    name: Build Linux Installer
-    runs-on: ubuntu-latest
-    timeout-minutes: 45
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: 'npm'
-          cache-dependency-path: minecraft-mod-ui/package-lock.json
-
-      - name: Install system dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y libfuse2 libxss1 libappindicator1
-
-      - name: Install dependencies
-        working-directory: minecraft-mod-ui
-        run: npm install --legacy-peer-deps
-
-      - name: Build React app
-        working-directory: minecraft-mod-ui
-        run: npx vite build
-        env:
-          CI: true
-
-      - name: Compile Electron files
-        working-directory: minecraft-mod-ui
-        run: npm run compile:electron
-
-      - name: Build Linux AppImage
-        working-directory: minecraft-mod-ui
-        run: npx electron-builder --linux AppImage --publish never
-        env:
-          CI: true
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Build Linux DEB
-        working-directory: minecraft-mod-ui
-        run: npx electron-builder --linux deb --publish never
-        env:
-          CI: true
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Upload Linux artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: installer-linux-x64
-          path: minecraft-mod-ui/release/*.{AppImage,deb}
-          retention-days: 30
-          if-no-files-found: warn
-
-  create-release:
-    name: Create GitHub Release
-    needs: [build-windows, build-macos, build-linux]
-    runs-on: ubuntu-latest
-    if: startsWith(github.ref, 'refs/tags/')
     timeout-minutes: 30
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+          cache-dependency-path: minecraft-mod-ui/package-lock.json
+
+      - name: Install dependencies
+        working-directory: minecraft-mod-ui
+        run: npm ci --legacy-peer-deps
+
+      - name: Build React app
+        working-directory: minecraft-mod-ui
+        run: npx vite build
+
+      - name: Compile Electron files
+        working-directory: minecraft-mod-ui
+        run: npx tsc --project electron/tsconfig.json
+
+      - name: Verify compiled files exist
+        working-directory: minecraft-mod-ui
+        shell: pwsh
+        run: |
+          if (!(Test-Path "main.js")) { throw "main.js not found" }
+          if (!(Test-Path "preload.js")) { throw "preload.js not found" }
+          if (!(Test-Path "dist/index.html")) { throw "dist/index.html not found" }
+          Write-Host "All required files present"
+
+      - name: Build Windows NSIS installer
+        working-directory: minecraft-mod-ui
+        run: npx electron-builder --win --publish never
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: List release files
+        working-directory: minecraft-mod-ui
+        shell: pwsh
+        run: Get-ChildItem -Path release -Recurse | Format-Table Name, Length
+
+      - name: Upload Windows installer
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-installer
+          path: |
+            minecraft-mod-ui/release/*.exe
+            minecraft-mod-ui/release/*.exe.blockmap
+          retention-days: 30
+          if-no-files-found: error
+
+  build-linux:
+    name: Build Linux AppImage
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+          cache-dependency-path: minecraft-mod-ui/package-lock.json
+
+      - name: Install dependencies
+        working-directory: minecraft-mod-ui
+        run: npm ci --legacy-peer-deps
+
+      - name: Build React app
+        working-directory: minecraft-mod-ui
+        run: npx vite build
+
+      - name: Compile Electron files
+        working-directory: minecraft-mod-ui
+        run: npx tsc --project electron/tsconfig.json
+
+      - name: Build Linux AppImage
+        working-directory: minecraft-mod-ui
+        run: npx electron-builder --linux --publish never
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload Linux installer
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-installer
+          path: minecraft-mod-ui/release/*.AppImage
+          retention-days: 30
+          if-no-files-found: error
+
+  build-macos:
+    name: Build macOS DMG
+    runs-on: macos-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+          cache-dependency-path: minecraft-mod-ui/package-lock.json
+
+      - name: Install dependencies
+        working-directory: minecraft-mod-ui
+        run: npm ci --legacy-peer-deps
+
+      - name: Build React app
+        working-directory: minecraft-mod-ui
+        run: npx vite build
+
+      - name: Compile Electron files
+        working-directory: minecraft-mod-ui
+        run: npx tsc --project electron/tsconfig.json
+
+      - name: Build macOS DMG
+        working-directory: minecraft-mod-ui
+        run: npx electron-builder --mac --publish never
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload macOS installer
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos-installer
+          path: minecraft-mod-ui/release/*.dmg
+          retention-days: 30
+          if-no-files-found: error
+
+  upload-to-release:
+    name: Upload to GitHub Release
+    needs: [build-windows, build-linux, build-macos]
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/')
+
+    steps:
       - name: Download all artifacts
         uses: actions/download-artifact@v4
         with:
           path: artifacts
 
-      - name: Organize artifacts
-        run: |
-          mkdir -p release
-          find artifacts -type f \( -name "*.exe" -o -name "*.dmg" -o -name "*.zip" -o -name "*.AppImage" -o -name "*.deb" -o -name "checksums.txt" \) -exec mv {} release/ \;
-          ls -lah release/
+      - name: List downloaded files
+        run: find artifacts -type f | sort
 
-      - name: Create Release
-        uses: softprops/action-gh-release@v1
+      - name: Upload to release
+        uses: softprops/action-gh-release@v2
         with:
-          body: |
-            # Minecraft Mod Generator v${{ github.ref_name }}
-
-            Desktop application installers for all platforms.
-
-            ## 📥 Downloads
-
-            ### 🪟 Windows
-            - **NSIS Installer** (`MinecraftModGenerator Setup.exe`) - Full installation wizard with registry integration
-            - **Portable Executable** (`MinecraftModGenerator.exe`) - No installation required, run anywhere
-
-            ### 🍎 macOS
-            - **DMG Image** (`.dmg`) - Drag & drop installation
-            - **ZIP Archive** (`.zip`) - Manual installation
-
-            ### 🐧 Linux
-            - **AppImage** (`.AppImage`) - Universal executable, no installation needed
-            - **DEB Package** (`.deb`) - Debian/Ubuntu package manager installation
-
-            ## 📋 Installation Instructions
-
-            See [INSTALLER_GUIDE.md](https://github.com/BobbleMMC/for-kiro/blob/main/INSTALLER_GUIDE.md) for detailed installation instructions for your platform.
-
-            ## ℹ️ Release Notes
-
-            - **Version:** ${{ github.ref_name }}
-            - **Built with:** Electron 28, React 19, TypeScript
-            - **Platforms:** Windows (x64), macOS (Universal), Linux (x64)
-            - **Date:** $(date -u +'%Y-%m-%d %H:%M:%S UTC')
-
-            ## 🔐 Verify Downloads
-
-            SHA256 checksums are available in `checksums-windows.txt` for Windows builds.
-
-            ## 🚀 Quick Start
-
-            1. Download the installer for your platform
-            2. Run the installer or extract the portable version
-            3. Launch Minecraft Mod Generator
-            4. Create your first mod!
-
-            ---
-            *Built and packaged by GitHub Actions CI/CD*
-          files: release/*
-          draft: false
-          prerelease: false
+          files: |
+            artifacts/windows-installer/*
+            artifacts/linux-installer/*
+            artifacts/macos-installer/*
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -2,16 +2,14 @@
   "compilerOptions": {
     "target": "ES2020",
     "module": "commonjs",
-    "moduleResolution": "node10",
+    "moduleResolution": "node",
     "outDir": "..",
     "strict": false,
     "skipLibCheck": true,
     "esModuleInterop": true,
     "resolveJsonModule": true,
     "declaration": false,
-    "sourceMap": false,
-    "ignoreDeprecations": "6.0"
+    "sourceMap": false
   },
-  "include": ["./*.ts"],
-  "exclude": []
+  "files": ["main.ts", "preload.ts"]
 }
