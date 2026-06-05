@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useProjectStore } from './stores/projectStore';
 import Layout from './components/layout/Layout';
 import Dashboard from './components/pages/Dashboard';
-import Workspace from './components/pages/Workspace';
+import { Workspace } from './components/pages/Workspace';
 import './App.css';
 
 export default function App() {
