@@ -10,9 +10,15 @@ export { ResourcePackManager, type ResourcePack, type ResourceItem } from './Res
 export { ExportMod, type ModExportSettings } from './ExportMod';
 export { ModelPreviewer, type BlockModel, type ModelElement } from './ModelPreviewer';
 export { GradleBuildConfig, type GradleConfig } from './GradleBuildConfig';
+export { BuildOutput } from './BuildOutput';
+export { BuildHistory } from './BuildHistory';
 export { DimensionEditor, type Dimension } from './DimensionEditor';
 export { AdvancementEditor, type Advancement } from './AdvancementEditor';
 export { EventHandler, type EventListener, type CustomEvent } from './EventHandler';
 export { AIChat } from './AIChat';
 export { AICodeGenerator } from './AICodeGenerator';
 export { AIModAdvisor } from './AIModAdvisor';
+export { AgentTaskDashboard } from './AgentTaskDashboard';
+export { CodeGenViewer } from './CodeGenViewer';
+export { ErrorFixAssistant } from './ErrorFixAssistant';
+export { PromptEngineer } from './PromptEngineer';
