@@ -15,9 +15,6 @@ Object.defineProperty(window, 'matchMedia', {
   })),
 });
 
-// Mock fetch
-global.fetch = jest.fn();
-
 // Suppress console errors in tests
 const originalError = console.error;
 beforeAll(() => {

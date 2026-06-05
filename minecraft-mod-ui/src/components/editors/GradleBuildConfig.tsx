@@ -1,5 +1,5 @@
-import { useState, type FC } from 'react';
-import { Plus, Trash2, FileCode, Download, Copy, Check } from 'lucide-react';
+import { useState, type FC, useMemo } from 'react';
+import { Plus, Trash2, FileCode, Download, Copy, Check, AlertCircle, Settings2 } from 'lucide-react';
 import Card from '../common/Card';
 import Button from '../common/Button';
 
@@ -40,10 +40,50 @@ export interface GradleConfig {
   useDataGen: boolean;
 }
 
+export interface ValidationError {
+  field: string;
+  message: string;
+}
+
 interface GradleBuildConfigProps {
   onConfigChange?: (config: GradleConfig) => void;
   onExport?: (gradle: string) => void;
 }
+
+// Validation helpers
+const validateModId = (modId: string): string | null => {
+  if (!modId) return 'Mod ID is required';
+  if (!/^[a-z0-9_]+$/.test(modId)) return 'Mod ID must contain only lowercase letters, numbers, and underscores';
+  return null;
+};
+
+const validateModName = (modName: string): string | null => {
+  if (!modName) return 'Mod Name is required';
+  if (modName.length > 50) return 'Mod Name must be less than 50 characters';
+  return null;
+};
+
+const validateVersion = (version: string): string | null => {
+  if (!version) return 'Version is required';
+  if (!/^\d+\.\d+\.\d+/.test(version)) return 'Version must follow semantic versioning (e.g., 1.0.0)';
+  return null;
+};
+
+const validateModGroup = (group: string): string | null => {
+  if (!group) return 'Group is required';
+  if (!/^[a-z][a-z0-9.]*[a-z0-9]$/.test(group)) return 'Group must be a valid Java package (e.g., com.example)';
+  return null;
+};
+
+const validateUrl = (url: string): string | null => {
+  if (!url) return 'URL is required';
+  try {
+    new URL(url);
+    return null;
+  } catch {
+    return 'Invalid URL format';
+  }
+};
 
 export const GradleBuildConfig: FC<GradleBuildConfigProps> = ({ onConfigChange, onExport }) => {
   const [config, setConfig] = useState<GradleConfig>({
@@ -71,6 +111,39 @@ export const GradleBuildConfig: FC<GradleBuildConfigProps> = ({ onConfigChange, 
   });
 
   const [copied, setCopied] = useState(false);
+
+  // Compute validation errors
+  const validationErrors = useMemo(() => {
+    const errors: Record<string, string | string[]> = {};
+    
+    const modIdError = validateModId(config.modId);
+    if (modIdError) errors.modId = modIdError;
+    
+    const modNameError = validateModName(config.modName);
+    if (modNameError) errors.modName = modNameError;
+    
+    const versionError = validateVersion(config.modVersion);
+    if (versionError) errors.modVersion = versionError;
+    
+    const groupError = validateModGroup(config.modGroup);
+    if (groupError) errors.modGroup = groupError;
+
+    // Validate dependencies
+    const invalidDeps = config.dependencies.filter(dep => dep.group && dep.name && dep.version === '');
+    if (invalidDeps.length > 0) {
+      errors.dependencies = `${invalidDeps.length} dependency(ies) missing version`;
+    }
+
+    // Validate repositories
+    const invalidRepos = config.repositories.filter(repo => repo.name && !validateUrl(repo.url));
+    if (invalidRepos.length > 0) {
+      errors.repositories = `${invalidRepos.length} repository(ies) with invalid URL`;
+    }
+
+    return errors;
+  }, [config]);
+
+  const isValid = Object.keys(validationErrors).length === 0;
 
   const updateConfig = (updates: Partial<GradleConfig>) => {
     const updated = { ...config, ...updates };
@@ -129,6 +202,34 @@ export const GradleBuildConfig: FC<GradleBuildConfigProps> = ({ onConfigChange, 
       return generateForgeGradle();
     }
     return generateFabricGradle();
+  };
+
+  const generateGradleProperties = (): string => {
+    return `# Gradle Properties for ${config.modName}
+org.gradle.jvmargs=-Xmx3G
+org.gradle.daemon=false
+
+# Minecraft and Mod Properties
+mod_id=${config.modId}
+mod_name=${config.modName}
+mod_version=${config.modVersion}
+mod_group=${config.modGroup}
+mod_author=${config.modAuthor}
+
+# Minecraft Properties
+minecraft_version=${config.minecraftVersion}
+java_version=${config.javaVersion}
+
+${config.loaderType === 'forge' || config.loaderType === 'neoforge' ? `# Forge Configuration
+forge_version=${config.forgeVersion}
+mappings_channel=${config.mappingsChannel}
+mappings_version=${config.mappingsVersion}` : `# Fabric Configuration
+fabric_loader_version=${config.fabricLoaderVersion}
+fabric_api_version=${config.fabricApiVersion}`}
+
+# Build Configuration
+org.gradle.parallel=true
+org.gradle.workers.max=8`;
   };
 
   const generateForgeGradle = (): string => {
@@ -290,6 +391,22 @@ jar {
 
   return (
     <div className="space-y-6">
+      {/* Validation Warnings */}
+      {!isValid && (
+        <Card className="p-4 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800">
+          <div className="flex gap-3">
+            <AlertCircle size={20} className="text-yellow-600 dark:text-yellow-500 flex-shrink-0 mt-0.5" />
+            <div>
+              <p className="font-semibold text-yellow-800 dark:text-yellow-200 mb-2">Configuration Issues</p>
+              <ul className="text-sm text-yellow-700 dark:text-yellow-300 space-y-1">
+                {Object.entries(validationErrors).map(([field, error]) => (
+                  <li key={field}>• <strong>{field}:</strong> {Array.isArray(error) ? error.join(', ') : error}</li>
+                ))}
+              </ul>
+            </div>
+          </div>
+        </Card>
+      )}
       {/* Mod Info */}
       <Card className="p-6">
         <h3 className="text-lg font-semibold mb-4 flex items-center">
@@ -303,9 +420,14 @@ jar {
               type="text"
               value={config.modId}
               onChange={(e) => updateConfig({ modId: e.target.value.toLowerCase() })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md dark:border-gray-600 dark:bg-gray-700 font-mono text-sm"
+              className={`w-full px-3 py-2 border rounded-md dark:bg-gray-700 font-mono text-sm ${
+                validationErrors.modId
+                  ? 'border-red-300 dark:border-red-600 bg-red-50 dark:bg-red-900/20'
+                  : 'border-gray-300 dark:border-gray-600'
+              }`}
               placeholder="examplemod"
             />
+            {validationErrors.modId && <p className="text-xs text-red-600 dark:text-red-400 mt-1">{validationErrors.modId as string}</p>}
           </div>
           <div>
             <label className="block text-sm font-medium mb-2">Mod Name</label>
@@ -313,8 +435,13 @@ jar {
               type="text"
               value={config.modName}
               onChange={(e) => updateConfig({ modName: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md dark:border-gray-600 dark:bg-gray-700"
+              className={`w-full px-3 py-2 border rounded-md dark:bg-gray-700 ${
+                validationErrors.modName
+                  ? 'border-red-300 dark:border-red-600 bg-red-50 dark:bg-red-900/20'
+                  : 'border-gray-300 dark:border-gray-600'
+              }`}
             />
+            {validationErrors.modName && <p className="text-xs text-red-600 dark:text-red-400 mt-1">{validationErrors.modName as string}</p>}
           </div>
           <div>
             <label className="block text-sm font-medium mb-2">Version</label>
@@ -322,9 +449,14 @@ jar {
               type="text"
               value={config.modVersion}
               onChange={(e) => updateConfig({ modVersion: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md dark:border-gray-600 dark:bg-gray-700 font-mono text-sm"
+              className={`w-full px-3 py-2 border rounded-md dark:bg-gray-700 font-mono text-sm ${
+                validationErrors.modVersion
+                  ? 'border-red-300 dark:border-red-600 bg-red-50 dark:bg-red-900/20'
+                  : 'border-gray-300 dark:border-gray-600'
+              }`}
               placeholder="1.0.0"
             />
+            {validationErrors.modVersion && <p className="text-xs text-red-600 dark:text-red-400 mt-1">{validationErrors.modVersion as string}</p>}
           </div>
           <div>
             <label className="block text-sm font-medium mb-2">Group</label>
@@ -332,9 +464,14 @@ jar {
               type="text"
               value={config.modGroup}
               onChange={(e) => updateConfig({ modGroup: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md dark:border-gray-600 dark:bg-gray-700 font-mono text-sm"
+              className={`w-full px-3 py-2 border rounded-md dark:bg-gray-700 font-mono text-sm ${
+                validationErrors.modGroup
+                  ? 'border-red-300 dark:border-red-600 bg-red-50 dark:bg-red-900/20'
+                  : 'border-gray-300 dark:border-gray-600'
+              }`}
               placeholder="com.example"
             />
+            {validationErrors.modGroup && <p className="text-xs text-red-600 dark:text-red-400 mt-1">{validationErrors.modGroup as string}</p>}
           </div>
           <div>
             <label className="block text-sm font-medium mb-2">Author</label>
@@ -587,11 +724,11 @@ jar {
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-lg font-semibold">build.gradle Preview</h3>
           <div className="flex gap-2">
-            <Button onClick={handleCopy} size="sm" variant="outline">
+            <Button onClick={handleCopy} size="sm" variant="outline" disabled={!isValid}>
               {copied ? <Check size={16} className="mr-1" /> : <Copy size={16} className="mr-1" />}
               {copied ? 'Copied!' : 'Copy'}
             </Button>
-            <Button onClick={handleExport} size="sm">
+            <Button onClick={handleExport} size="sm" disabled={!isValid}>
               <Download size={16} className="mr-1" />
               Export
             </Button>
@@ -599,6 +736,32 @@ jar {
         </div>
         <div className="bg-gray-900 text-gray-100 p-4 rounded-md font-mono text-xs overflow-x-auto max-h-64 overflow-y-auto whitespace-pre">
           {generateGradleFile()}
+        </div>
+      </Card>
+
+      {/* gradle.properties Preview */}
+      <Card className="p-6 bg-gray-50 dark:bg-gray-800">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-lg font-semibold flex items-center">
+            <Settings2 size={18} className="mr-2" />
+            gradle.properties
+          </h3>
+          <Button 
+            onClick={() => {
+              const content = generateGradleProperties();
+              navigator.clipboard.writeText(content);
+              setCopied(true);
+              setTimeout(() => setCopied(false), 2000);
+            }}
+            size="sm"
+            variant="outline"
+          >
+            <Copy size={16} className="mr-1" />
+            Copy
+          </Button>
+        </div>
+        <div className="bg-gray-900 text-gray-100 p-4 rounded-md font-mono text-xs overflow-x-auto max-h-40 overflow-y-auto whitespace-pre">
+          {generateGradleProperties()}
         </div>
       </Card>
     </div>

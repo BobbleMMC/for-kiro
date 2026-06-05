@@ -10,19 +10,24 @@ import { ResourcePackManager } from '../editors/ResourcePackManager';
 import { ExportMod } from '../editors/ExportMod';
 import { ModelPreviewer } from '../editors/ModelPreviewer';
 import { GradleBuildConfig } from '../editors/GradleBuildConfig';
+import { BuildOutput } from '../editors/BuildOutput';
+import { BuildHistory } from '../editors/BuildHistory';
 import { DimensionEditor } from '../editors/DimensionEditor';
 import { AdvancementEditor } from '../editors/AdvancementEditor';
 import { EventHandler } from '../editors/EventHandler';
 import { AIChat } from '../editors/AIChat';
 import { AICodeGenerator } from '../editors/AICodeGenerator';
 import { AIModAdvisor } from '../editors/AIModAdvisor';
-import { Package, Settings, Code2, Palette, Globe, Zap, Box, FileCode, Trophy, Layers, Bot, Wand2, Lightbulb } from 'lucide-react';
+import { Package, Settings, Code2, Palette, Globe, Zap, Box, FileCode, Trophy, Layers, Bot, Wand2, Lightbulb, Hammer, Clock } from 'lucide-react';
+import type { BuildConfig, BuildResult } from '../../services/buildPipeline';
 
-type EditorTab = 'overview' | 'recipes' | 'entities' | 'enchantments' | 'biomes' | 'textures' | 'resources' | 'export' | 'model' | 'gradle' | 'dimensions' | 'advancements' | 'events' | 'ai-chat' | 'ai-codegen' | 'ai-advisor';
+type EditorTab = 'overview' | 'recipes' | 'entities' | 'enchantments' | 'biomes' | 'textures' | 'resources' | 'export' | 'model' | 'gradle' | 'build' | 'history' | 'dimensions' | 'advancements' | 'events' | 'ai-chat' | 'ai-codegen' | 'ai-advisor';
 
 const Workspace: FC = () => {
   const { currentProject } = useProjectStore();
   const [activeTab, setActiveTab] = useState<EditorTab>('overview');
+  const [buildConfig, setBuildConfig] = useState<BuildConfig | null>(null);
+  const [buildHistory, setBuildHistory] = useState<BuildResult[]>([]);
 
   if (!currentProject) {
     return (
@@ -38,6 +43,46 @@ const Workspace: FC = () => {
       </div>
     );
   }
+
+  // Create build config from current project
+  const currentBuildConfig: BuildConfig = {
+    modId: currentProject.namespace || 'examplemod',
+    modName: currentProject.name,
+    modVersion: currentProject.mod_version || '1.0.0',
+    modGroup: currentProject.namespace || 'com.example',
+    loaderType: (currentProject.mod_loader?.toLowerCase() as any) || 'forge',
+    minecraftVersion: currentProject.minecraft_version || '1.20.1',
+    javaVersion: '17',
+  };
+
+  const handleGradleConfigChange = (config: any) => {
+    setBuildConfig({
+      modId: config.modId,
+      modName: config.modName,
+      modVersion: config.modVersion,
+      modGroup: config.modGroup,
+      loaderType: config.loaderType,
+      minecraftVersion: config.minecraftVersion,
+      javaVersion: config.javaVersion,
+    });
+  };
+
+  const handleBuildComplete = (result: BuildResult) => {
+    setBuildHistory(prev => [result, ...prev]);
+  };
+
+  const handleRebuild = () => {
+    // In a real app, this would re-run the build
+    setActiveTab('build');
+  };
+
+  const handleDeleteBuild = () => {
+    // Delete build
+  };
+
+  const handleClearHistory = () => {
+    setBuildHistory([]);
+  };
 
   return (
     <div className="flex-1 flex flex-col">
@@ -115,6 +160,19 @@ const Workspace: FC = () => {
               label="Gradle"
               isActive={activeTab === 'gradle'}
               onClick={() => setActiveTab('gradle')}
+            />
+            <TabButton
+              icon={<Hammer size={18} />}
+              label="Build"
+              isActive={activeTab === 'build'}
+              onClick={() => setActiveTab('build')}
+            />
+            <TabButton
+              icon={<Clock size={18} />}
+              label="History"
+              isActive={activeTab === 'history'}
+              onClick={() => setActiveTab('history')}
+              badge={buildHistory.length > 0 ? buildHistory.length : undefined}
             />
             <TabButton
               icon={<Layers size={18} />}
@@ -220,7 +278,22 @@ const Workspace: FC = () => {
 
             {/* Gradle Build Config Tab */}
             {activeTab === 'gradle' && (
-              <GradleBuildConfig />
+              <GradleBuildConfig onConfigChange={handleGradleConfigChange} />
+            )}
+
+            {/* Build Output Tab */}
+            {activeTab === 'build' && (
+              <BuildOutput config={buildConfig || currentBuildConfig} onBuildComplete={handleBuildComplete} />
+            )}
+
+            {/* Build History Tab */}
+            {activeTab === 'history' && (
+              <BuildHistory 
+                builds={buildHistory} 
+                onRebuild={() => handleRebuild()}
+                onDelete={() => handleDeleteBuild()}
+                onClear={handleClearHistory}
+              />
             )}
 
             {/* Dimensions Tab */}
@@ -266,12 +339,13 @@ interface TabButtonProps {
   label: string;
   isActive: boolean;
   onClick: () => void;
+  badge?: number;
 }
 
-const TabButton: FC<TabButtonProps> = ({ icon, label, isActive, onClick }) => (
+const TabButton: FC<TabButtonProps> = ({ icon, label, isActive, onClick, badge }) => (
   <button
     onClick={onClick}
-    className={`flex items-center gap-2 px-4 py-3 font-medium transition whitespace-nowrap ${
+    className={`flex items-center gap-2 px-4 py-3 font-medium transition whitespace-nowrap relative ${
       isActive
         ? 'border-b-2 border-blue-600 text-blue-600 dark:text-blue-400'
         : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-300'
@@ -279,6 +353,11 @@ const TabButton: FC<TabButtonProps> = ({ icon, label, isActive, onClick }) => (
   >
     {icon}
     {label}
+    {badge && (
+      <span className="ml-1 px-2 py-0.5 text-xs bg-blue-600 dark:bg-blue-500 text-white rounded-full font-semibold">
+        {badge}
+      </span>
+    )}
   </button>
 );
 
