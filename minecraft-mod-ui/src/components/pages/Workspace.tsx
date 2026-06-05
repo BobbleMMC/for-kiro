@@ -8,9 +8,14 @@ import { BiomeEditor } from '../editors/BiomeEditor';
 import { TextureSelector } from '../editors/TextureSelector';
 import { ResourcePackManager } from '../editors/ResourcePackManager';
 import { ExportMod } from '../editors/ExportMod';
-import { Package, Settings, Code2, Palette, Globe, Zap } from 'lucide-react';
+import { ModelPreviewer } from '../editors/ModelPreviewer';
+import { GradleBuildConfig } from '../editors/GradleBuildConfig';
+import { DimensionEditor } from '../editors/DimensionEditor';
+import { AdvancementEditor } from '../editors/AdvancementEditor';
+import { EventHandler } from '../editors/EventHandler';
+import { Package, Settings, Code2, Palette, Globe, Zap, Box, FileCode, Trophy, Layers } from 'lucide-react';
 
-type EditorTab = 'overview' | 'recipes' | 'entities' | 'enchantments' | 'biomes' | 'textures' | 'resources' | 'export';
+type EditorTab = 'overview' | 'recipes' | 'entities' | 'enchantments' | 'biomes' | 'textures' | 'resources' | 'export' | 'model' | 'gradle' | 'dimensions' | 'advancements' | 'events';
 
 const Workspace: FC = () => {
   const { currentProject } = useProjectStore();
@@ -96,6 +101,36 @@ const Workspace: FC = () => {
               isActive={activeTab === 'export'}
               onClick={() => setActiveTab('export')}
             />
+            <TabButton
+              icon={<Box size={18} />}
+              label="Models"
+              isActive={activeTab === 'model'}
+              onClick={() => setActiveTab('model')}
+            />
+            <TabButton
+              icon={<FileCode size={18} />}
+              label="Gradle"
+              isActive={activeTab === 'gradle'}
+              onClick={() => setActiveTab('gradle')}
+            />
+            <TabButton
+              icon={<Layers size={18} />}
+              label="Dimensions"
+              isActive={activeTab === 'dimensions'}
+              onClick={() => setActiveTab('dimensions')}
+            />
+            <TabButton
+              icon={<Trophy size={18} />}
+              label="Advancements"
+              isActive={activeTab === 'advancements'}
+              onClick={() => setActiveTab('advancements')}
+            />
+            <TabButton
+              icon={<Zap size={18} />}
+              label="Events"
+              isActive={activeTab === 'events'}
+              onClick={() => setActiveTab('events')}
+            />
           </div>
         </div>
 
@@ -155,6 +190,31 @@ const Workspace: FC = () => {
             {/* Export Tab */}
             {activeTab === 'export' && (
               <ExportMod />
+            )}
+
+            {/* Model Previewer Tab */}
+            {activeTab === 'model' && (
+              <ModelPreviewer />
+            )}
+
+            {/* Gradle Build Config Tab */}
+            {activeTab === 'gradle' && (
+              <GradleBuildConfig />
+            )}
+
+            {/* Dimensions Tab */}
+            {activeTab === 'dimensions' && (
+              <DimensionEditor />
+            )}
+
+            {/* Advancements Tab */}
+            {activeTab === 'advancements' && (
+              <AdvancementEditor />
+            )}
+
+            {/* Events Tab */}
+            {activeTab === 'events' && (
+              <EventHandler />
             )}
           </div>
         </div>
