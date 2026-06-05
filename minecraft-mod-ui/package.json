@@ -55,6 +55,7 @@
     "jest": "^29.7.0",
     "jest-environment-jsdom": "^29.7.0",
     "postcss": "^8.5.15",
+    "sharp": "^0.34.5",
     "tailwindcss": "^4.3.0",
     "ts-jest": "^29.1.1",
     "typescript": "~6.0.2",
@@ -83,14 +84,18 @@
       "target": [
         {
           "target": "nsis",
-          "arch": ["x64"]
+          "arch": [
+            "x64"
+          ]
         },
         {
           "target": "portable",
-          "arch": ["x64"]
+          "arch": [
+            "x64"
+          ]
         }
       ],
-      "icon": "public/favicon.svg"
+      "icon": "public/icon.png"
     },
     "nsis": {
       "oneClick": false,
@@ -100,14 +105,20 @@
       "shortcutName": "Minecraft Mod Generator"
     },
     "mac": {
-      "target": ["dmg", "zip"],
+      "target": [
+        "dmg",
+        "zip"
+      ],
       "category": "public.app-category.productivity",
-      "icon": "public/favicon.svg"
+      "icon": "public/icon.png"
     },
     "linux": {
-      "target": ["AppImage", "deb"],
+      "target": [
+        "AppImage",
+        "deb"
+      ],
       "category": "Development",
-      "icon": "public/favicon.svg",
+      "icon": "public/icon.png",
       "maintainer": "BobbleMMC <contact@bobblemmc.com>"
     }
   }
