@@ -5,6 +5,10 @@
   "main": "main.js",
   "description": "React UI for Minecraft Mod Generator - Desktop Application",
   "homepage": "https://github.com/BobbleMMC/for-kiro",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/BobbleMMC/for-kiro.git"
+  },
   "author": {
     "name": "BobbleMMC",
     "email": "contact@bobblemmc.com"
@@ -60,6 +64,7 @@
   "build": {
     "appId": "com.bobblemmc.minecraftmodui",
     "productName": "Minecraft Mod Generator",
+    "publish": null,
     "directories": {
       "buildResources": "public",
       "output": "release"
