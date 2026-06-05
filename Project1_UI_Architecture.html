@@ -1,0 +1,746 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>UI Architecture - Minecraft Mod Generator</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            color: #333;
+            padding: 20px;
+            min-height: 100vh;
+        }
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+        .header {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            color: white;
+            padding: 40px 30px;
+            text-align: center;
+        }
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+        .content {
+            padding: 40px;
+        }
+        .section {
+            margin-bottom: 50px;
+        }
+        .section-title {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            color: white;
+            padding: 15px 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            font-size: 1.4em;
+            font-weight: bold;
+        }
+        .architecture-box {
+            background: #f8f9fa;
+            border: 2px solid #f5576c;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 30px;
+            overflow-x: auto;
+        }
+        .diagram {
+            background: #1e1e1e;
+            color: #d4d4d4;
+            padding: 20px;
+            border-radius: 8px;
+            font-family: monospace;
+            white-space: pre;
+            overflow-x: auto;
+            margin: 20px 0;
+            border-left: 4px solid #f5576c;
+            line-height: 1.6;
+        }
+        .component-card {
+            background: white;
+            border: 2px solid #f5576c;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        .component-title {
+            background: #f5576c;
+            color: white;
+            padding: 10px 15px;
+            border-radius: 5px;
+            margin: -20px -20px 15px -20px;
+            padding: 15px 20px;
+            font-weight: bold;
+            font-size: 1.1em;
+        }
+        .wireframe {
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            background: #fff;
+            margin: 20px 0;
+        }
+        .wireframe-header {
+            background: #f5576c;
+            color: white;
+            padding: 10px;
+            border-bottom: 2px solid #f5576c;
+            font-weight: bold;
+            text-align: center;
+        }
+        .wireframe-body {
+            display: grid;
+            grid-template-columns: 200px 1fr 200px;
+            gap: 10px;
+            padding: 20px;
+            min-height: 400px;
+        }
+        .wireframe-section {
+            background: #f0f0f0;
+            border: 1px dashed #999;
+            border-radius: 5px;
+            padding: 15px;
+            text-align: center;
+            color: #666;
+            font-weight: bold;
+        }
+        .wireframe-center {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .wireframe-toolbar {
+            background: #e0e0e0;
+            border: 1px solid #999;
+            border-radius: 3px;
+            padding: 10px;
+            text-align: center;
+            font-size: 0.9em;
+        }
+        .wireframe-editor {
+            background: white;
+            border: 1px solid #ddd;
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.9em;
+            color: #999;
+        }
+        .wireframe-console {
+            background: #1e1e1e;
+            color: #0f0;
+            border: 1px solid #999;
+            border-radius: 3px;
+            padding: 10px;
+            text-align: left;
+            font-size: 0.8em;
+            font-family: monospace;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background: white;
+            border-radius: 5px;
+            overflow: hidden;
+            margin: 15px 0;
+        }
+        thead {
+            background: #f5576c;
+            color: white;
+        }
+        th, td {
+            padding: 12px 15px;
+            text-align: left;
+            border: 1px solid #ddd;
+        }
+        tbody tr:nth-child(odd) {
+            background: #f9f9f9;
+        }
+        tbody tr:hover {
+            background: #f0f0f0;
+        }
+        .workflow-box {
+            background: #e8f5e9;
+            border-left: 4px solid #4caf50;
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 5px;
+        }
+        .workflow-box strong {
+            color: #2e7d32;
+        }
+        .tech-stack {
+            background: #fff3e0;
+            border-left: 4px solid #ff9800;
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 5px;
+        }
+        .tech-stack strong {
+            color: #e65100;
+        }
+        .note {
+            background: #fff3cd;
+            border-left: 4px solid #ffc107;
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 5px;
+        }
+        .note strong {
+            color: #856404;
+        }
+        .footer {
+            background: #f8f9fa;
+            padding: 20px;
+            text-align: center;
+            color: #666;
+            border-top: 1px solid #e9ecef;
+        }
+        ul, ol {
+            margin-left: 20px;
+            line-height: 1.8;
+        }
+        li {
+            margin: 8px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🎮 MINECRAFT MOD GENERATOR</h1>
+            <p>User Interface (UI) Architecture Dokumentatsiyasi</p>
+            <p style="font-size: 0.9em; margin-top: 15px;">Rasmiy Texnik Hujjat | v1.0</p>
+        </div>
+
+        <div class="content">
+            <!-- KIRISH -->
+            <div class="section">
+                <div class="section-title">📋 1. KIRISH</div>
+                <p>Ushbu hujjat Minecraft Mod Generator ilovasining foydalanuvchi interfeysi (UI) arxitekturasini batafsil tavsiflaydi. UI Qt/C++ yoki Electron asosida qurilgan bo'lib, foydalanuvchiga intuytiv va operatsion tajriba taqdim etadi.</p>
+                
+                <div class="tech-stack">
+                    <strong>🛠️ Texnologiya Tanlovi:</strong>
+                    <ul>
+                        <li><strong>Framework:</strong> Qt 6.x (C++) yoki Electron (JavaScript)</li>
+                        <li><strong>Backend Integration:</strong> REST API / gRPC</li>
+                        <li><strong>Styling:</strong> Material Design / Fluent Design</li>
+                        <li><strong>Database Connection:</strong> SQLite (local)</li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- UMUMIY ARXITEKTURA -->
+            <div class="section">
+                <div class="section-title">🏗️ 2. UMUMIY ARXITEKTURA</div>
+                
+                <div class="diagram">UI ARXITEKTURA QATLAMLARI:
+
+┌─────────────────────────────────────────────────────┐
+│          Presentation Layer (Qt/Electron)           │
+│  ┌─────────────────────────────────────────────┐   │
+│  │  View Layer                                 │   │
+│  │  - Dashboard Window                         │   │
+│  │  - Workspace Window                         │   │
+│  │  - Properties Panel                         │   │
+│  └─────────────────────────────────────────────┘   │
+├─────────────────────────────────────────────────────┤
+│          ViewModel/Controller Layer                 │
+│  ┌─────────────────────────────────────────────┐   │
+│  │  Controllers & Event Handlers               │   │
+│  │  - ProjectController                        │   │
+│  │  - BlockController                          │   │
+│  │  - ItemController                           │   │
+│  │  - BuildController                          │   │
+│  └─────────────────────────────────────────────┘   │
+├─────────────────────────────────────────────────────┤
+│          Service Layer                              │
+│  ┌─────────────────────────────────────────────┐   │
+│  │  Business Logic                             │   │
+│  │  - ProjectService                           │   │
+│  │  - FileService                              │   │
+│  │  - GradleService                            │   │
+│  │  - CodeGeneratorService                     │   │
+│  └─────────────────────────────────────────────┘   │
+├─────────────────────────────────────────────────────┤
+│          Data Access Layer                          │
+│  ┌─────────────────────────────────────────────┐   │
+│  │  Database & File Operations                 │   │
+│  │  - SQLiteRepository                         │   │
+│  │  - FileRepository                           │   │
+│  └─────────────────────────────────────────────┘   │
+└─────────────────────────────────────────────────────┘</div>
+            </div>
+
+            <!-- ASOSIY OYNALAR -->
+            <div class="section">
+                <div class="section-title">🪟 3. ASOSIY OYNALAR VA KOMPONENTLAR</div>
+
+                <!-- DASHBOARD -->
+                <div class="component-card">
+                    <div class="component-title">📁 DASHBOARD OYNASI</div>
+                    <p><strong>Maqsadi:</strong> Barcha mod loyihalari ro'yxati va yangi loyiha yaratish</p>
+                    
+                    <div class="wireframe">
+                        <div class="wireframe-header">📁 Minecraft Mod Generator - Dashboard</div>
+                        <div class="wireframe-body">
+                            <div style="grid-column: 1 / -1;">
+                                <div class="wireframe-toolbar" style="margin-bottom: 10px;">
+                                    🔍 [Search] | [New Project] | [Settings] | [Help]
+                                </div>
+                            </div>
+                            <div class="wireframe-section">
+                                PROJECTS<br>
+                                List<br>
+                                ─────────
+                            </div>
+                            <div class="wireframe-section" style="grid-column: 2; background: white; display: flex; flex-direction: column;">
+                                <div style="flex: 1; display: flex; align-items: center; justify-content: center; color: #999;">
+                                    Project Details / Properties
+                                </div>
+                            </div>
+                            <div class="wireframe-section">
+                                RECENT<br>
+                                Projects<br>
+                                ─────────
+                            </div>
+                        </div>
+                    </div>
+
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Element</th>
+                                <th>Tavsifi</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><strong>Search Bar</strong></td>
+                                <td>Proyektlarni nomga qarab qidirish</td>
+                            </tr>
+                            <tr>
+                                <td><strong>New Project Button</strong></td>
+                                <td>Yangi mod loyihasi yaratish dialogini ochadi</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Projects List</strong></td>
+                                <td>Barcha loyihalari chap tomonda ro'yxat ko'rinishida ko'rsatadi</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Project Details</strong></td>
+                                <td>Tanlangan proyektning asosiy ma'lumotlarini ko'rsatadi</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Recent Projects</strong></td>
+                                <td>Oxirgi 5 ta ochilgan proyektni ko'rsatadi</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- WORKSPACE -->
+                <div class="component-card">
+                    <div class="component-title">🛠️ WORKSPACE OYNASI (Asosiy Editor)</div>
+                    <p><strong>Maqsadi:</strong> Mod bloklari, itemlar va retseptlarini tahrir qilish</p>
+
+                    <div class="wireframe">
+                        <div class="wireframe-header">🛠️ Workspace - [Project Name]</div>
+                        <div class="wireframe-body" style="grid-template-columns: 180px 1fr 220px; gap: 8px;">
+                            <div style="grid-column: 1 / -1; margin-bottom: 10px;">
+                                <div class="wireframe-toolbar">
+                                    [File] [Edit] [View] [Build] [Tools] | Build | Run | Stop
+                                </div>
+                            </div>
+                            <div class="wireframe-section">
+                                📂 FILE EXPLORER<br>
+                                ├─ src/<br>
+                                ├─ resources/<br>
+                                ├─ blocks/<br>
+                                ├─ items/<br>
+                                └─ recipes/
+                            </div>
+                            <div class="wireframe-center">
+                                <div class="wireframe-toolbar">🔨 Editor Toolbar</div>
+                                <div class="wireframe-editor">
+                                    📝 VISUAL EDITOR / CODE EDITOR<br>
+                                    (Drag & Drop, JSON Editor, Properties)
+                                </div>
+                                <div class="wireframe-console">
+                                    > Build started...<br>
+                                    > Compilation successful<br>
+                                    >
+                                </div>
+                            </div>
+                            <div class="wireframe-section">
+                                ⚙️ PROPERTIES<br>
+                                ─────────────<br>
+                                Name: [input]<br>
+                                Color: [picker]<br>
+                                Hardness: [input]<br>
+                                [Apply] [Reset]
+                            </div>
+                        </div>
+                    </div>
+
+                    <p style="margin-top: 15px;"><strong>Komponentlar:</strong></p>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Komponent</th>
+                                <th>Joylashtirilishi</th>
+                                <th>Vazifasi</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><strong>File Explorer</strong></td>
+                                <td>Chap panel (180px)</td>
+                                <td>Proyekt fayl tuzilmasini ko'rsatadi va navigatsiya qiladi</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Visual Editor</strong></td>
+                                <td>Markaziy panel (flexible)</td>
+                                <td>Blok, item, retseptlarni vizual tahrirish</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Code Editor</strong></td>
+                                <td>Markaziy panel (toggle)</td>
+                                <td>Java, JSON kodini bevosita tahrir qilish</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Properties Panel</strong></td>
+                                <td>O'ng panel (220px)</td>
+                                <td>Tanlangan elementning qo'shimcha xususiyatlarini o'zgartiradish</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Console/Log</strong></td>
+                                <td>Pastki panel (optional)</td>
+                                <td>Build xatolarini va AI agentlar xabarlarini ko'rsatadi</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- DIALOG OYNALARI -->
+                <div class="component-card">
+                    <div class="component-title">💬 DIALOG VA POP-UP OYNALARI</div>
+                    
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Dialog Nomi</th>
+                                <th>Sababchiligi</th>
+                                <th>Elementlari</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><strong>New Project Dialog</strong></td>
+                                <td>Yangi loyiha yaratish</td>
+                                <td>Name, Minecraft Version (dropdown), Mod Loader (Forge/Fabric), Author</td>
+                            </tr>
+                            <tr>
+                                <td><strong>New Block Dialog</strong></td>
+                                <td>Yangi blok qo'shish</td>
+                                <td>Block Name, Display Name, Hardness slider, Resistance slider, Color Picker</td>
+                            </tr>
+                            <tr>
+                                <td><strong>New Item Dialog</strong></td>
+                                <td>Yangi item qo'shish</td>
+                                <td>Item Name, Display Name, Max Stack, Rarity dropdown, Texture uploader</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Build Settings Dialog</strong></td>
+                                <td>Build parametrlarini sozlash</td>
+                                <td>Gradle version, Java version, Output directory</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Settings Dialog</strong></td>
+                                <td>Ilova sozlamalarini o'zgartiradish</td>
+                                <td>Theme (Dark/Light), Language, Auto-save interval, Backup location</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+            </div>
+
+            <!-- KOMPONENT HIYERARXIYASI -->
+            <div class="section">
+                <div class="section-title">🌳 4. KOMPONENT HIYERARXIYASI</div>
+                
+                <div class="diagram">
+MainWindow
+├── MenuBar
+│   ├── File Menu (New, Open, Save, Exit)
+│   ├── Edit Menu (Undo, Redo, Cut, Copy, Paste)
+│   └── View Menu (Theme, Layout, Panels)
+├── ToolBar
+│   ├── Build Button
+│   ├── Run Button
+│   └── Settings Button
+├── DockWidgets (Resizable Panels)
+│   ├── FileExplorerPanel (Left)
+│   ├── PropertiesPanel (Right)
+│   └── ConsolePanel (Bottom)
+├── CentralWidget
+│   ├── TabWidget (Multiple tabs uchun)
+│   └── EditorWidget (Visual/Code editor)
+└── StatusBar
+    ├── Status Message
+    ├── Build Status
+    └── Line/Column Info
+                </div>
+            </div>
+
+            <!-- VORKFLOW -->
+            <div class="section">
+                <div class="section-title">⚙️ 5. FOYDALANUVCHI VORKFLOU</div>
+                
+                <div class="workflow-box">
+                    <strong>📍 Bosqich 1: Proyekt Yaratish</strong>
+                    <ul>
+                        <li>Dashboard'da "New Project" tugmasini bosing</li>
+                        <li>Dialog oynasi ochiladi</li>
+                        <li>Proyekt nomini, Minecraft versiyasini va Mod Loader'ni tanlang</li>
+                        <li>"Create" tugmasini bosing</li>
+                        <li>Workspace oynasi ochiladi</li>
+                    </ul>
+                </div>
+
+                <div class="workflow-box">
+                    <strong>📍 Bosqich 2: Blok Yaratish</strong>
+                    <ul>
+                        <li>Workspace'da "Blocks" papkasini tanlang</li>
+                        <li>Right-click → "New Block"</li>
+                        <li>Dialog oynasida blok xususiyatlarini kiriting</li>
+                        <li>Hardness va Resistance'ni slider orqali sozlang</li>
+                        <li>"Create" tugmasini bosing</li>
+                        <li>Blok File Explorer'da ko'rinadi</li>
+                    </ul>
+                </div>
+
+                <div class="workflow-box">
+                    <strong>📍 Bosqich 3: Qurish va Sinov</strong>
+                    <ul>
+                        <li>ToolBar'da "Build" tugmasini bosing</li>
+                        <li>Gradle avtomatik kompilyatsiya qiladi</li>
+                        <li>Console'da build loguylari ko'rsatiladi</li>
+                        <li>Build muvaffaq bo'lsa, "Run" tugmasini bosing</li>
+                        <li>Minecraft Sandbox o'chadi va mod jonli rejimda tekshiriladi</li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- RESPONSIV DIZAYN -->
+            <div class="section">
+                <div class="section-title">📱 6. RESPONSIV DIZAYN</div>
+                
+                <p><strong>Ekran O'lchamlari:</strong></p>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Device</th>
+                            <th>Minimal Width</th>
+                            <th>Layout</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>Desktop (Asosiy)</td>
+                            <td>1400px+</td>
+                            <td>3 Panel (Chap | Markaz | O'ng)</td>
+                        </tr>
+                        <tr>
+                            <td>Laptop</td>
+                            <td>1024px</td>
+                            <td>2 Panel (Chap | Markaz+O'ng)</td>
+                        </tr>
+                        <tr>
+                            <td>Tablet</td>
+                            <td>768px</td>
+                            <td>Stacked Layout (Vertikal)</td>
+                        </tr>
+                        <tr>
+                            <td>Mobile</td>
+                            <td>360px</td>
+                            <td>Single Panel + Bottom Navigation</td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <div class="note">
+                    <strong>📌 Tavsiya:</strong> Desktop va Laptop uchun Qt/C++ optimal, mobile uchun separate React/Flutter app tavsiya qilinadi.
+                </div>
+            </div>
+
+            <!-- DARK MODE SUPPORT -->
+            <div class="section">
+                <div class="section-title">🌙 7. DARK MODE VA TEMA TIZIMI</div>
+                
+                <p><strong>Qo'llab-quvvatlanadigan Temalar:</strong></p>
+                <ul>
+                    <li><strong>Light Mode:</strong> Default oq rang sxemasi</li>
+                    <li><strong>Dark Mode:</strong> Qora rang sxemasi (ko'zlarni aralashtirmaydi)</li>
+                    <li><strong>Custom Themes:</strong> Foydalanuvchi o'ziga moslab tema yaratishi mumkin</li>
+                </ul>
+
+                <p style="margin-top: 15px;"><strong>Rang Sxemasi:</strong></p>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Element</th>
+                            <th>Light Mode</th>
+                            <th>Dark Mode</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>Background</td>
+                            <td>#FFFFFF</td>
+                            <td>#1E1E1E</td>
+                        </tr>
+                        <tr>
+                            <td>Text</td>
+                            <td>#333333</td>
+                            <td>#EEEEEE</td>
+                        </tr>
+                        <tr>
+                            <td>Accent</td>
+                            <td>#F5576C</td>
+                            <td>#FF6B6B</td>
+                        </tr>
+                        <tr>
+                            <td>Secondary</td>
+                            <td>#F0F0F0</td>
+                            <td>#2D2D2D</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- KEYBOARD SHORTCUTS -->
+            <div class="section">
+                <div class="section-title">⌨️ 8. KEYBOARD SHORTCUT'LAR</div>
+                
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Shortcut</th>
+                            <th>Amal</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><strong>Ctrl+N</strong></td>
+                            <td>Yangi proyekt yaratish</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Ctrl+O</strong></td>
+                            <td>Proyektni ochish</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Ctrl+S</strong></td>
+                            <td>Proyektni saqlash</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Ctrl+Z</strong></td>
+                            <td>Oldingi amalni bekor qilish</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Ctrl+Shift+Z</strong></td>
+                            <td>Oriniga qo'yish</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Ctrl+B</strong></td>
+                            <td>Build qilish</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Ctrl+Shift+R</strong></td>
+                            <td>Run (Minecraft Sandbox)</td>
+                        </tr>
+                        <tr>
+                            <td><strong>F1</strong></td>
+                            <td>Help va dokumentatsiya</td>
+                        </tr>
+                        <tr>
+                            <td><strong>F5</strong></td>
+                            <td>Refresh/Reload</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- ACCESSIBILITY -->
+            <div class="section">
+                <div class="section-title">♿ 9. ACCESSIBILITY (A11Y)</div>
+                
+                <ul>
+                    <li><strong>Keyboard Navigation:</strong> Barcha elementlar Tab tugmasi bilan navigatsiya qilinishi kerak</li>
+                    <li><strong>Screen Reader Support:</strong> QT's accessibility framework ishlatish</li>
+                    <li><strong>Font Sizing:</strong> Foydalanuvchi shrift o'lchamini o'zgartiradish mumkin</li>
+                    <li><strong>Color Contrast:</strong> WCAG AA standartiga mos rangli contrast</li>
+                    <li><strong>High Contrast Mode:</strong> Yanada yaxshi ko'rinish uchun</li>
+                    <li><strong>Tooltip va Help Text:</strong> Hover'da qisqa tavsif ko'rsatish</li>
+                </ul>
+            </div>
+
+            <!-- ERROR HANDLING -->
+            <div class="section">
+                <div class="section-title">⚠️ 10. ERROR HANDLING VA USER FEEDBACK</div>
+                
+                <p><strong>Error Turlari:</strong></p>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Error Turi</th>
+                            <th>Foydalanuvchiga Ko'rsatilishi</th>
+                            <th>Misol</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>Validation Error</td>
+                            <td>Dialog'da qizil rang bilan warning</td>
+                            <td>"Blok nomini kiriting"</td>
+                        </tr>
+                        <tr>
+                            <td>File Error</td>
+                            <td>Toast notification (pastki burchakda)</td>
+                            <td>"Fayl saqlashda xato"</td>
+                        </tr>
+                        <tr>
+                            <td>Build Error</td>
+                            <td>Console'da red rang bilan xato</td>
+                            <td>"Gradle compilation failed"</td>
+                        </tr>
+                        <tr>
+                            <td>Network Error</td>
+                            <td>Retry dialog bilan modal popup</td>
+                            <td>"AI agentga ulanishda xato"</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+        </div>
+
+        <div class="footer">
+            <p><strong>Minecraft Mod Generator - UI Architecture v1.0</strong></p>
+            <p>© 2024 | Rasmiy Texnik Dokumentatsiya</p>
+            <p>Oxirgi yangilanish: 2024 yil iyun</p>
+        </div>
+    </div>
+</body>
+</html>

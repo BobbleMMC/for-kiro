@@ -1,0 +1,680 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Database Schema - Minecraft Mod Generator</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #333;
+            padding: 20px;
+            min-height: 100vh;
+        }
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 40px 30px;
+            text-align: center;
+        }
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+        .header p {
+            font-size: 1.1em;
+            opacity: 0.9;
+        }
+        .content {
+            padding: 40px;
+        }
+        .section {
+            margin-bottom: 50px;
+        }
+        .section-title {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 15px 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            font-size: 1.4em;
+            font-weight: bold;
+        }
+        .table-box {
+            background: #f8f9fa;
+            border: 2px solid #667eea;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 30px;
+            overflow-x: auto;
+        }
+        .table-name {
+            background: #667eea;
+            color: white;
+            padding: 10px 15px;
+            border-radius: 5px;
+            margin-bottom: 15px;
+            font-weight: bold;
+            font-size: 1.1em;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background: white;
+            border-radius: 5px;
+            overflow: hidden;
+        }
+        thead {
+            background: #667eea;
+            color: white;
+        }
+        th {
+            padding: 12px 15px;
+            text-align: left;
+            font-weight: bold;
+            border: 1px solid #ddd;
+        }
+        td {
+            padding: 12px 15px;
+            border: 1px solid #ddd;
+        }
+        tbody tr:nth-child(odd) {
+            background: #f9f9f9;
+        }
+        tbody tr:hover {
+            background: #f0f0f0;
+        }
+        .code-box {
+            background: #1e1e1e;
+            color: #d4d4d4;
+            padding: 20px;
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            overflow-x: auto;
+            margin: 20px 0;
+            border-left: 4px solid #667eea;
+        }
+        .code-box pre {
+            margin: 0;
+            line-height: 1.6;
+        }
+        .keyword { color: #569cd6; }
+        .string { color: #ce9178; }
+        .number { color: #b5cea8; }
+        .comment { color: #6a9955; }
+        .diagram {
+            background: #f8f9fa;
+            border: 2px solid #667eea;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+            text-align: center;
+            font-family: monospace;
+            white-space: pre;
+            overflow-x: auto;
+        }
+        .relationship {
+            background: #e8f4f8;
+            border-left: 4px solid #0288d1;
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 5px;
+        }
+        .relationship strong {
+            color: #0288d1;
+        }
+        .note {
+            background: #fff3e0;
+            border-left: 4px solid #ff9800;
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 5px;
+        }
+        .note strong {
+            color: #ff9800;
+        }
+        .footer {
+            background: #f8f9fa;
+            padding: 20px;
+            text-align: center;
+            color: #666;
+            border-top: 1px solid #e9ecef;
+        }
+        .page-break {
+            page-break-after: always;
+            margin: 50px 0;
+            border-top: 2px dashed #ddd;
+            padding-top: 30px;
+        }
+        .column-details {
+            background: #f0f4f8;
+            padding: 15px;
+            border-radius: 5px;
+            margin-top: 10px;
+        }
+        .column-details p {
+            margin: 8px 0;
+            line-height: 1.5;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🎮 MINECRAFT MOD GENERATOR</h1>
+            <p>Database Schema Dokumentatsiyasi</p>
+            <p style="font-size: 0.9em; margin-top: 15px;">Rasmiy Texnik Hujjat | v1.0</p>
+        </div>
+
+        <div class="content">
+            <!-- KIRISH -->
+            <div class="section">
+                <div class="section-title">📋 1. KIRISH (Introduction)</div>
+                <p>Ushbu hujjat Minecraft Mod Generator ilovasining ma'lumotlar bazasi tuzilmasini batafsil tavsiflaydi. SQLite relational database ishlatiladi loyiha ma'lumotlarini, mod komponentlarini va foydalanuvchi sozlamalarini saqlash uchun.</p>
+                
+                <div class="note">
+                    <strong>⚠️ Muhim:</strong> Ushbu schema asosiy ilovaning barcha xususiyatlarini qo'llab-quvvatlay olgan holda mo'ljallangan. Kelajakda yangi jadvallar qo'shilishi mumkin.
+                </div>
+            </div>
+
+            <!-- JADVALLAR RO'YXATI -->
+            <div class="section">
+                <div class="section-title">📊 2. ASOSIY JADVALLAR</div>
+                
+                <!-- PROJECTS JADVALI -->
+                <div class="table-box">
+                    <div class="table-name">📁 projects</div>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Ustun Nomi</th>
+                                <th>Turi</th>
+                                <th>Chegaralari</th>
+                                <th>Tavsifi</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><strong>id</strong></td>
+                                <td>INTEGER</td>
+                                <td>PRIMARY KEY, AUTOINCREMENT</td>
+                                <td>Unikal loyiha identifikatori</td>
+                            </tr>
+                            <tr>
+                                <td><strong>name</strong></td>
+                                <td>TEXT</td>
+                                <td>NOT NULL, UNIQUE</td>
+                                <td>Mod loyihasining nomi</td>
+                            </tr>
+                            <tr>
+                                <td><strong>description</strong></td>
+                                <td>TEXT</td>
+                                <td>NULL</td>
+                                <td>Loyihaning qisqa tavsifi</td>
+                            </tr>
+                            <tr>
+                                <td><strong>minecraft_version</strong></td>
+                                <td>TEXT</td>
+                                <td>NOT NULL</td>
+                                <td>Minecraft versiyasi (1.16.5, 1.18.2, 1.19.3 va h.k.)</td>
+                            </tr>
+                            <tr>
+                                <td><strong>mod_loader</strong></td>
+                                <td>TEXT</td>
+                                <td>NOT NULL</td>
+                                <td>Mod yuklovchi (Forge, Fabric, NeoForge)</td>
+                            </tr>
+                            <tr>
+                                <td><strong>author</strong></td>
+                                <td>TEXT</td>
+                                <td>NULL</td>
+                                <td>Mod muallifi nomi</td>
+                            </tr>
+                            <tr>
+                                <td><strong>created_at</strong></td>
+                                <td>DATETIME</td>
+                                <td>DEFAULT CURRENT_TIMESTAMP</td>
+                                <td>Yaratilgan sana va vaqti</td>
+                            </tr>
+                            <tr>
+                                <td><strong>updated_at</strong></td>
+                                <td>DATETIME</td>
+                                <td>DEFAULT CURRENT_TIMESTAMP</td>
+                                <td>Oxirgi o'zgarish vaqti</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- BLOCKS JADVALI -->
+                <div class="table-box">
+                    <div class="table-name">🧱 blocks</div>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Ustun Nomi</th>
+                                <th>Turi</th>
+                                <th>Chegaralari</th>
+                                <th>Tavsifi</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><strong>id</strong></td>
+                                <td>INTEGER</td>
+                                <td>PRIMARY KEY, AUTOINCREMENT</td>
+                                <td>Unikal blok identifikatori</td>
+                            </tr>
+                            <tr>
+                                <td><strong>project_id</strong></td>
+                                <td>INTEGER</td>
+                                <td>NOT NULL, FOREIGN KEY</td>
+                                <td>Bog'langan proyekt ID'si</td>
+                            </tr>
+                            <tr>
+                                <td><strong>block_name</strong></td>
+                                <td>TEXT</td>
+                                <td>NOT NULL</td>
+                                <td>Blokka berish nomi (masalan: "emerald_ore")</td>
+                            </tr>
+                            <tr>
+                                <td><strong>display_name</strong></td>
+                                <td>TEXT</td>
+                                <td>NULL</td>
+                                <td>Foydalanuvchi uchun ko'rinadigan nomi</td>
+                            </tr>
+                            <tr>
+                                <td><strong>hardness</strong></td>
+                                <td>REAL</td>
+                                <td>NOT NULL</td>
+                                <td>Blok qalinligi (0.0 - 50.0)</td>
+                            </tr>
+                            <tr>
+                                <td><strong>resistance</strong></td>
+                                <td>REAL</td>
+                                <td>NOT NULL</td>
+                                <td>Blok chidamliligi (0.0 - 600.0)</td>
+                            </tr>
+                            <tr>
+                                <td><strong>texture_url</strong></td>
+                                <td>TEXT</td>
+                                <td>NULL</td>
+                                <td>Tekstura fayli yo'li</td>
+                            </tr>
+                            <tr>
+                                <td><strong>color_hex</strong></td>
+                                <td>TEXT</td>
+                                <td>NULL</td>
+                                <td>RGB rang kodi (#RRGGBB)</td>
+                            </tr>
+                            <tr>
+                                <td><strong>created_at</strong></td>
+                                <td>DATETIME</td>
+                                <td>DEFAULT CURRENT_TIMESTAMP</td>
+                                <td>Yaratilgan sana</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- ITEMS JADVALI -->
+                <div class="table-box">
+                    <div class="table-name">🎒 items</div>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Ustun Nomi</th>
+                                <th>Turi</th>
+                                <th>Chegaralari</th>
+                                <th>Tavsifi</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><strong>id</strong></td>
+                                <td>INTEGER</td>
+                                <td>PRIMARY KEY, AUTOINCREMENT</td>
+                                <td>Unikal item identifikatori</td>
+                            </tr>
+                            <tr>
+                                <td><strong>project_id</strong></td>
+                                <td>INTEGER</td>
+                                <td>NOT NULL, FOREIGN KEY</td>
+                                <td>Bog'langan proyekt ID'si</td>
+                            </tr>
+                            <tr>
+                                <td><strong>item_name</strong></td>
+                                <td>TEXT</td>
+                                <td>NOT NULL</td>
+                                <td>Item'ga berish nomi (masalan: "emerald_gem")</td>
+                            </tr>
+                            <tr>
+                                <td><strong>display_name</strong></td>
+                                <td>TEXT</td>
+                                <td>NULL</td>
+                                <td>Foydalanuvchi uchun ko'rinadigan nomi</td>
+                            </tr>
+                            <tr>
+                                <td><strong>max_stack</strong></td>
+                                <td>INTEGER</td>
+                                <td>NOT NULL</td>
+                                <td>Maksimal stack hajmi (1-64)</td>
+                            </tr>
+                            <tr>
+                                <td><strong>rarity</strong></td>
+                                <td>TEXT</td>
+                                <td>NULL</td>
+                                <td>Item qimmatiligi (common, uncommon, rare, epic, legendary)</td>
+                            </tr>
+                            <tr>
+                                <td><strong>texture_url</strong></td>
+                                <td>TEXT</td>
+                                <td>NULL</td>
+                                <td>Tekstura fayli yo'li</td>
+                            </tr>
+                            <tr>
+                                <td><strong>created_at</strong></td>
+                                <td>DATETIME</td>
+                                <td>DEFAULT CURRENT_TIMESTAMP</td>
+                                <td>Yaratilgan sana</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- CRAFTING_RECIPES JADVALI -->
+                <div class="table-box">
+                    <div class="table-name">⚙️ crafting_recipes</div>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Ustun Nomi</th>
+                                <th>Turi</th>
+                                <th>Chegaralari</th>
+                                <th>Tavsifi</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><strong>id</strong></td>
+                                <td>INTEGER</td>
+                                <td>PRIMARY KEY, AUTOINCREMENT</td>
+                                <td>Unikal retsept identifikatori</td>
+                            </tr>
+                            <tr>
+                                <td><strong>project_id</strong></td>
+                                <td>INTEGER</td>
+                                <td>NOT NULL, FOREIGN KEY</td>
+                                <td>Bog'langan proyekt ID'si</td>
+                            </tr>
+                            <tr>
+                                <td><strong>recipe_name</strong></td>
+                                <td>TEXT</td>
+                                <td>NOT NULL</td>
+                                <td>Retsept nomi</td>
+                            </tr>
+                            <tr>
+                                <td><strong>result_item_id</strong></td>
+                                <td>INTEGER</td>
+                                <td>NOT NULL, FOREIGN KEY</td>
+                                <td>Natija item ID'si</td>
+                            </tr>
+                            <tr>
+                                <td><strong>recipe_json</strong></td>
+                                <td>TEXT</td>
+                                <td>NOT NULL</td>
+                                <td>Retsept formati JSON'da</td>
+                            </tr>
+                            <tr>
+                                <td><strong>created_at</strong></td>
+                                <td>DATETIME</td>
+                                <td>DEFAULT CURRENT_TIMESTAMP</td>
+                                <td>Yaratilgan sana</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+            </div>
+
+            <!-- ALOQALAR -->
+            <div class="section">
+                <div class="section-title">🔗 3. JADVALLAR ORASIDAGI ALOQALAR</div>
+                
+                <div class="relationship">
+                    <strong>projects ← blocks:</strong> Har bir blok bitta proyektga tegishli (1:Many)
+                    <br>Foreign Key: blocks.project_id → projects.id
+                </div>
+
+                <div class="relationship">
+                    <strong>projects ← items:</strong> Har bir item bitta proyektga tegishli (1:Many)
+                    <br>Foreign Key: items.project_id → projects.id
+                </div>
+
+                <div class="relationship">
+                    <strong>projects ← crafting_recipes:</strong> Har bir retsept bitta proyektga tegishli (1:Many)
+                    <br>Foreign Key: crafting_recipes.project_id → projects.id
+                </div>
+
+                <div class="relationship">
+                    <strong>items ← crafting_recipes:</strong> Har bir retsept bitta item yaratadi (1:Many)
+                    <br>Foreign Key: crafting_recipes.result_item_id → items.id
+                </div>
+
+                <div class="diagram">ER Diagramma:
+
+                    ┌─────────────┐
+                    │  projects   │
+                    │─────────────│
+                    │ id (PK)     │
+                    │ name        │
+                    │ version     │
+                    └─────────────┘
+                         │
+            ┌────────────┼────────────┐
+            │            │            │
+            ▼            ▼            ▼
+        ┌──────────┐ ┌──────────┐ ┌──────────────────┐
+        │  blocks  │ │  items   │ │crafting_recipes  │
+        │──────────│ │──────────│ │──────────────────│
+        │id (PK)   │ │id (PK)   │ │id (PK)           │
+        │proj_id   │ │proj_id   │ │proj_id (FK)      │
+        │name      │ │name      │ │result_item_id FK │
+        │hardness  │ │max_stack │ │recipe_json       │
+        │resistance│ │rarity    │ │                  │
+        └──────────┘ └──────────┘ └──────────────────┘
+                </div>
+            </div>
+
+            <!-- SQL SKRIPTI -->
+            <div class="section">
+                <div class="section-title">💻 4. TO'LIQ SQL SKRIPTI</div>
+                
+                <div class="code-box">
+                    <pre><span class="comment">-- Minecraft Mod Generator - Database Schema</span>
+<span class="comment">-- SQLite Format</span>
+
+<span class="comment">-- PROJECTS JADVALI</span>
+<span class="keyword">CREATE TABLE</span> projects (
+    id <span class="keyword">INTEGER PRIMARY KEY AUTOINCREMENT</span>,
+    name <span class="keyword">TEXT NOT NULL UNIQUE</span>,
+    description <span class="keyword">TEXT</span>,
+    minecraft_version <span class="keyword">TEXT NOT NULL</span>,
+    mod_loader <span class="keyword">TEXT NOT NULL</span>,
+    author <span class="keyword">TEXT</span>,
+    created_at <span class="keyword">DATETIME DEFAULT CURRENT_TIMESTAMP</span>,
+    updated_at <span class="keyword">DATETIME DEFAULT CURRENT_TIMESTAMP</span>
+);
+
+<span class="comment">-- BLOCKS JADVALI</span>
+<span class="keyword">CREATE TABLE</span> blocks (
+    id <span class="keyword">INTEGER PRIMARY KEY AUTOINCREMENT</span>,
+    project_id <span class="keyword">INTEGER NOT NULL</span>,
+    block_name <span class="keyword">TEXT NOT NULL</span>,
+    display_name <span class="keyword">TEXT</span>,
+    hardness <span class="keyword">REAL NOT NULL</span>,
+    resistance <span class="keyword">REAL NOT NULL</span>,
+    texture_url <span class="keyword">TEXT</span>,
+    color_hex <span class="keyword">TEXT</span>,
+    created_at <span class="keyword">DATETIME DEFAULT CURRENT_TIMESTAMP</span>,
+    <span class="keyword">FOREIGN KEY</span> (project_id) <span class="keyword">REFERENCES</span> projects(id)
+        <span class="keyword">ON DELETE CASCADE</span>
+);
+
+<span class="comment">-- ITEMS JADVALI</span>
+<span class="keyword">CREATE TABLE</span> items (
+    id <span class="keyword">INTEGER PRIMARY KEY AUTOINCREMENT</span>,
+    project_id <span class="keyword">INTEGER NOT NULL</span>,
+    item_name <span class="keyword">TEXT NOT NULL</span>,
+    display_name <span class="keyword">TEXT</span>,
+    max_stack <span class="keyword">INTEGER NOT NULL</span>,
+    rarity <span class="keyword">TEXT</span>,
+    texture_url <span class="keyword">TEXT</span>,
+    created_at <span class="keyword">DATETIME DEFAULT CURRENT_TIMESTAMP</span>,
+    <span class="keyword">FOREIGN KEY</span> (project_id) <span class="keyword">REFERENCES</span> projects(id)
+        <span class="keyword">ON DELETE CASCADE</span>
+);
+
+<span class="comment">-- CRAFTING_RECIPES JADVALI</span>
+<span class="keyword">CREATE TABLE</span> crafting_recipes (
+    id <span class="keyword">INTEGER PRIMARY KEY AUTOINCREMENT</span>,
+    project_id <span class="keyword">INTEGER NOT NULL</span>,
+    recipe_name <span class="keyword">TEXT NOT NULL</span>,
+    result_item_id <span class="keyword">INTEGER NOT NULL</span>,
+    recipe_json <span class="keyword">TEXT NOT NULL</span>,
+    created_at <span class="keyword">DATETIME DEFAULT CURRENT_TIMESTAMP</span>,
+    <span class="keyword">FOREIGN KEY</span> (project_id) <span class="keyword">REFERENCES</span> projects(id)
+        <span class="keyword">ON DELETE CASCADE</span>,
+    <span class="keyword">FOREIGN KEY</span> (result_item_id) <span class="keyword">REFERENCES</span> items(id)
+        <span class="keyword">ON DELETE CASCADE</span>
+);
+
+<span class="comment">-- INDEKSLAR (Tezlik uchun)</span>
+<span class="keyword">CREATE INDEX</span> idx_projects_name <span class="keyword">ON</span> projects(name);
+<span class="keyword">CREATE INDEX</span> idx_blocks_project_id <span class="keyword">ON</span> blocks(project_id);
+<span class="keyword">CREATE INDEX</span> idx_blocks_name <span class="keyword">ON</span> blocks(block_name);
+<span class="keyword">CREATE INDEX</span> idx_items_project_id <span class="keyword">ON</span> items(project_id);
+<span class="keyword">CREATE INDEX</span> idx_items_name <span class="keyword">ON</span> items(item_name);
+<span class="keyword">CREATE INDEX</span> idx_recipes_project_id <span class="keyword">ON</span> crafting_recipes(project_id);
+<span class="keyword">CREATE INDEX</span> idx_recipes_result_item_id <span class="keyword">ON</span> crafting_recipes(result_item_id);</pre>
+                </div>
+            </div>
+
+            <!-- INDEKSLAR -->
+            <div class="section">
+                <div class="section-title">⚡ 5. INDEKSLAR VA OPTIMIZATSIYA</div>
+                <p>Qo'shimcha jadvallar bo'yicha tez qidiruv uchun indekslar yaratilgan:</p>
+                <ul style="margin-left: 20px; line-height: 2;">
+                    <li><strong>idx_projects_name:</strong> Proyekt nomini qidirish uchun</li>
+                    <li><strong>idx_blocks_project_id:</strong> Proyektning barcha bloklarini olish uchun</li>
+                    <li><strong>idx_blocks_name:</strong> Blok nomini qidirish uchun</li>
+                    <li><strong>idx_items_project_id:</strong> Proyektning barcha itemlarini olish uchun</li>
+                    <li><strong>idx_items_name:</strong> Item nomini qidirish uchun</li>
+                    <li><strong>idx_recipes_project_id:</strong> Proyektning barcha retseptlarini olish uchun</li>
+                    <li><strong>idx_recipes_result_item_id:</strong> Item'dan qaysi retseptlar yasalganini bilish uchun</li>
+                </ul>
+            </div>
+
+            <!-- MISOLLAR -->
+            <div class="section">
+                <div class="section-title">📝 6. FOYDALI QUERY MISOLLARI</div>
+                
+                <div class="code-box">
+                    <pre><span class="comment">-- 1. Barcha proyektlarni olish</span>
+<span class="keyword">SELECT</span> * <span class="keyword">FROM</span> projects;
+
+<span class="comment">-- 2. Bitta proyektning barcha bloklarini olish</span>
+<span class="keyword">SELECT</span> b.* <span class="keyword">FROM</span> blocks b
+<span class="keyword">WHERE</span> b.project_id = 1;
+
+<span class="comment">-- 3. Proyekt bilan bir tez ma'lumot olish</span>
+<span class="keyword">SELECT</span> p.name, <span class="keyword">COUNT</span>(b.id) as block_count,
+       <span class="keyword">COUNT</span>(i.id) as item_count
+<span class="keyword">FROM</span> projects p
+<span class="keyword">LEFT JOIN</span> blocks b <span class="keyword">ON</span> p.id = b.project_id
+<span class="keyword">LEFT JOIN</span> items i <span class="keyword">ON</span> p.id = i.project_id
+<span class="keyword">GROUP BY</span> p.id;
+
+<span class="comment">-- 4. Retsepti itemga bilanorlatirish</span>
+<span class="keyword">SELECT</span> cr.recipe_name, i.display_name, cr.recipe_json
+<span class="keyword">FROM</span> crafting_recipes cr
+<span class="keyword">JOIN</span> items i <span class="keyword">ON</span> cr.result_item_id = i.id
+<span class="keyword">WHERE</span> cr.project_id = 1;
+
+<span class="comment">-- 5. Blok va item'ni o'chirishda qayde</span>
+<span class="keyword">DELETE FROM</span> blocks <span class="keyword">WHERE</span> project_id = 1;
+<span class="keyword">-- CASCADE orqali avtomatik aloqali bo'lmagan</span></pre>
+                </div>
+            </div>
+
+            <!-- CHEGARALARI -->
+            <div class="section">
+                <div class="section-title">📌 7. MA'LUMOTLAR CHEGARALARI</div>
+                <table style="width: 100%;">
+                    <thead>
+                        <tr>
+                            <th>Jadval</th>
+                            <th>Maksimal Satr</th>
+                            <th>Tavsifi</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>projects</td>
+                            <td>10,000</td>
+                            <td>Ko'pmost foydalanuvchilar bu miqdor yetarli</td>
+                        </tr>
+                        <tr>
+                            <td>blocks</td>
+                            <td>100,000</td>
+                            <td>Har proyektda 1,000+ blok bo'lishi mumkin</td>
+                        </tr>
+                        <tr>
+                            <td>items</td>
+                            <td>100,000</td>
+                            <td>Har proyektda 1,000+ item bo'lishi mumkin</td>
+                        </tr>
+                        <tr>
+                            <td>crafting_recipes</td>
+                            <td>50,000</td>
+                            <td>Retseptlar ko'pchilik itemlar uchun kerak emas</td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <div class="note" style="margin-top: 20px;">
+                    <strong>📌 Eslatma:</strong> Agar bu chegaralarni oshib ketsa, database migration qilish va MySQL yoki PostgreSQL ga o'tish tavsiya qilinadi.
+                </div>
+            </div>
+
+            <!-- XAVFSIZLIK -->
+            <div class="section">
+                <div class="section-title">🔒 8. XAVFSIZLIK VA BACKUP</div>
+                <ul style="margin-left: 20px; line-height: 2;">
+                    <li><strong>Automatic Backup:</strong> Har 1 soatda backup qilishni yonqilang</li>
+                    <li><strong>Encryption:</strong> Foydalanuvchi ma'lumotlari kriptyatsiya qilish tavsiya qilinadi</li>
+                    <li><strong>Access Control:</strong> Faqat ilovaning ichidan ma'lumotlar bazasiga kira olish kerak</li>
+                    <li><strong>Validation:</strong> Barcha input'lar SQL injection dan himoya qilish uchun tekshirishi kerak</li>
+                </ul>
+            </div>
+
+        </div>
+
+        <div class="footer">
+            <p><strong>Minecraft Mod Generator - Database Schema v1.0</strong></p>
+            <p>© 2024 | Rasmiy Texnik Dokumentatsiya</p>
+            <p>Oxirgi yangilanish: 2024 yil iyun</p>
+        </div>
+    </div>
+</body>
+</html>
