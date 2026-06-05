@@ -16,3 +16,5 @@ export { EventHandler, type EventListener, type CustomEvent } from './EventHandl
 export { AIChat } from './AIChat';
 export { AICodeGenerator } from './AICodeGenerator';
 export { AIModAdvisor } from './AIModAdvisor';
+
+export { SettingsPanel } from './SettingsPanel';
