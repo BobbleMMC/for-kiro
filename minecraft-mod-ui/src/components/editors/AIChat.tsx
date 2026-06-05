@@ -40,27 +40,59 @@ export const AIChat: FC<AIChatProps> = ({ onCodeGenerated }) => {
     setIsLoading(true);
 
     try {
-      const response = await aiService.chat(userMessage);
-
-      const assistantMsg: AIMessage = {
-        id: `msg_${Date.now()}_resp`,
+      // Try streaming first if available
+      let streamingContent = '';
+      const streamingMsgId = `msg_${Date.now()}_resp`;
+      
+      // Create empty assistant message for streaming
+      const emptyMsg: AIMessage = {
+        id: streamingMsgId,
         role: 'assistant',
-        content: response.content,
+        content: '',
         timestamp: new Date().toISOString(),
-        provider: response.provider,
-        model: response.model,
-        tokens: response.tokens.total,
       };
-      setMessages(prev => [...prev, assistantMsg]);
+      setMessages(prev => [...prev, emptyMsg]);
+
+      try {
+        // Attempt streaming
+        for await (const chunk of aiService.chatStream(userMessage)) {
+          streamingContent += chunk.content;
+          setMessages(prev => {
+            const updated = [...prev];
+            const lastMsg = updated[updated.length - 1];
+            if (lastMsg?.id === streamingMsgId) {
+              lastMsg.content = streamingContent;
+            }
+            return updated;
+          });
+        }
+      } catch {
+        // Fallback to standard chat if streaming fails
+        const response = await aiService.chat(userMessage);
+        streamingContent = response.content;
+        setMessages(prev => {
+          const updated = [...prev];
+          const lastMsg = updated[updated.length - 1];
+          if (lastMsg?.id === streamingMsgId) {
+            lastMsg.content = response.content;
+            lastMsg.provider = response.provider;
+            lastMsg.model = response.model;
+            lastMsg.tokens = response.tokens.total;
+          }
+          return updated;
+        });
+      }
 
       // Check if response contains code and notify parent
-      const codeMatch = response.content.match(/```(?:java|json|gradle)\n([\s\S]*?)```/);
+      const codeMatch = streamingContent.match(/```(?:java|json|gradle)\n([\s\S]*?)```/);
       if (codeMatch && onCodeGenerated) {
-        const langMatch = response.content.match(/```(java|json|gradle)/);
+        const langMatch = streamingContent.match(/```(java|json|gradle)/);
         onCodeGenerated(codeMatch[1].trim(), langMatch?.[1] || 'java');
       }
     } catch (err: any) {
       setError(err.message || 'Failed to get AI response');
+      // Remove the empty message if streaming fails completely
+      setMessages(prev => prev.slice(0, -1));
     } finally {
       setIsLoading(false);
     }

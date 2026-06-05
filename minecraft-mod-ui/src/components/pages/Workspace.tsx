@@ -18,10 +18,14 @@ import { EventHandler } from '../editors/EventHandler';
 import { AIChat } from '../editors/AIChat';
 import { AICodeGenerator } from '../editors/AICodeGenerator';
 import { AIModAdvisor } from '../editors/AIModAdvisor';
-import { Package, Settings, Code2, Palette, Globe, Zap, Box, FileCode, Trophy, Layers, Bot, Wand2, Lightbulb, Hammer, Clock } from 'lucide-react';
+import { AgentTaskDashboard } from '../editors/AgentTaskDashboard';
+import { CodeGenViewer } from '../editors/CodeGenViewer';
+import { ErrorFixAssistant } from '../editors/ErrorFixAssistant';
+import { PromptEngineer } from '../editors/PromptEngineer';
+import { Package, Settings, Code2, Palette, Globe, Zap, Box, FileCode, Trophy, Layers, Bot, Wand2, Lightbulb, Hammer, Clock, Cpu, Sparkles, AlertCircle, Gauge } from 'lucide-react';
 import type { BuildConfig, BuildResult } from '../../services/buildPipeline';
 
-type EditorTab = 'overview' | 'recipes' | 'entities' | 'enchantments' | 'biomes' | 'textures' | 'resources' | 'export' | 'model' | 'gradle' | 'build' | 'history' | 'dimensions' | 'advancements' | 'events' | 'ai-chat' | 'ai-codegen' | 'ai-advisor';
+type EditorTab = 'overview' | 'recipes' | 'entities' | 'enchantments' | 'biomes' | 'textures' | 'resources' | 'export' | 'model' | 'gradle' | 'build' | 'history' | 'dimensions' | 'advancements' | 'events' | 'ai-chat' | 'ai-codegen' | 'ai-advisor' | 'agents' | 'codegen' | 'error-fix' | 'prompt-engineer';
 
 const Workspace: FC = () => {
   const { currentProject } = useProjectStore();
@@ -210,6 +214,30 @@ const Workspace: FC = () => {
               isActive={activeTab === 'ai-advisor'}
               onClick={() => setActiveTab('ai-advisor')}
             />
+            <TabButton
+              icon={<Cpu size={18} />}
+              label="Agents"
+              isActive={activeTab === 'agents'}
+              onClick={() => setActiveTab('agents')}
+            />
+            <TabButton
+              icon={<Sparkles size={18} />}
+              label="CodeGen"
+              isActive={activeTab === 'codegen'}
+              onClick={() => setActiveTab('codegen')}
+            />
+            <TabButton
+              icon={<AlertCircle size={18} />}
+              label="Error Fix"
+              isActive={activeTab === 'error-fix'}
+              onClick={() => setActiveTab('error-fix')}
+            />
+            <TabButton
+              icon={<Gauge size={18} />}
+              label="Prompts"
+              isActive={activeTab === 'prompt-engineer'}
+              onClick={() => setActiveTab('prompt-engineer')}
+            />
           </div>
         </div>
 
@@ -326,6 +354,26 @@ const Workspace: FC = () => {
             {/* AI Mod Advisor Tab */}
             {activeTab === 'ai-advisor' && (
               <AIModAdvisor />
+            )}
+
+            {/* Agent Task Dashboard Tab */}
+            {activeTab === 'agents' && (
+              <AgentTaskDashboard autoRefresh={true} refreshInterval={2000} />
+            )}
+
+            {/* Code Generation Viewer Tab */}
+            {activeTab === 'codegen' && (
+              <CodeGenViewer showHistory={true} />
+            )}
+
+            {/* Error Fix Assistant Tab */}
+            {activeTab === 'error-fix' && (
+              <ErrorFixAssistant language="java" />
+            )}
+
+            {/* Prompt Engineer Tab */}
+            {activeTab === 'prompt-engineer' && (
+              <PromptEngineer />
             )}
           </div>
         </div>

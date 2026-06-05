@@ -18,3 +18,7 @@ export { EventHandler, type EventListener, type CustomEvent } from './EventHandl
 export { AIChat } from './AIChat';
 export { AICodeGenerator } from './AICodeGenerator';
 export { AIModAdvisor } from './AIModAdvisor';
+export { AgentTaskDashboard } from './AgentTaskDashboard';
+export { CodeGenViewer } from './CodeGenViewer';
+export { ErrorFixAssistant } from './ErrorFixAssistant';
+export { PromptEngineer } from './PromptEngineer';
