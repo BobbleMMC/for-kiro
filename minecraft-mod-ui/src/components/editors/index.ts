@@ -4,3 +4,7 @@ export { RecipeEditor, type Recipe } from './RecipeEditor';
 export { FileExplorer } from './FileExplorer';
 export { EntityEditor, type Entity, type LootItem } from './EntityEditor';
 export { EnchantmentEditor, type Enchantment } from './EnchantmentEditor';
+export { BiomeEditor, type Biome, type BiomeEffects, type BiomeSpawner } from './BiomeEditor';
+export { TextureSelector, type Texture } from './TextureSelector';
+export { ResourcePackManager, type ResourcePack, type ResourceItem } from './ResourcePackManager';
+export { ExportMod, type ModExportSettings } from './ExportMod';
