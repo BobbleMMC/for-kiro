@@ -1,10 +1,6 @@
 import { app, BrowserWindow, Menu, ipcMain, dialog } from 'electron';
 import path from 'path';
 import fs from 'fs';
-import { fileURLToPath } from 'url';
-import { dirname } from 'path';
-
-const __dirname = dirname(fileURLToPath(import.meta.url));
 
 let mainWindow: BrowserWindow | null = null;
 

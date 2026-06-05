@@ -19,7 +19,7 @@
     "build:windows": "npm run build && npm run compile:electron && node build-windows.js",
     "build:windows:nsis": "npm run build && npm run compile:electron && npx electron-builder --win nsis --publish never",
     "build:windows:portable": "npm run build && npm run compile:electron && npx electron-builder --win portable --publish never",
-    "compile:electron": "tsc --ignoreConfig electron/main.ts electron/preload.ts --outDir . --module node20 --target es2020 --skipLibCheck --esModuleInterop --declaration false",
+    "compile:electron": "tsc --project electron/tsconfig.json",
     "lint": "eslint .",
     "preview": "vite preview",
     "type-check": "tsc --noEmit",

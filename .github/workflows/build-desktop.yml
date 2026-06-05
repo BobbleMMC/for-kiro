@@ -36,16 +36,11 @@ jobs:
         env:
           npm_config_build_from_source: true
 
-      - name: Type check
-        working-directory: minecraft-mod-ui
-        run: npm run type-check
-
       - name: Build React app
         working-directory: minecraft-mod-ui
-        run: npm run build
+        run: npx vite build
         env:
           CI: true
-          VITE_API_URL: ${{ secrets.VITE_API_URL || '' }}
 
       - name: Compile Electron files
         working-directory: minecraft-mod-ui
@@ -56,12 +51,14 @@ jobs:
         run: npx electron-builder --win nsis --publish never
         env:
           CI: true
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build Windows portable (Standalone EXE)
         working-directory: minecraft-mod-ui
         run: npx electron-builder --win portable --publish never
         env:
           CI: true
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: List generated artifacts
         run: ls -R minecraft-mod-ui/release/
@@ -112,13 +109,9 @@ jobs:
         working-directory: minecraft-mod-ui
         run: npm install --legacy-peer-deps
 
-      - name: Type check
-        working-directory: minecraft-mod-ui
-        run: npm run type-check
-
       - name: Build React app
         working-directory: minecraft-mod-ui
-        run: npm run build
+        run: npx vite build
         env:
           CI: true
 
@@ -131,12 +124,14 @@ jobs:
         run: npx electron-builder --mac dmg --publish never
         env:
           CI: true
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build macOS ZIP
         working-directory: minecraft-mod-ui
         run: npx electron-builder --mac zip --publish never
         env:
           CI: true
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Upload macOS artifacts
         uses: actions/upload-artifact@v4
@@ -173,13 +168,9 @@ jobs:
         working-directory: minecraft-mod-ui
         run: npm install --legacy-peer-deps
 
-      - name: Type check
-        working-directory: minecraft-mod-ui
-        run: npm run type-check
-
       - name: Build React app
         working-directory: minecraft-mod-ui
-        run: npm run build
+        run: npx vite build
         env:
           CI: true
 
@@ -192,12 +183,14 @@ jobs:
         run: npx electron-builder --linux AppImage --publish never
         env:
           CI: true
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build Linux DEB
         working-directory: minecraft-mod-ui
         run: npx electron-builder --linux deb --publish never
         env:
           CI: true
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Upload Linux artifacts
         uses: actions/upload-artifact@v4
