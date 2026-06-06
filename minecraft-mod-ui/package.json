@@ -16,11 +16,9 @@
   "license": "MIT",
   "scripts": {
     "dev": "vite",
-    "dev:electron": "concurrently \"npm run dev\" \"wait-on http://localhost:5173 && electron .\"",
+    "dev:tauri": "cargo tauri dev",
     "build": "vite build",
-    "build:electron": "npm run build && npm run compile:electron && electron-builder",
-    "build:windows": "npm run build && npm run compile:electron && electron-builder --win --publish never",
-    "compile:electron": "tsc --project electron/tsconfig.json",
+    "build:tauri": "cargo tauri build",
     "lint": "eslint .",
     "preview": "vite preview",
     "test": "jest",
@@ -28,10 +26,14 @@
     "test:coverage": "jest --coverage"
   },
   "dependencies": {
+    "@tauri-apps/api": "^2",
+    "@tauri-apps/plugin-dialog": "^2",
+    "@tauri-apps/plugin-fs": "^2",
+    "@tauri-apps/plugin-shell": "^2",
+    "@xyflow/react": "^12.11.0",
     "lucide-react": "^1.17.0",
     "react": "^19.2.6",
     "react-dom": "^19.2.6",
-    "sharp": "^0.34.5",
     "zustand": "^5.0.14"
   },
   "devDependencies": {
@@ -45,9 +47,6 @@
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^4.3.4",
     "autoprefixer": "^10.5.0",
-    "concurrently": "^8.2.2",
-    "electron": "^28.0.0",
-    "electron-builder": "^24.9.1",
     "eslint": "^9.0.0",
     "eslint-plugin-react-hooks": "^5.0.0",
     "eslint-plugin-react-refresh": "^0.4.0",
@@ -59,57 +58,9 @@
     "ts-jest": "^29.1.1",
     "typescript": "~5.6.0",
     "typescript-eslint": "^8.0.0",
-    "vite": "^5.4.0",
-    "wait-on": "^7.2.0"
+    "vite": "^5.4.0"
   },
   "build": {
-    "appId": "com.bobblemmc.minecraftmodui",
-    "productName": "Minecraft Mod Generator",
-    "publish": null,
-    "directories": {
-      "buildResources": "public",
-      "output": "release"
-    },
-    "files": [
-      "dist/**/*",
-      "main.js",
-      "preload.js",
-      "package.json"
-    ],
-    "extraMetadata": {
-      "main": "main.js"
-    },
-    "win": {
-      "target": [
-        {
-          "target": "nsis",
-          "arch": [
-            "x64"
-          ]
-        }
-      ],
-      "icon": "public/icon.png"
-    },
-    "nsis": {
-      "oneClick": false,
-      "allowToChangeInstallationDirectory": true,
-      "createDesktopShortcut": true,
-      "createStartMenuShortcut": true,
-      "shortcutName": "Minecraft Mod Generator"
-    },
-    "mac": {
-      "target": [
-        "dmg"
-      ],
-      "category": "public.app-category.developer-tools",
-      "icon": "public/icon.png"
-    },
-    "linux": {
-      "target": [
-        "AppImage"
-      ],
-      "category": "Development",
-      "icon": "public/icon.png"
-    }
+    "note": "Build is now handled by Tauri v2 (cargo tauri build)"
   }
 }

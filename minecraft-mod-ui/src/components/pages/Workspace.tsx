@@ -9,13 +9,15 @@ import { Console } from '../panels/Console';
 import { RecipeEditor } from '../editors/RecipeEditor';
 import { EntityEditor } from '../editors/EntityEditor';
 import { EnchantmentEditor } from '../editors/EnchantmentEditor';
+import { NodeEditor } from '../node-editor';
+import type { Node, Edge } from '@xyflow/react';
 
-type EditorMode = 'default' | 'recipe' | 'entity' | 'enchantment' | 'block' | 'item';
+type EditorMode = 'default' | 'recipe' | 'entity' | 'enchantment' | 'block' | 'item' | 'node-editor';
 
 export const Workspace: FC = () => {
-  const { currentProject } = useProjectStore();
+  const { currentProject, addConsoleMessage } = useProjectStore();
   const [editorMode, setEditorMode] = useState<EditorMode>('default');
-  const [selectedAssetId, setSelectedAssetId] = useState<string | null>(null);
+  const [_selectedAssetId, setSelectedAssetId] = useState<string | null>(null);
 
   if (!currentProject) {
     return (
@@ -32,6 +34,35 @@ export const Workspace: FC = () => {
     );
   }
 
+  // Handle node editor save
+  const handleNodeEditorSave = (nodes: Node[], edges: Edge[]) => {
+    const graphData = {
+      nodes: JSON.stringify(nodes),
+      edges: JSON.stringify(edges),
+    };
+    console.log('Saving graph:', graphData);
+    addConsoleMessage({
+      id: `msg-${Date.now()}`,
+      timestamp: new Date(),
+      level: 'success',
+      message: `Visual graph saved (${nodes.length} nodes, ${edges.length} edges)`,
+      source: 'NodeEditor',
+    });
+  };
+
+  // Handle code generation from node editor
+  const handleGenerateCode = (nodes: Node[], edges: Edge[]) => {
+    console.log('Generating Java from:', { nodes: nodes.length, edges: edges.length });
+    addConsoleMessage({
+      id: `msg-${Date.now()}`,
+      timestamp: new Date(),
+      level: 'info',
+      message: `Generating Java code from ${nodes.length} nodes...`,
+      source: 'CodeGen',
+    });
+    // TODO: Call Tauri backend for actual code generation
+  };
+
   // Render appropriate canvas content based on editor mode
   const renderCanvas = () => {
     switch (editorMode) {
@@ -41,8 +72,15 @@ export const Workspace: FC = () => {
         return <EntityEditor />;
       case 'enchantment':
         return <EnchantmentEditor />;
+      case 'node-editor':
+        return (
+          <NodeEditor
+            onSave={handleNodeEditorSave}
+            onGenerateCode={handleGenerateCode}
+          />
+        );
       default:
-        return <CanvasWorkspace />;
+        return <CanvasWorkspace onOpenNodeEditor={() => setEditorMode('node-editor')} />;
     }
   };
 
@@ -51,6 +89,8 @@ export const Workspace: FC = () => {
       header={
         <WorkspaceHeader
           projectName={currentProject.name}
+          editorMode={editorMode}
+          onEditorModeChange={setEditorMode}
           onSave={() => console.log('Saving project...')}
           onBuild={() => console.log('Building project...')}
           onExport={() => console.log('Exporting project...')}

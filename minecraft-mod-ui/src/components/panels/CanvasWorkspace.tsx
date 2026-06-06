@@ -1,7 +1,7 @@
 import { FC } from 'react';
 import { Grid3x3, Zap } from 'lucide-react';
 
-export const CanvasWorkspace: FC = () => {
+export const CanvasWorkspace: FC<{ onOpenNodeEditor?: () => void }> = ({ onOpenNodeEditor }) => {
   return (
     <div className="w-full h-full flex flex-col items-center justify-center bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 p-8">
       {/* Main Content */}
@@ -41,7 +41,10 @@ export const CanvasWorkspace: FC = () => {
 
         {/* Quick Actions */}
         <div className="space-y-2">
-          <button className="w-full px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-colors">
+          <button 
+            onClick={onOpenNodeEditor}
+            className="w-full px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-colors"
+          >
             + New Node Editor
           </button>
           <button className="w-full px-4 py-2 bg-slate-700 hover:bg-slate-600 text-slate-100 text-sm font-medium rounded-lg transition-colors">
