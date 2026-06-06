@@ -5,7 +5,7 @@
  * actually open it from the dock strip. Side and category drive the layout
  * grouping in DockLayout.
  */
-import { lazy, Suspense, type ComponentType } from 'react';
+import { lazy, Suspense, useState, type ComponentType } from 'react';
 import {
   FolderTree, Box, Sliders, Terminal, Workflow, GitBranch, Search,
   Settings, Sword, Sparkles, ChefHat, Bug, Paintbrush, Package, Mountain,
@@ -29,6 +29,8 @@ import {
   ConnectedAdvancementEditor,
 } from './editorConnectors';
 import { useProjectStore } from '../../stores/projectStore';
+import { saveVisualGraph, isTauri } from '../../lib/tauri-api';
+import { GeneratedCodeModal } from '../common/GeneratedCodeModal';
 import type { Node, Edge } from '@xyflow/react';
 
 // ===== Lazy-loaded panels (heavy: Three.js, React Flow, etc.) =====
@@ -62,20 +64,96 @@ function PanelLoading({ name }: { name: string }) {
   );
 }
 
-// Connector that wires NodeEditor save/generate callbacks into the project store's console log.
+// Connector that wires NodeEditor save/generate callbacks to real Tauri commands.
+//
+// Save -> persists the graph to the SQLite `visual_nodes_data` table.
+// Generate Java -> reads the saved graph back, runs it through the Rust
+// `JavaEmitter` + `apply_all_safeguards`, and shows the result in
+// `GeneratedCodeModal`. Saving first is required because the codegen
+// command works from a graph_id, not from in-memory React Flow state.
 function ConnectedNodeEditor() {
+  const currentProject = useProjectStore((s) => s.currentProject);
   const addConsoleMessage = useProjectStore((s) => s.addConsoleMessage);
-  const log = (level: 'info' | 'success', message: string, source = 'NodeEditor') =>
-    addConsoleMessage({ id: `msg-${Date.now()}-${Math.random()}`, timestamp: new Date(), level, message, source });
+  const [savedGraphId, setSavedGraphId] = useState<number | null>(null);
+  const [showGeneratedCode, setShowGeneratedCode] = useState(false);
+
+  const log = (
+    level: 'info' | 'success' | 'warning' | 'error',
+    message: string,
+    source = 'NodeEditor'
+  ) =>
+    addConsoleMessage({
+      id: `msg-${Date.now()}-${Math.random()}`,
+      timestamp: new Date(),
+      level,
+      message,
+      source,
+    });
+
+  const persistGraph = async (nodes: Node[], edges: Edge[]): Promise<number | null> => {
+    if (!currentProject) {
+      log('warning', 'No project selected — cannot save graph', 'NodeEditor');
+      return null;
+    }
+    if (!isTauri()) {
+      log(
+        'warning',
+        'Desktop app required to persist visual graphs (browser fallback only logs)',
+        'NodeEditor'
+      );
+      return null;
+    }
+
+    try {
+      const id = await saveVisualGraph({
+        id: savedGraphId ?? undefined,
+        project_id: currentProject.id,
+        graph_name: 'EventHandlers',
+        graph_type: 'event_handler',
+        nodes_json: JSON.stringify(nodes),
+        edges_json: JSON.stringify(edges),
+        viewport_json: '{}',
+      });
+      setSavedGraphId(id);
+      return id;
+    } catch (e) {
+      log('error', `Failed to save graph: ${e}`, 'NodeEditor');
+      return null;
+    }
+  };
+
   return (
-    <NodeEditor
-      onSave={(nodes: Node[], edges: Edge[]) =>
-        log('success', `Visual graph saved (${nodes.length} nodes, ${edges.length} edges)`)
-      }
-      onGenerateCode={(nodes: Node[], _edges: Edge[]) =>
-        log('info', `Generating Java from ${nodes.length} nodes…`, 'CodeGen')
-      }
-    />
+    <>
+      <NodeEditor
+        onSave={async (nodes: Node[], edges: Edge[]) => {
+          const id = await persistGraph(nodes, edges);
+          if (id != null) {
+            log(
+              'success',
+              `Visual graph saved (id=${id}, ${nodes.length} nodes, ${edges.length} edges)`
+            );
+          }
+        }}
+        onGenerateCode={async (nodes: Node[], edges: Edge[]) => {
+          // Save first so the codegen has fresh data to work from.
+          const id = await persistGraph(nodes, edges);
+          if (id == null) {
+            log('warning', 'Could not generate Java — graph save failed', 'CodeGen');
+            return;
+          }
+          log('info', `Generating Java from ${nodes.length} nodes…`, 'CodeGen');
+          setShowGeneratedCode(true);
+        }}
+      />
+
+      {showGeneratedCode && savedGraphId != null && (
+        <GeneratedCodeModal
+          kind="graph"
+          id={savedGraphId}
+          onClose={() => setShowGeneratedCode(false)}
+        />
+      )}
+    </>
   );
 }
 

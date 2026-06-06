@@ -1,10 +1,11 @@
 /**
- * Modal that calls the Rust `generate_*_class` Tauri commands and shows
- * the produced Java source in a CodePreview pane.
+ * Modal that calls the Rust `generate_*` Tauri commands and shows the
+ * produced Java source in a CodePreview pane.
  *
- * Used by the Block / Item editors. Keeping the modal self-contained means
- * each editor only needs to add a single button — the network call,
- * loading state, error handling, and code rendering all live here.
+ * Used by the Block / Item editors and the visual node editor. Keeping
+ * the modal self-contained means each caller only needs to add a single
+ * button — the network call, loading state, error handling, and code
+ * rendering all live here.
  */
 import { useEffect, useState, type FC } from 'react';
 import { Loader2, X, FileCode, AlertTriangle } from 'lucide-react';
@@ -12,14 +13,39 @@ import { CodePreview } from './CodePreview';
 import {
   generateBlockClass,
   generateItemClass,
+  generateEventHandlers,
   isTauri,
   type GeneratedFile,
 } from '../../lib/tauri-api';
 
+type Kind = 'block' | 'item' | 'graph';
+
 interface Props {
-  kind: 'block' | 'item';
+  kind: Kind;
   id: number;
   onClose: () => void;
+}
+
+const titleFor = (kind: Kind): string => {
+  switch (kind) {
+    case 'block':
+      return 'Generated Java Block Class';
+    case 'item':
+      return 'Generated Java Item Class';
+    case 'graph':
+      return 'Generated Event Handlers';
+  }
+};
+
+async function generate(kind: Kind, id: number): Promise<GeneratedFile> {
+  switch (kind) {
+    case 'block':
+      return generateBlockClass(id);
+    case 'item':
+      return generateItemClass(id);
+    case 'graph':
+      return generateEventHandlers(id);
+  }
 }
 
 export const GeneratedCodeModal: FC<Props> = ({ kind, id, onClose }) => {
@@ -38,8 +64,7 @@ export const GeneratedCodeModal: FC<Props> = ({ kind, id, onClose }) => {
         return;
       }
       try {
-        const result =
-          kind === 'block' ? await generateBlockClass(id) : await generateItemClass(id);
+        const result = await generate(kind, id);
         if (!cancelled) {
           setFile(result);
           setLoading(false);
@@ -63,9 +88,7 @@ export const GeneratedCodeModal: FC<Props> = ({ kind, id, onClose }) => {
         <div className="flex items-center justify-between px-5 py-3 bg-slate-800 border-b border-slate-700">
           <div className="flex items-center gap-2">
             <FileCode size={16} className="text-blue-400" />
-            <span className="text-sm font-bold text-slate-100">
-              Generated Java {kind === 'block' ? 'Block' : 'Item'} Class
-            </span>
+            <span className="text-sm font-bold text-slate-100">{titleFor(kind)}</span>
             {file && (
               <span className="text-xs font-mono text-slate-500 ml-2">
                 {file.package_path}/{file.file_name}

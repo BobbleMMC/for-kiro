@@ -1,154 +1,108 @@
 import { useEffect, useRef, useCallback } from 'react';
-import { useElectron } from './useElectron';
 
 interface AutoSaveOptions {
   enabled?: boolean;
-  interval?: number; // in milliseconds
-  onSaveSuccess?: (path?: string) => void;
+  /** Auto-save period in milliseconds (default: 5 minutes). */
+  interval?: number;
+  onSaveSuccess?: (key?: string) => void;
   onSaveError?: (error: Error) => void;
 }
 
 /**
- * Custom hook for auto-saving project data
- * Automatically saves project data at specified intervals
+ * Auto-save the supplied project draft into `localStorage` every `interval`
+ * milliseconds. Returns a `triggerSave` function callers can call to flush
+ * the latest draft on demand (e.g. before unmount or before navigating).
+ *
+ * The persistent project state lives in SQLite (managed by `useProject` /
+ * `useContent`); this hook is purely a *crash recovery* belt-and-braces, so
+ * an unsaved-form snapshot can be restored after an unexpected reload.
  */
 export const useAutoSave = (
-  projectData: Record<string, any>,
+  projectData: Record<string, unknown>,
   options: AutoSaveOptions = {}
 ) => {
   const {
     enabled = true,
-    interval = 5 * 60 * 1000, // 5 minutes default
+    interval = 5 * 60 * 1000,
     onSaveSuccess,
     onSaveError,
   } = options;
 
-  const { saveProject } = useElectron();
-  const timeoutRef = useRef<any>(null);
-  const lastSaveRef = useRef<string>('');
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const lastSerializedRef = useRef<string>('');
 
-  // Serialize project data for comparison
-  const serializeData = useCallback((data: Record<string, any>) => {
-    return JSON.stringify(data);
-  }, []);
+  const serialize = useCallback((data: Record<string, unknown>) => JSON.stringify(data), []);
 
-  // Perform the auto-save
   const performAutoSave = useCallback(async () => {
-    if (!enabled || !projectData) {
-      return;
-    }
+    if (!enabled || !projectData) return;
 
     try {
-      const serialized = serializeData(projectData);
+      const serialized = serialize(projectData);
+      if (serialized === lastSerializedRef.current) return;
 
-      // Only save if data has changed
-      if (serialized === lastSaveRef.current) {
-        return;
-      }
-
-      // Try to save with Electron API if available
-      try {
-        const result = await saveProject(projectData);
-        if (result.success) {
-          lastSaveRef.current = serialized;
-          onSaveSuccess?.(result.path);
-        } else {
-          throw new Error(result.error || 'Save failed');
-        }
-      } catch (electronError) {
-        // Fallback: save to localStorage
-        try {
-          const autoSaveKey = `autosave-${projectData.id || 'temp'}`;
-          localStorage.setItem(autoSaveKey, JSON.stringify(projectData));
-          lastSaveRef.current = serialized;
-          onSaveSuccess?.();
-        } catch (storageError) {
-          onSaveError?.(storageError as Error);
-        }
-      }
-    } catch (error) {
-      onSaveError?.(error as Error);
+      const id = (projectData.id as string | number | undefined) ?? 'temp';
+      const key = `autosave-${id}`;
+      localStorage.setItem(key, serialized);
+      lastSerializedRef.current = serialized;
+      onSaveSuccess?.(key);
+    } catch (e) {
+      onSaveError?.(e as Error);
     }
-  }, [enabled, projectData, serializeData, saveProject, onSaveSuccess, onSaveError]);
+  }, [enabled, projectData, serialize, onSaveSuccess, onSaveError]);
 
-  // Setup auto-save interval
+  // Periodic save
   useEffect(() => {
     if (!enabled) {
-      if (timeoutRef.current) {
-        clearInterval(timeoutRef.current);
-      }
+      if (timerRef.current) clearInterval(timerRef.current);
       return;
     }
 
-    // Initial save
-    performAutoSave();
-
-    // Setup interval
-    const timer = setInterval(() => {
-      performAutoSave();
-    }, interval);
-
-    timeoutRef.current = timer;
+    void performAutoSave();
+    timerRef.current = setInterval(() => void performAutoSave(), interval);
 
     return () => {
-      if (timeoutRef.current) {
-        clearInterval(timeoutRef.current);
-      }
+      if (timerRef.current) clearInterval(timerRef.current);
     };
   }, [enabled, interval, performAutoSave]);
 
-  // Perform save on unmount (cleanup)
+  // Flush on unmount
   useEffect(() => {
-    return () => {
-      performAutoSave();
-    };
+    return () => void performAutoSave();
   }, [performAutoSave]);
 
-  // Manual save trigger
   const triggerSave = useCallback(async () => {
     await performAutoSave();
   }, [performAutoSave]);
 
-  return {
-    triggerSave,
-    lastSaveRef,
-  };
+  return { triggerSave, lastSaveRef: lastSerializedRef };
 };
 
 /**
- * Hook to recover auto-saved project data
+ * Recover the latest auto-save snapshot for a given project id, or clear it
+ * after the user accepts/declines the recovery prompt.
  */
 export const useAutoSaveRecovery = (projectId?: string | number) => {
   const recoverAutoSave = useCallback(() => {
-    if (!projectId) {
-      return null;
-    }
-
+    if (projectId == null) return null;
     try {
-      const autoSaveKey = `autosave-${projectId}`;
-      const saved = localStorage.getItem(autoSaveKey);
-      return saved ? JSON.parse(saved) : null;
-    } catch (error) {
-      console.error('Failed to recover auto-save:', error);
+      const saved = localStorage.getItem(`autosave-${projectId}`);
+      return saved ? (JSON.parse(saved) as Record<string, unknown>) : null;
+    } catch (e) {
+      // eslint-disable-next-line no-console
+      console.error('Failed to recover auto-save:', e);
       return null;
     }
   }, [projectId]);
 
   const clearAutoSave = useCallback(() => {
-    if (!projectId) {
-      return;
-    }
-
+    if (projectId == null) return;
     try {
-      const autoSaveKey = `autosave-${projectId}`;
-      localStorage.removeItem(autoSaveKey);
-    } catch (error) {
-      console.error('Failed to clear auto-save:', error);
+      localStorage.removeItem(`autosave-${projectId}`);
+    } catch (e) {
+      // eslint-disable-next-line no-console
+      console.error('Failed to clear auto-save:', e);
     }
   }, [projectId]);
 
-  return {
-    recoverAutoSave,
-    clearAutoSave,
-  };
+  return { recoverAutoSave, clearAutoSave };
 };
