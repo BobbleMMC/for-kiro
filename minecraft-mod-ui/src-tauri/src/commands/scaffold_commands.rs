@@ -235,6 +235,8 @@ fn write_forge(root: &Path, ctx: &TemplateContext, w: &mut Vec<String>) -> Resul
 // ============================================================================
 // Fabric skeleton
 // ============================================================================
+
+fn write_fabric(root: &Path, ctx: &TemplateContext, w: &mut Vec<String>) -> Result<(), String> {
     let build_gradle = render(BUILD_GRADLE_FABRIC, ctx);
     let settings_gradle = render(SETTINGS_GRADLE, ctx);
     let gradle_properties = render(GRADLE_PROPERTIES_FABRIC, ctx);
