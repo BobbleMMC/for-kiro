@@ -9,3 +9,5 @@ pub mod watcher_commands;
 pub mod feature_commands;
 pub mod recipe_commands;
 pub mod world_data_commands;
+pub mod enchantment_commands;
+pub mod item_variants;

@@ -39,6 +39,7 @@ import {
   generateBiomeJson,
   generateDimensionJson,
   generateAdvancementJson,
+  generateEnchantmentClass,
   isTauri,
   writeGeneratedFile,
   type GeneratedFile,
@@ -410,25 +411,55 @@ export const ConnectedEntityEditor: FC = () => {
 };
 
 // ============================================================================
-// Enchantment — still console toast (codegen pending — covered in PR #19)
+// Enchantment — generic registry path
 // ============================================================================
 
+interface EditorEnchantmentType {
+  id?: string | number;
+  name?: string;
+  display_name?: string;
+  description?: string;
+  max_level?: number;
+  is_treasure?: boolean;
+  is_curse?: boolean;
+  can_anvil_merge?: boolean;
+  anvil_cost?: number;
+  weight?: number;
+  applies_to?: string;
+}
+
 export const ConnectedEnchantmentEditor: FC = () => {
-  const addConsoleMessage = useProjectStore((s) => s.addConsoleMessage);
-  const onSave = useCallback(
-    (e: { id?: string | number; display_name?: string; name?: string }) => {
-      const label = e.display_name || e.name || String(e.id) || 'unnamed';
-      addConsoleMessage({
-        id: `msg-${Date.now()}-${Math.random()}`,
-        timestamp: new Date(),
-        level: 'success',
-        message: `Enchantment saved: ${label}`,
-        source: 'Enchantment',
-      });
+  const { handleSave, ui } = useAssetSave({
+    assetType: 'enchantment',
+    modalTitle: 'Generated Enchantment Class',
+    language: 'java',
+    generate: generateEnchantmentClass,
+    extract: (raw) => {
+      const e = raw as EditorEnchantmentType;
+      return {
+        name: (e.name as string | undefined) ?? '',
+        displayName: e.display_name ?? e.name,
+        metadata: {
+          name: e.name,
+          display_name: e.display_name,
+          description: e.description ?? '',
+          max_level: e.max_level ?? 3,
+          is_treasure: e.is_treasure ?? false,
+          is_curse: e.is_curse ?? false,
+          can_anvil_merge: e.can_anvil_merge ?? true,
+          anvil_cost: e.anvil_cost ?? 4,
+          weight: e.weight ?? 10,
+          applies_to: e.applies_to ?? 'BREAKABLE',
+        },
+      };
     },
-    [addConsoleMessage]
+  });
+  return (
+    <>
+      <EnchantmentEditor onSave={handleSave as never} />
+      {ui}
+    </>
   );
-  return <EnchantmentEditor onSave={onSave as never} />;
 };
 
 // ============================================================================

@@ -118,6 +118,12 @@ pub fn run() {
             commands::world_data_commands::generate_biome_json,
             commands::world_data_commands::generate_dimension_json,
             commands::world_data_commands::generate_advancement_json,
+            // Enchantment
+            commands::enchantment_commands::generate_enchantment_class,
+            // Item variants (Tool / Armor / Food)
+            commands::item_variants::generate_tool_class,
+            commands::item_variants::generate_armor_class,
+            commands::item_variants::generate_food_class,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

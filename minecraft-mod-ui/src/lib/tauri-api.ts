@@ -383,6 +383,39 @@ export const generateDimensionJson = (asset_id: number): Promise<GeneratedFile> 
 export const generateAdvancementJson = (asset_id: number): Promise<GeneratedFile> =>
   invoke<GeneratedFile>('generate_advancement_json', { asset_id });
 
+export const generateEnchantmentClass = (asset_id: number): Promise<GeneratedFile> =>
+  invoke<GeneratedFile>('generate_enchantment_class', { asset_id });
+
+// ============================================================================
+// Item-variant codegen
+// ============================================================================
+
+export type ToolKind = 'pickaxe' | 'axe' | 'shovel' | 'hoe' | 'sword';
+export type ArmorSlotKind = 'head' | 'chest' | 'legs' | 'feet';
+export type ToolTier = 'WOOD' | 'STONE' | 'IRON' | 'GOLD' | 'DIAMOND' | 'NETHERITE';
+
+export const generateToolClass = (data: {
+  item_id: number;
+  kind: ToolKind;
+  tier: ToolTier;
+  attack_damage_bonus: number;
+  attack_speed_modifier: number;
+}): Promise<GeneratedFile> => invoke<GeneratedFile>('generate_tool_class', data);
+
+export const generateArmorClass = (data: {
+  item_id: number;
+  slot: ArmorSlotKind;
+  armor_material_const: string;
+}): Promise<GeneratedFile> => invoke<GeneratedFile>('generate_armor_class', data);
+
+export const generateFoodClass = (data: {
+  item_id: number;
+  nutrition: number;
+  saturation_modifier: number;
+  always_eat: boolean;
+  can_eat_when_full: boolean;
+}): Promise<GeneratedFile> => invoke<GeneratedFile>('generate_food_class', data);
+
 // ============================================================================
 // Resource API
 // ============================================================================
