@@ -102,6 +102,13 @@ pub fn run() {
             // Feature catalog commands
             commands::feature_commands::list_features,
             commands::feature_commands::generate_feature_skeleton,
+            // Recipe commands
+            commands::recipe_commands::create_recipe,
+            commands::recipe_commands::update_recipe,
+            commands::recipe_commands::delete_recipe,
+            commands::recipe_commands::get_recipe,
+            commands::recipe_commands::get_recipes,
+            commands::recipe_commands::generate_recipe_json,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

@@ -296,6 +296,45 @@ export const generateFeatureSkeleton = (data: {
 }): Promise<GeneratedFile> => invoke<GeneratedFile>('generate_feature_skeleton', data);
 
 // ============================================================================
+// Recipe API
+// ============================================================================
+
+export interface TauriRecipe {
+  id: number | null;
+  project_id: number;
+  recipe_name: string;
+  recipe_type: string;
+  output_item_id: number | null;
+  output_block_id: number | null;
+  output_count: number;
+  cook_time: number | null;
+  experience: number;
+  pattern_json: string | null;
+  ingredients_json: string;
+}
+
+export type CreateRecipeInput = Omit<TauriRecipe, 'id'>;
+export type UpdateRecipeInput = TauriRecipe & { id: number };
+
+export const createRecipe = (data: CreateRecipeInput): Promise<number> =>
+  invoke<number>('create_recipe', data);
+
+export const updateRecipe = (data: UpdateRecipeInput): Promise<void> =>
+  invoke<void>('update_recipe', data);
+
+export const deleteRecipe = (id: number): Promise<void> =>
+  invoke<void>('delete_recipe', { id });
+
+export const getRecipe = (id: number): Promise<TauriRecipe | null> =>
+  invoke<TauriRecipe | null>('get_recipe', { id });
+
+export const getRecipes = (project_id: number): Promise<TauriRecipe[]> =>
+  invoke<TauriRecipe[]>('get_recipes', { project_id });
+
+export const generateRecipeJson = (recipe_id: number): Promise<GeneratedFile> =>
+  invoke<GeneratedFile>('generate_recipe_json', { recipe_id });
+
+// ============================================================================
 // Resource API
 // ============================================================================
 

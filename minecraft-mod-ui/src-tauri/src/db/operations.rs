@@ -635,3 +635,150 @@ impl Database {
         Ok(conn.last_insert_rowid())
     }
 }
+
+
+// ============================================================================
+// Recipe operations
+// ============================================================================
+//
+// The recipes table predates the canonical RecipeEditor type, and the editor
+// itself uses a JSON-shaped local type that differs from `src/types::Recipe`.
+// To keep persistence working without forcing an immediate editor refactor,
+// we store the editor's payload in two existing JSON columns:
+//
+//   * `pattern_json`     — `grid: string[][]` for shaped, or null
+//   * `ingredients_json` — full `Ingredient[]` list
+//
+// The Java/JSON codegen reads these back, so the round-trip is lossless.
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct Recipe {
+    pub id: Option<i64>,
+    pub project_id: i64,
+    pub recipe_name: String,
+    pub recipe_type: String,
+    pub output_item_id: Option<i64>,
+    pub output_block_id: Option<i64>,
+    pub output_count: i32,
+    pub cook_time: Option<i32>,
+    pub experience: f64,
+    pub pattern_json: Option<String>,
+    pub ingredients_json: String,
+}
+
+impl Database {
+    pub fn create_recipe(&self, recipe: &Recipe) -> Result<i64, DbError> {
+        let conn = self.connection()?;
+        conn.execute(
+            "INSERT INTO recipes (project_id, recipe_name, recipe_type, output_item_id, output_block_id, output_count, cook_time, experience, pattern_json, ingredients_json)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)",
+            params![
+                recipe.project_id,
+                recipe.recipe_name,
+                recipe.recipe_type,
+                recipe.output_item_id,
+                recipe.output_block_id,
+                recipe.output_count,
+                recipe.cook_time,
+                recipe.experience,
+                recipe.pattern_json,
+                recipe.ingredients_json,
+            ],
+        )?;
+        Ok(conn.last_insert_rowid())
+    }
+
+    pub fn update_recipe(&self, recipe: &Recipe) -> Result<(), DbError> {
+        let id = recipe.id.ok_or_else(|| {
+            DbError::Sqlite(rusqlite::Error::InvalidParameterName(
+                "recipe.id is required for update".to_string(),
+            ))
+        })?;
+        let conn = self.connection()?;
+        conn.execute(
+            "UPDATE recipes SET
+                recipe_name = ?1,
+                recipe_type = ?2,
+                output_item_id = ?3,
+                output_block_id = ?4,
+                output_count = ?5,
+                cook_time = ?6,
+                experience = ?7,
+                pattern_json = ?8,
+                ingredients_json = ?9,
+                updated_at = datetime('now')
+             WHERE id = ?10",
+            params![
+                recipe.recipe_name,
+                recipe.recipe_type,
+                recipe.output_item_id,
+                recipe.output_block_id,
+                recipe.output_count,
+                recipe.cook_time,
+                recipe.experience,
+                recipe.pattern_json,
+                recipe.ingredients_json,
+                id,
+            ],
+        )?;
+        Ok(())
+    }
+
+    pub fn delete_recipe(&self, id: i64) -> Result<(), DbError> {
+        let conn = self.connection()?;
+        conn.execute("DELETE FROM recipes WHERE id = ?1", params![id])?;
+        Ok(())
+    }
+
+    pub fn get_recipe(&self, id: i64) -> Result<Option<Recipe>, DbError> {
+        let conn = self.connection()?;
+        let mut stmt = conn.prepare(
+            "SELECT id, project_id, recipe_name, recipe_type, output_item_id, output_block_id, output_count, cook_time, experience, pattern_json, ingredients_json
+             FROM recipes WHERE id = ?1"
+        )?;
+        let result = stmt.query_row(params![id], |row| {
+            Ok(Recipe {
+                id: Some(row.get(0)?),
+                project_id: row.get(1)?,
+                recipe_name: row.get(2)?,
+                recipe_type: row.get(3)?,
+                output_item_id: row.get(4)?,
+                output_block_id: row.get(5)?,
+                output_count: row.get(6)?,
+                cook_time: row.get(7)?,
+                experience: row.get(8)?,
+                pattern_json: row.get(9)?,
+                ingredients_json: row.get(10)?,
+            })
+        });
+        match result {
+            Ok(r) => Ok(Some(r)),
+            Err(rusqlite::Error::QueryReturnedNoRows) => Ok(None),
+            Err(e) => Err(DbError::Sqlite(e)),
+        }
+    }
+
+    pub fn get_recipes(&self, project_id: i64) -> Result<Vec<Recipe>, DbError> {
+        let conn = self.connection()?;
+        let mut stmt = conn.prepare(
+            "SELECT id, project_id, recipe_name, recipe_type, output_item_id, output_block_id, output_count, cook_time, experience, pattern_json, ingredients_json
+             FROM recipes WHERE project_id = ?1 ORDER BY recipe_name"
+        )?;
+        let recipes = stmt.query_map(params![project_id], |row| {
+            Ok(Recipe {
+                id: Some(row.get(0)?),
+                project_id: row.get(1)?,
+                recipe_name: row.get(2)?,
+                recipe_type: row.get(3)?,
+                output_item_id: row.get(4)?,
+                output_block_id: row.get(5)?,
+                output_count: row.get(6)?,
+                cook_time: row.get(7)?,
+                experience: row.get(8)?,
+                pattern_json: row.get(9)?,
+                ingredients_json: row.get(10)?,
+            })
+        })?.collect::<Result<Vec<_>, _>>()?;
+        Ok(recipes)
+    }
+}

@@ -7,3 +7,4 @@ pub mod codegen_commands;
 pub mod scaffold_commands;
 pub mod watcher_commands;
 pub mod feature_commands;
+pub mod recipe_commands;

@@ -136,3 +136,80 @@ export function itemToTauri(i: Item): TauriItem {
     texture_path: i.texture_path ?? null,
   };
 }
+
+
+
+// ============================================================================
+// Recipe (legacy editor shape <-> Tauri DB shape)
+// ============================================================================
+//
+// The RecipeEditor in src/components/editors/RecipeEditor.tsx uses a local
+// Recipe type that pre-dates the canonical src/types one. Refactoring the
+// editor away from its grid + ingredient-name UI is a much larger PR;
+// instead we serialise the editor payload as JSON into the existing
+// `pattern_json` and `ingredients_json` columns. The Rust generator parses
+// it back into Minecraft-format JSON, so the round-trip is lossless.
+
+import type { TauriRecipe } from './tauri-api';
+
+/** Editor's local Recipe shape — duplicated here to avoid a circular import. */
+export interface EditorRecipe {
+  id: string | number;
+  name: string;
+  type: 'shaped' | 'shapeless' | 'smelting' | 'smoking' | 'blasting' | 'campfire';
+  ingredients: Array<{ id?: string; name: string; count: number }>;
+  result: { name: string; count: number };
+  grid?: string[][];
+  cookTime?: number;
+  experience?: number;
+}
+
+export function recipeToTauri(
+  projectId: number,
+  recipe: EditorRecipe,
+  dbId?: number
+): TauriRecipe {
+  // The editor's smelting kinds use `campfire`; Minecraft expects
+  // `campfire_cooking` — pass the editor value through and let the Rust
+  // generator normalise both forms.
+  return {
+    id: dbId ?? null,
+    project_id: projectId,
+    recipe_name: recipe.name,
+    recipe_type: recipe.type,
+    output_item_id: null,
+    output_block_id: null,
+    output_count: Math.max(1, recipe.result.count ?? 1),
+    cook_time: recipe.cookTime ?? null,
+    experience: recipe.experience ?? 0,
+    pattern_json: recipe.grid ? JSON.stringify(recipe.grid) : null,
+    ingredients_json: JSON.stringify(recipe.ingredients ?? []),
+  };
+}
+
+export function recipeFromTauri(t: TauriRecipe): EditorRecipe {
+  let ingredients: EditorRecipe['ingredients'] = [];
+  try {
+    ingredients = JSON.parse(t.ingredients_json);
+  } catch {
+    /* fall through with empty list */
+  }
+  let grid: string[][] | undefined;
+  if (t.pattern_json) {
+    try {
+      grid = JSON.parse(t.pattern_json);
+    } catch {
+      /* leave undefined */
+    }
+  }
+  return {
+    id: t.id ?? `recipe_${Date.now()}`,
+    name: t.recipe_name,
+    type: t.recipe_type as EditorRecipe['type'],
+    ingredients,
+    result: { name: t.recipe_name, count: t.output_count },
+    grid,
+    cookTime: t.cook_time ?? undefined,
+    experience: t.experience,
+  };
+}
