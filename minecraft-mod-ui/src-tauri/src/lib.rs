@@ -3,6 +3,7 @@ pub mod watcher;
 pub mod codegen;
 pub mod commands;
 pub mod resources;
+pub mod feature_system;
 
 use std::sync::Arc;
 use commands::project_commands::DbState;
@@ -98,6 +99,9 @@ pub fn run() {
             // File watcher commands
             commands::watcher_commands::start_watching,
             commands::watcher_commands::stop_watching,
+            // Feature catalog commands
+            commands::feature_commands::list_features,
+            commands::feature_commands::generate_feature_skeleton,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

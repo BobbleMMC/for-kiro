@@ -252,6 +252,50 @@ export const startWatching = (project_id: number): Promise<string> =>
 export const stopWatching = (): Promise<void> => invoke<void>('stop_watching');
 
 // ============================================================================
+// Feature Catalog API
+// ============================================================================
+
+export type FeatureKindSlug =
+  | 'block' | 'item' | 'tool' | 'armor' | 'food' | 'enchantment'
+  | 'entity' | 'geckolib_animation'
+  | 'biome' | 'dimension' | 'worldgen_feature'
+  | 'recipe' | 'loot_table' | 'advancement'
+  | 'sound' | 'texture' | 'model'
+  | 'config' | 'keybind' | 'screen' | 'command'
+  | 'event_handler' | 'mixin' | 'jei_integration' | 'dependency_integration';
+
+export type CompletionStatus = 'skeleton' | 'partial' | 'complete';
+
+export interface FeatureInfo {
+  kind: FeatureKindSlug;
+  name: string;
+  description: string;
+  category: string;
+
+  status: CompletionStatus;
+
+  supported_loaders: string[];
+  supported_mc_versions: string[];
+
+  has_template: boolean;
+  has_validator: boolean;
+  has_dependency_resolver: boolean;
+  has_version_aware_generator: boolean;
+
+  command_name: string | null;
+  editor_panel_id: string | null;
+  notes: string;
+}
+
+export const listFeatures = (): Promise<FeatureInfo[]> => invoke<FeatureInfo[]>('list_features');
+
+export const generateFeatureSkeleton = (data: {
+  project_id: number;
+  kind: FeatureKindSlug;
+  name: string;
+}): Promise<GeneratedFile> => invoke<GeneratedFile>('generate_feature_skeleton', data);
+
+// ============================================================================
 // Resource API
 // ============================================================================
 
