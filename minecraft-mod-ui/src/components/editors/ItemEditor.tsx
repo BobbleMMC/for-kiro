@@ -1,7 +1,7 @@
 import type { FC } from 'react';
 import { useState } from 'react';
-import { Save, X, Zap } from 'lucide-react';
-import { Button } from '../common';
+import { Save, X, Zap, FileCode } from 'lucide-react';
+import { Button, GeneratedCodeModal } from '../common';
 import type { Item } from '../../types';
 
 interface ItemEditorProps {
@@ -14,6 +14,7 @@ interface ItemEditorProps {
 const rarities = ['common', 'uncommon', 'rare', 'epic', 'legendary'] as const;
 
 const ItemEditor: FC<ItemEditorProps> = ({ item, projectId, onSave, onCancel }) => {
+  const [showJavaPreview, setShowJavaPreview] = useState(false);
   const [formData, setFormData] = useState({
     item_name: item?.item_name || '',
     display_name: item?.display_name || '',
@@ -300,6 +301,15 @@ const ItemEditor: FC<ItemEditorProps> = ({ item, projectId, onSave, onCancel }) 
 
       {/* Footer */}
       <div className="border-t border-slate-200 dark:border-slate-700 p-4 flex gap-2 justify-end">
+        {item?.id ? (
+          <Button
+            variant="outline"
+            onClick={() => setShowJavaPreview(true)}
+            icon={<FileCode className="w-4 h-4" />}
+          >
+            Generate Java
+          </Button>
+        ) : null}
         <Button variant="outline" onClick={onCancel} icon={<X className="w-4 h-4" />}>
           Cancel
         </Button>
@@ -307,6 +317,14 @@ const ItemEditor: FC<ItemEditorProps> = ({ item, projectId, onSave, onCancel }) 
           Save Item
         </Button>
       </div>
+
+      {showJavaPreview && item?.id ? (
+        <GeneratedCodeModal
+          kind="item"
+          id={item.id}
+          onClose={() => setShowJavaPreview(false)}
+        />
+      ) : null}
     </div>
   );
 };

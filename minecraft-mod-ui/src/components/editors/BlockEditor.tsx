@@ -1,7 +1,7 @@
 import type { FC } from 'react';
 import { useState } from 'react';
-import { Save, X } from 'lucide-react';
-import { Button } from '../common';
+import { Save, X, FileCode } from 'lucide-react';
+import { Button, GeneratedCodeModal } from '../common';
 import type { Block } from '../../types';
 
 interface BlockEditorProps {
@@ -14,6 +14,7 @@ interface BlockEditorProps {
 const materialTypes = ['stone', 'dirt', 'wood', 'ore', 'metal', 'glass', 'fabric', 'decorative', 'other'] as const;
 
 const BlockEditor: FC<BlockEditorProps> = ({ block, projectId, onSave, onCancel }) => {
+  const [showJavaPreview, setShowJavaPreview] = useState(false);
   const [formData, setFormData] = useState({
     block_name: block?.block_name || '',
     display_name: block?.display_name || '',
@@ -242,6 +243,15 @@ const BlockEditor: FC<BlockEditorProps> = ({ block, projectId, onSave, onCancel 
 
       {/* Footer */}
       <div className="border-t border-slate-200 dark:border-slate-700 p-4 flex gap-2 justify-end">
+        {block?.id ? (
+          <Button
+            variant="outline"
+            onClick={() => setShowJavaPreview(true)}
+            icon={<FileCode className="w-4 h-4" />}
+          >
+            Generate Java
+          </Button>
+        ) : null}
         <Button variant="outline" onClick={onCancel} icon={<X className="w-4 h-4" />}>
           Cancel
         </Button>
@@ -249,6 +259,14 @@ const BlockEditor: FC<BlockEditorProps> = ({ block, projectId, onSave, onCancel 
           Save Block
         </Button>
       </div>
+
+      {showJavaPreview && block?.id ? (
+        <GeneratedCodeModal
+          kind="block"
+          id={block.id}
+          onClose={() => setShowJavaPreview(false)}
+        />
+      ) : null}
     </div>
   );
 };

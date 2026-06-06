@@ -6,6 +6,7 @@ pub mod resources;
 
 use std::sync::Arc;
 use commands::project_commands::DbState;
+use commands::watcher_commands::WatcherState;
 use tauri::Manager;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -26,6 +27,7 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_fs::init())
         .manage(db_state)
+        .manage(WatcherState::default())
         .setup(move |app| {
             if cfg!(debug_assertions) {
                 app.handle().plugin(
@@ -92,6 +94,9 @@ pub fn run() {
             // Resource commands
             commands::resource_commands::get_resource_text,
             commands::resource_commands::list_resources,
+            // File watcher commands
+            commands::watcher_commands::start_watching,
+            commands::watcher_commands::stop_watching,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

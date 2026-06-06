@@ -231,6 +231,15 @@ export const runGradleBuild = (
 export const checkJavaVersion = (): Promise<string> => invoke<string>('check_java_version');
 
 // ============================================================================
+// File watcher API
+// ============================================================================
+
+export const startWatching = (project_id: number): Promise<string> =>
+  invoke<string>('start_watching', { project_id });
+
+export const stopWatching = (): Promise<void> => invoke<void>('stop_watching');
+
+// ============================================================================
 // Resource API
 // ============================================================================
 

@@ -1,4 +1,14 @@
-use notify::{Config, Event, EventKind, RecommendedWatcher, Watcher};
+//! File-system watcher.
+//!
+//! `start_watcher` returns a `RecommendedWatcher` that has already had
+//! `watch(&project_path, RecursiveMode::Recursive)` called on it — the
+//! caller's only job is to keep the value alive (drop = stop watching).
+//!
+//! Each filesystem change is forwarded to the frontend as a typed
+//! `fs-event` Tauri event and persisted to the `file_registry` table so
+//! the project's known-files set stays in sync with disk.
+
+use notify::{Config, Event, EventKind, RecommendedWatcher, RecursiveMode, Watcher};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use tauri::{AppHandle, Emitter};
@@ -9,7 +19,7 @@ use crate::db::{operations::FileEntry, Database};
 /// File system event emitted to frontend
 #[derive(Debug, Clone, serde::Serialize)]
 pub struct FileSystemEvent {
-    pub event_type: String,   // "created", "modified", "removed"
+    pub event_type: String, // "created", "modified", "removed"
     pub file_path: String,
     pub file_type: String,
 }
@@ -27,28 +37,30 @@ fn get_file_type(path: &Path) -> String {
     }
 }
 
-/// Start watching a project directory for file changes
+/// Spawn a `notify` watcher rooted at `project_path` and forward every
+/// event to the frontend + DB. The returned `RecommendedWatcher` must be
+/// kept alive (e.g. stored in app state) — dropping it stops watching.
 pub fn start_watcher(
     app_handle: AppHandle,
     project_path: PathBuf,
     project_id: i64,
     db: Arc<Database>,
 ) -> Result<RecommendedWatcher, String> {
-    let (tx, mut rx) = mpsc::channel::<Event>(100);
+    let (tx, mut rx) = mpsc::channel::<Event>(256);
 
-    // Spawn async handler for events
+    // Spawn async handler that consumes events and updates DB + frontend.
     let app_clone = app_handle.clone();
     let db_clone = db.clone();
-    let project_path_clone = project_path.clone();
-
+    let project_root = project_path.clone();
     tokio::spawn(async move {
         while let Some(event) = rx.recv().await {
-            handle_fs_event(&app_clone, &db_clone, project_id, &project_path_clone, event);
+            handle_fs_event(&app_clone, &db_clone, project_id, &project_root, event);
         }
     });
 
-    // Create watcher with debounce
-    let watcher = RecommendedWatcher::new(
+    // Create the watcher. The closure runs on the notify worker thread,
+    // so we use `blocking_send` to push into the tokio channel.
+    let mut watcher = RecommendedWatcher::new(
         move |result: Result<Event, notify::Error>| {
             if let Ok(event) = result {
                 let _ = tx.blocking_send(event);
@@ -57,6 +69,13 @@ pub fn start_watcher(
         Config::default(),
     )
     .map_err(|e| format!("Failed to create watcher: {}", e))?;
+
+    // **The bit that was missing before** — actually subscribe to the path.
+    watcher
+        .watch(&project_path, RecursiveMode::Recursive)
+        .map_err(|e| format!("Failed to watch {:?}: {}", project_path, e))?;
+
+    log::info!("Watching project directory: {:?}", project_path);
 
     Ok(watcher)
 }
@@ -83,8 +102,13 @@ fn handle_fs_event(
             Err(_) => continue,
         };
 
-        // Skip hidden files and build output
-        if relative_path.starts_with('.') || relative_path.contains("/build/") {
+        // Skip hidden files, build output, and gradle metadata
+        if relative_path.starts_with('.')
+            || relative_path.contains("/build/")
+            || relative_path.contains("\\build\\")
+            || relative_path.contains("/.gradle/")
+            || relative_path.contains("/run/")
+        {
             continue;
         }
 

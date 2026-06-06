@@ -5,3 +5,4 @@ pub mod build_commands;
 pub mod resource_commands;
 pub mod codegen_commands;
 pub mod scaffold_commands;
+pub mod watcher_commands;
