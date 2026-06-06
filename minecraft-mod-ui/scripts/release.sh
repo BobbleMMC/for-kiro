@@ -106,7 +106,18 @@ EOF
 # ---------- 4. Zip everything ----------
 echo "==> [4/4] Compressing release"
 mkdir -p "${OUT_DIR}"
-( cd "${STAGE_DIR}" && zip -9 -r "${ROOT}/${OUT_DIR}/${ZIP_NAME}" . )
+
+if command -v zip &>/dev/null; then
+  ( cd "${STAGE_DIR}" && zip -9 -r "${ROOT}/${OUT_DIR}/${ZIP_NAME}" . )
+elif command -v 7z &>/dev/null; then
+  ( cd "${STAGE_DIR}" && 7z a -tzip -mx=9 "${ROOT}/${OUT_DIR}/${ZIP_NAME}" . )
+elif command -v powershell &>/dev/null; then
+  powershell -NoProfile -Command "Compress-Archive -Path '${STAGE_DIR}/*' -DestinationPath '${ROOT}/${OUT_DIR}/${ZIP_NAME}' -Force"
+else
+  echo "Error: no zip, 7z, or powershell available to create archive" >&2
+  exit 4
+fi
+
 rm -rf "${STAGE_DIR}"
 
 ZIP_SIZE=$(du -h "${OUT_DIR}/${ZIP_NAME}" | cut -f1)
