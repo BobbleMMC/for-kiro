@@ -197,6 +197,18 @@ export const generateBlockClass = (block_id: number): Promise<GeneratedFile> =>
 export const generateItemClass = (item_id: number): Promise<GeneratedFile> =>
   invoke<GeneratedFile>('generate_item_class', { item_id });
 
+export interface WriteResult {
+  absolute_path: string;
+  relative_path: string;
+}
+
+export const writeGeneratedFile = (data: {
+  project_id: number;
+  package_path: string;
+  file_name: string;
+  source: string;
+}): Promise<WriteResult> => invoke<WriteResult>('write_generated_file', data);
+
 // ============================================================================
 // Scaffold API
 // ============================================================================

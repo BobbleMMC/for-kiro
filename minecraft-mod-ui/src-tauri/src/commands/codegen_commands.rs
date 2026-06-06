@@ -380,3 +380,93 @@ pub async fn generate_item_class(
         source,
     })
 }
+
+
+// ============================================================================
+// Write generated code to disk
+// ============================================================================
+//
+// Bridges the read-only `generate_*` commands above to the on-disk project
+// scaffold. The frontend modal lets the user click "Write to project" after
+// reviewing the source — that calls this command, which resolves the
+// project's working directory via the scaffold marker (file_registry) and
+// writes the file under `src/main/java/<package_path>/<file_name>`.
+//
+// The write also registers the file in `file_registry` so the project's
+// known-files set stays accurate. The on-disk file watcher (when active)
+// will see the change and emit `fs-event` to the frontend, just like a
+// manual edit, which keeps both flows consistent.
+
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct WriteResult {
+    pub absolute_path: String,
+    pub relative_path: String,
+}
+
+#[tauri::command]
+pub async fn write_generated_file(
+    db: State<'_, DbState>,
+    project_id: i64,
+    package_path: String,
+    file_name: String,
+    source: String,
+) -> Result<WriteResult, String> {
+    use std::path::PathBuf;
+
+    // Resolve project root via the scaffold marker.
+    let files = db
+        .0
+        .get_files(project_id)
+        .map_err(|e| format!("Failed to query file registry: {}", e))?;
+
+    let project_root = files
+        .iter()
+        .find(|f| f.file_path == "__project_root__")
+        .and_then(|f| f.last_modified.clone())
+        .ok_or_else(|| {
+            "Project has not been scaffolded yet — open the workspace and click Build once \
+             so the project skeleton is written to disk."
+                .to_string()
+        })?;
+
+    // Reject suspicious paths early so a hostile package_path can't write
+    // outside the project (e.g. `../../etc/passwd`).
+    let safe_pkg = package_path.trim_start_matches('/');
+    let safe_name = file_name.trim_start_matches('/');
+    if safe_pkg.contains("..") || safe_name.contains("..") || safe_name.contains('/') {
+        return Err(format!(
+            "Refusing to write to suspicious path: {}/{}",
+            package_path, file_name
+        ));
+    }
+
+    let relative = PathBuf::from("src/main/java")
+        .join(safe_pkg)
+        .join(safe_name);
+    let absolute = PathBuf::from(&project_root).join(&relative);
+
+    if let Some(parent) = absolute.parent() {
+        std::fs::create_dir_all(parent).map_err(|e| {
+            format!("Failed to create directory {:?}: {}", parent, e)
+        })?;
+    }
+
+    std::fs::write(&absolute, &source)
+        .map_err(|e| format!("Failed to write {:?}: {}", absolute, e))?;
+
+    // Update file_registry so the file is tracked alongside hand-edited ones.
+    let entry = crate::db::operations::FileEntry {
+        id: None,
+        project_id,
+        file_path: relative.to_string_lossy().to_string(),
+        file_type: "code".to_string(),
+        file_size: Some(source.len() as i64),
+        last_modified: Some(chrono::Utc::now().to_rfc3339()),
+    };
+    let _ = db.0.upsert_file(&entry);
+
+    Ok(WriteResult {
+        absolute_path: absolute.to_string_lossy().to_string(),
+        relative_path: relative.to_string_lossy().to_string(),
+    })
+}

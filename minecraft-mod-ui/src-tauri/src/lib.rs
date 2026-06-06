@@ -85,6 +85,7 @@ pub fn run() {
             commands::codegen_commands::generate_event_handlers,
             commands::codegen_commands::generate_block_class,
             commands::codegen_commands::generate_item_class,
+            commands::codegen_commands::write_generated_file,
             // Scaffold commands
             commands::scaffold_commands::scaffold_project,
             commands::scaffold_commands::get_project_path,

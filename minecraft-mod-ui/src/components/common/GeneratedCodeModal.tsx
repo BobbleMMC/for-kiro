@@ -1,22 +1,34 @@
 /**
  * Modal that calls the Rust `generate_*` Tauri commands and shows the
- * produced Java source in a CodePreview pane.
- *
- * Used by the Block / Item editors and the visual node editor. Keeping
- * the modal self-contained means each caller only needs to add a single
- * button — the network call, loading state, error handling, and code
- * rendering all live here.
+ * produced Java source in a CodePreview pane. From the modal the user can:
+ *   1. Copy the source to the clipboard or download it as a `.java` file
+ *      (handled by the underlying CodePreview).
+ *   2. **Write it directly into the project's scaffolded source tree** —
+ *      this is what makes the codegen pipeline closed-loop. The button
+ *      calls `write_generated_file` which resolves the project's on-disk
+ *      path via the scaffold marker and writes
+ *      `src/main/java/<package_path>/<file_name>`. The on-disk watcher
+ *      then emits an `fs-event` and the next build picks it up.
  */
 import { useEffect, useState, type FC } from 'react';
-import { Loader2, X, FileCode, AlertTriangle } from 'lucide-react';
+import {
+  Loader2,
+  X,
+  FileCode,
+  AlertTriangle,
+  CheckCircle,
+  HardDrive,
+} from 'lucide-react';
 import { CodePreview } from './CodePreview';
 import {
   generateBlockClass,
   generateItemClass,
   generateEventHandlers,
+  writeGeneratedFile,
   isTauri,
   type GeneratedFile,
 } from '../../lib/tauri-api';
+import { useProjectStore } from '../../stores/projectStore';
 
 type Kind = 'block' | 'item' | 'graph';
 
@@ -49,9 +61,15 @@ async function generate(kind: Kind, id: number): Promise<GeneratedFile> {
 }
 
 export const GeneratedCodeModal: FC<Props> = ({ kind, id, onClose }) => {
+  const currentProject = useProjectStore((s) => s.currentProject);
+  const addConsoleMessage = useProjectStore((s) => s.addConsoleMessage);
+
   const [file, setFile] = useState<GeneratedFile | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [writing, setWriting] = useState(false);
+  const [writtenAt, setWrittenAt] = useState<string | null>(null);
+  const [writeError, setWriteError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -81,6 +99,42 @@ export const GeneratedCodeModal: FC<Props> = ({ kind, id, onClose }) => {
     };
   }, [kind, id]);
 
+  const handleWriteToDisk = async () => {
+    if (!file || !currentProject) return;
+    setWriting(true);
+    setWriteError(null);
+    try {
+      const result = await writeGeneratedFile({
+        project_id: currentProject.id,
+        package_path: file.package_path,
+        file_name: file.file_name,
+        source: file.source,
+      });
+      setWrittenAt(result.relative_path);
+      addConsoleMessage({
+        id: `msg-${Date.now()}`,
+        timestamp: new Date(),
+        level: 'success',
+        message: `Wrote ${result.relative_path}`,
+        source: 'CodeGen',
+      });
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      setWriteError(msg);
+      addConsoleMessage({
+        id: `msg-${Date.now()}`,
+        timestamp: new Date(),
+        level: 'error',
+        message: `Write failed: ${msg}`,
+        source: 'CodeGen',
+      });
+    } finally {
+      setWriting(false);
+    }
+  };
+
+  const canWrite = isTauri() && file && currentProject && !loading && !error;
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-6">
       <div className="bg-slate-900 border border-slate-700 rounded-2xl shadow-2xl w-full max-w-4xl max-h-[85vh] flex flex-col overflow-hidden">
@@ -95,13 +149,46 @@ export const GeneratedCodeModal: FC<Props> = ({ kind, id, onClose }) => {
               </span>
             )}
           </div>
-          <button
-            onClick={onClose}
-            className="p-1.5 rounded hover:bg-slate-700 text-slate-400 hover:text-white"
-          >
-            <X size={16} />
-          </button>
+          <div className="flex items-center gap-2">
+            {canWrite && (
+              <button
+                onClick={handleWriteToDisk}
+                disabled={writing}
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-60 disabled:cursor-not-allowed text-white text-xs font-medium rounded transition-colors"
+                title="Write this file into the scaffolded project on disk"
+              >
+                {writing ? (
+                  <Loader2 size={12} className="animate-spin" />
+                ) : (
+                  <HardDrive size={12} />
+                )}
+                Write to project
+              </button>
+            )}
+            <button
+              onClick={onClose}
+              className="p-1.5 rounded hover:bg-slate-700 text-slate-400 hover:text-white"
+            >
+              <X size={16} />
+            </button>
+          </div>
         </div>
+
+        {/* Status bar — write feedback */}
+        {writtenAt && !writeError && (
+          <div className="flex items-center gap-2 px-5 py-2 bg-emerald-950/40 border-b border-emerald-700/40 text-emerald-200 text-xs">
+            <CheckCircle size={13} />
+            <span>
+              Written to <span className="font-mono">{writtenAt}</span>
+            </span>
+          </div>
+        )}
+        {writeError && (
+          <div className="flex items-start gap-2 px-5 py-2 bg-red-950/40 border-b border-red-700/40 text-red-200 text-xs">
+            <AlertTriangle size={13} className="mt-0.5 flex-shrink-0" />
+            <span>{writeError}</span>
+          </div>
+        )}
 
         {/* Body */}
         <div className="flex-1 overflow-auto p-4">
