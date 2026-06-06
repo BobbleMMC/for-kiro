@@ -7,9 +7,7 @@ import { useState, useCallback, type FC } from 'react';
 import {
   GitBranch,
   GitCommit,
-  GitMerge,
-  GitPullRequest,
-  Plus,
+      Plus,
   Minus,
   FileText,
   Check,

@@ -2,7 +2,7 @@
  * Resource Pack Studio — Browse vanilla assets, override textures, manage sounds
  */
 import { useState, type FC } from 'react';
-import { Package, Image, Volume2, FileJson, Type, Search, Download, Upload, Edit, Check, Eye } from 'lucide-react';
+import { Package, Image, Volume2, FileJson, Type, Search, Upload, Check, Eye } from 'lucide-react';
 
 type AssetCategory = 'textures'|'models'|'sounds'|'lang'|'blockstates';
 interface VanillaAsset { id:string; path:string; name:string; category:AssetCategory; overridden:boolean; }

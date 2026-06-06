@@ -5,7 +5,7 @@
  * Inspired by Unity Agentic AI (GDC 2025) + GitHub Copilot
  */
 import { useState, useRef, useCallback, type FC } from 'react';
-import { Bot, Code, Bug, Gauge, Image, FileText, ArrowRightLeft, Sparkles, Send, Loader2, Copy, Check, ChevronDown, X, Settings, History, Zap } from 'lucide-react';
+import { Bot, Code, Bug, Gauge, Image, FileText, ArrowRightLeft, Sparkles, Send, Loader2, Copy, Check, X, Settings, History, Zap } from 'lucide-react';
 
 // ==================== Types ====================
 
@@ -72,7 +72,6 @@ export const AIAgentHub: FC = () => {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [showAgents, setShowAgents] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const chatEndRef = useRef<HTMLDivElement>(null);
 

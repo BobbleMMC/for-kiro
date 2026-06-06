@@ -2,7 +2,7 @@
  * GUI Builder Pro — Container GUIs with drag-and-drop widgets
  */
 import { useState, useRef, type FC, type MouseEvent } from 'react';
-import { LayoutDashboard, Plus, Trash2, Save, Grid3x3, Download } from 'lucide-react';
+import { LayoutDashboard } from 'lucide-react';
 
 type WidgetType = 'slot'|'progressBar'|'energyBar'|'button'|'label';
 interface Widget { id:string; type:WidgetType; x:number; y:number; w:number; h:number; label:string; }

@@ -2,7 +2,7 @@
  * Onboarding Wizard — Interactive first-mod tutorial (5 steps)
  */
 import { useState, type FC } from 'react';
-import { Rocket, ChevronRight, ChevronLeft, Check, Sparkles, Package, Paintbrush, Zap, Globe } from 'lucide-react';
+import { Rocket, ChevronRight, ChevronLeft, Check, Sparkles } from 'lucide-react';
 
 const templates = [
   { id:'blank',name:'Blank Mod',desc:'Empty project',icon:'📦',color:'#64748b' },

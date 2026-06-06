@@ -2,7 +2,7 @@
  * World Generation Editor — Ore distribution with canvas preview
  */
 import { useState, useRef, useEffect, type FC } from 'react';
-import { Mountain, Diamond, Plus, RefreshCw, Download } from 'lucide-react';
+import { Mountain, Plus } from 'lucide-react';
 
 interface OreConfig { id:string; name:string; veinSize:number; perChunk:number; minY:number; maxY:number; color:string; }
 const mockOres:OreConfig[] = [

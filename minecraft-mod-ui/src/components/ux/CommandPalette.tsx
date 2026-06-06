@@ -3,7 +3,7 @@
  * 24+ commands with fuzzy search, keyboard navigation, shortcuts
  */
 import { useState, useEffect, useRef, type FC } from 'react';
-import { Search, Workflow, Box, Settings, File, Zap, ArrowRight, CornerDownLeft, Command } from 'lucide-react';
+import { Search, Zap, CornerDownLeft } from 'lucide-react';
 
 interface CmdItem { id:string; label:string; desc?:string; shortcut?:string; action:()=>void; }
 

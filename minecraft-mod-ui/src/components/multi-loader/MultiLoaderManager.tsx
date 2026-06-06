@@ -3,7 +3,7 @@
  * Build targets, compatibility analysis, cross-loader code generation
  */
 import { useState, type FC } from 'react';
-import { Package, Check, AlertTriangle, Download, Globe, Layers, Cpu, Shield, Zap, X } from 'lucide-react';
+import { Package, Check, AlertTriangle, Download, Globe, Layers, Cpu, Shield, Zap } from 'lucide-react';
 
 type LoaderType = 'forge'|'fabric'|'neoforge'|'quilt'|'bedrock';
 interface Loader { id:LoaderType; name:string; icon:string; color:string; version:string; status:'active'|'available'|'incompatible'; mcVersions:string[]; apiStyle:string; features:string[]; }

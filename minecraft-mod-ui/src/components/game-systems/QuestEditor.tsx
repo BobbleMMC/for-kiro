@@ -2,7 +2,7 @@
  * Quest Editor — Quest chains with objectives, rewards, NPC dialog
  */
 import { useState, type FC } from 'react';
-import { Scroll, Plus, Sword, Star, Map, MessageSquare, Gift, Flag, Target, Link2, ArrowRight } from 'lucide-react';
+import { Scroll, Sword, Star, Map, MessageSquare, Gift, Flag } from 'lucide-react';
 
 type ObjType = 'kill'|'collect'|'discover'|'craft'|'explore'|'talk';
 interface Objective { id:string; type:ObjType; target:string; count:number; current:number; desc:string; }

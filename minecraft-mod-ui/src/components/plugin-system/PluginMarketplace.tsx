@@ -2,7 +2,7 @@
  * Plugin Marketplace — Browse, install, manage community plugins
  */
 import { useState, type FC } from 'react';
-import { Puzzle, Download, Star, Check, Trash2, Search, Filter, ExternalLink, User, Clock, RefreshCw, Code, Palette, Boxes, Zap, Settings } from 'lucide-react';
+import { Puzzle, Download, Star, Check, Trash2, Search, Filter, ExternalLink, User, RefreshCw, Code, Palette, Boxes, Zap, Settings } from 'lucide-react';
 
 type PluginStatus = 'installed'|'available'|'update';
 type PluginCategory = 'editor'|'generator'|'theme'|'integration'|'utility';

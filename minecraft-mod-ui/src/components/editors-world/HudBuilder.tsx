@@ -23,10 +23,7 @@ import {
   EyeOff,
   Save,
   Download,
-  AlignLeft,
-  AlignCenter,
-  AlignRight,
-  Layers,
+        Layers,
   Move,
   Maximize2,
 } from 'lucide-react';
@@ -347,23 +344,6 @@ export const HudBuilder: FC = () => {
   const handleMouseUp = useCallback(() => {
     setDragState(null);
   }, []);
-
-  // Get anchor text position
-  const getAnchorOffset = (el: HudElement): { displayX: number; displayY: number } => {
-    let displayX = el.x;
-    let displayY = el.y;
-
-    switch (el.anchorX) {
-      case 'center': displayX = el.x - PREVIEW_WIDTH / 2 + el.width / 2; break;
-      case 'right': displayX = PREVIEW_WIDTH - el.x - el.width; break;
-    }
-    switch (el.anchorY) {
-      case 'middle': displayY = el.y - PREVIEW_HEIGHT / 2 + el.height / 2; break;
-      case 'bottom': displayY = PREVIEW_HEIGHT - el.y - el.height; break;
-    }
-
-    return { displayX, displayY };
-  };
 
   const selectedElement = elements.find((e) => e.id === selectedId);
 

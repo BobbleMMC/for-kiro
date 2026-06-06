@@ -20,8 +20,7 @@ import {
   Trash2,
   Grid3x3,
   Save,
-  RotateCcw,
-} from 'lucide-react';
+  } from 'lucide-react';
 
 // ==================== Types ====================
 

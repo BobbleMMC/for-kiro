@@ -166,7 +166,7 @@ const PropertyGroupRow: FC<PropertyGroupRowProps> = ({ group }) => {
 };
 
 export const SmartInspector: FC = () => {
-  const [selectedObject, setSelectedObject] = useState<string | null>('CustomBlock');
+  const [selectedObject, _] = useState<string | null>('CustomBlock');
 
   return (
     <div className="flex flex-col h-full p-3 bg-slate-800">

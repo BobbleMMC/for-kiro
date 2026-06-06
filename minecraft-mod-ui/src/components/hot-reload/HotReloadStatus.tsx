@@ -3,8 +3,8 @@
  * Shows real-time compilation state, file change notifications,
  * and auto-recompile progress in the header bar.
  */
-import { useState, useEffect, useCallback, type FC } from 'react';
-import { Zap, RefreshCw, CheckCircle, XCircle, AlertTriangle, Loader2 } from 'lucide-react';
+import { useState, useEffect, type FC } from 'react';
+import { Zap, RefreshCw, CheckCircle, XCircle, Loader2 } from 'lucide-react';
 import { listenToFsEvents, listenToBuildStatus, isTauri } from '../../lib/tauri-api';
 
 type ReloadState = 'idle' | 'watching' | 'compiling' | 'success' | 'error';

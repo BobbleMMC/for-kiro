@@ -7,15 +7,12 @@ import { useState, useEffect, useRef, useCallback, type FC } from 'react';
 import {
   RefreshCw,
   Download,
-  Layers,
-  Maximize2,
-  Mountain,
+      Mountain,
   Waves,
   TreePine,
   Snowflake,
   Sun,
-  Droplets,
-} from 'lucide-react';
+  } from 'lucide-react';
 
 // ==================== Perlin Noise Implementation ====================
 

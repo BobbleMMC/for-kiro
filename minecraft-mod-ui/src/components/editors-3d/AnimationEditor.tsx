@@ -4,7 +4,7 @@
  * easing curves, playback controls
  */
 import { useState, useEffect, useRef, type FC } from 'react';
-import { Play, Pause, SkipBack, SkipForward, Plus, Trash2, Save, Download, Film, Diamond, Rewind, FastForward, ChevronDown, ChevronRight, Eye, EyeOff } from 'lucide-react';
+import { Play, Pause, SkipBack, SkipForward, Plus, Trash2, Save, Download, Film, Diamond, Rewind, FastForward } from 'lucide-react';
 
 type EasingType = 'linear' | 'easeIn' | 'easeOut' | 'easeInOut' | 'step';
 interface Keyframe { id: string; time: number; value: [number, number, number]; easing: EasingType; }
@@ -25,7 +25,7 @@ export const AnimationEditor: FC = () => {
   const [selTrack, setSelTrack] = useState<string|null>('t1');
   const [selKf, setSelKf] = useState<string|null>(null);
   const [zoom, setZoom] = useState(1);
-  const ref = useRef<NodeJS.Timeout|null>(null);
+  const ref = useRef<ReturnType<typeof setInterval> | null>(null);
   const tw = 12 * zoom;
 
   useEffect(() => {

@@ -3,8 +3,8 @@
  * Unit tests, integration tests, performance benchmarks, regression detection
  * Inspired by Unity Test Runner + Jest
  */
-import { useState, useEffect, useCallback, type FC } from 'react';
-import { FlaskConical, Play, CheckCircle, XCircle, Clock, AlertTriangle, RotateCcw, Filter, ChevronDown, ChevronRight, FileCode, Cpu, Gauge, Layers, Zap } from 'lucide-react';
+import { useState, useCallback, type FC } from 'react';
+import { FlaskConical, Play, CheckCircle, XCircle, Clock, AlertTriangle, RotateCcw, ChevronDown, ChevronRight, FileCode, Cpu, Gauge, Layers } from 'lucide-react';
 
 type TestStatus = 'passed' | 'failed' | 'skipped' | 'running' | 'pending';
 type TestCategory = 'unit' | 'integration' | 'performance' | 'regression';

@@ -247,7 +247,6 @@ export function ModelEditor3D() {
 
   const [selectedId, setSelectedId] = useState<string | null>('body');
   const [transformMode, setTransformMode] = useState<TransformMode>('translate');
-  const [showWireframe, setShowWireframe] = useState(false);
 
   const idCounter = useRef(5);
 

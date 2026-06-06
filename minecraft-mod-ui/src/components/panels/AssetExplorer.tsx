@@ -149,7 +149,7 @@ const TreeItem: FC<TreeItemProps> = ({ item, onSelect }) => {
 };
 
 export const AssetExplorer: FC = () => {
-  const [selectedItem, setSelectedItem] = useState<string | null>(null);
+  const [_,  setSelectedItem] = useState<string | null>(null);
 
   const handleSelect = (id: string, type: string) => {
     setSelectedItem(id);

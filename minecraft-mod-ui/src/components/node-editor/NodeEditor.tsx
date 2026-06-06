@@ -104,10 +104,10 @@ export function NodeEditor({ onSave, onGenerateCode }: NodeEditorProps) {
   const reactFlowWrapper = useRef<HTMLDivElement>(null);
   const nodeIdCounter = useRef(5);
 
-  // Validate connection compatibility
-  const isValidConnection = useCallback((connection: Connection) => {
-    const sourceHandle = connection.sourceHandle || 'output';
-    const targetHandle = connection.targetHandle || 'input';
+  // Validate connection compatibility (accepts Edge | Connection per ReactFlow API)
+  const isValidConnection = useCallback((edge: Edge | Connection) => {
+    const sourceHandle = edge.sourceHandle ?? 'output';
+    const targetHandle = edge.targetHandle ?? 'input';
     const allowed = socketCompatibility[sourceHandle];
     return allowed ? allowed.includes(targetHandle) : false;
   }, []);

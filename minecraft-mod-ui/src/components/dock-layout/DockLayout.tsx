@@ -15,46 +15,25 @@ import { useState, useCallback, useRef, useEffect, type FC, type ReactNode } fro
 import {
   Mosaic,
   MosaicWindow,
-  MosaicNode,
-  MosaicDirection,
-  MosaicBranch,
+  type MosaicNode,
+  type MosaicBranch,
   getLeaves,
 } from 'react-mosaic-component';
 import 'react-mosaic-component/react-mosaic-component.css';
 import {
-  Workflow,
   Box,
-  FolderTree,
-  Terminal,
-  Settings,
-  Search,
-  Paintbrush,
-  GitBranch,
-  Layers,
   ChevronLeft,
   ChevronRight,
   Save,
   RotateCcw,
   Layout,
-  PanelLeftClose,
-  PanelRightClose,
   Maximize2,
   X,
 } from 'lucide-react';
 
 // ==================== Types ====================
 
-export type PanelId =
-  | 'asset-explorer'
-  | 'canvas'
-  | 'inspector'
-  | 'console'
-  | 'node-editor'
-  | 'properties'
-  | 'file-explorer'
-  | 'git'
-  | 'search'
-  | 'settings';
+export type PanelId = string;
 
 export interface PanelConfig {
   id: PanelId;
@@ -63,6 +42,10 @@ export interface PanelConfig {
   component: ReactNode;
   closable: boolean;
   defaultVisible: boolean;
+  /** Where the dock strip toggle button appears: 'left' | 'right'. Defaults to 'left'. */
+  dockSide?: 'left' | 'right';
+  /** Category for grouping in the dock strip. */
+  category?: 'assets' | 'editor' | 'inspector' | 'tools' | 'system';
   minWidth?: number;
   minHeight?: number;
 }
@@ -321,7 +304,7 @@ export const DockLayout: FC<DockLayoutProps> = ({ panels, headerContent }) => {
   );
   const [leftCollapsed, setLeftCollapsed] = useState(false);
   const [rightCollapsed, setRightCollapsed] = useState(false);
-  const [savedLayouts, setSavedLayouts] = useState<Record<string, MosaicNode<PanelId>>>({});
+  const [, setSavedLayouts] = useState<Record<string, MosaicNode<PanelId>>>({});
 
   // Panel lookup map
   const panelMap = useRef(new Map(panels.map((p) => [p.id, p])));
@@ -389,9 +372,15 @@ export const DockLayout: FC<DockLayoutProps> = ({ panels, headerContent }) => {
 
   // Render panel title bar
   const renderTitleBar = useCallback(
-    (id: PanelId, path: MosaicBranch[]) => {
+    (id: PanelId, _path: MosaicBranch[]) => {
       const config = panelMap.current.get(id);
-      if (!config) return null;
+      if (!config) {
+        return (
+          <div className="flex items-center px-2 h-full bg-slate-800 border-b border-slate-700">
+            <span className="text-[11px] text-slate-500">Unknown Panel</span>
+          </div>
+        );
+      }
       const Icon = config.icon;
 
       return (
@@ -439,13 +428,9 @@ export const DockLayout: FC<DockLayoutProps> = ({ panels, headerContent }) => {
     []
   );
 
-  // Split panels for dock strip
-  const leftPanels = panels.filter((p) =>
-    ['asset-explorer', 'file-explorer', 'git', 'search'].includes(p.id)
-  );
-  const rightPanels = panels.filter((p) =>
-    ['inspector', 'properties', 'settings'].includes(p.id)
-  );
+  // Split panels for dock strip based on configured side
+  const leftPanels = panels.filter((p) => (p.dockSide ?? 'left') === 'left');
+  const rightPanels = panels.filter((p) => p.dockSide === 'right');
 
   return (
     <div className="flex flex-col h-full w-full bg-slate-900">

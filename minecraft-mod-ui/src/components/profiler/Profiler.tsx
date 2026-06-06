@@ -3,7 +3,7 @@
  * Real-time TPS monitoring, memory usage, entity count, handler timing
  */
 import { useState, useEffect, useRef, type FC } from 'react';
-import { Activity, Cpu, HardDrive, Users, AlertTriangle, Play, Pause, RotateCcw, Download, ChevronDown, ChevronRight, Gauge, Clock, Zap } from 'lucide-react';
+import { Activity, HardDrive, Users, AlertTriangle, Play, Pause, RotateCcw, Download, ChevronDown, ChevronRight, Gauge, Clock, Zap } from 'lucide-react';
 
 interface ProfileFrame { tick: number; tps: number; msPerTick: number; entityCount: number; memoryMB: number; handlers: { name: string; timeMs: number; calls: number }[]; }
 interface ProfileWarning { id: string; message: string; severity: 'warning' | 'critical'; }
@@ -38,7 +38,7 @@ export const Profiler: FC = () => {
       tickRef.current++;
       const frame = generateMockFrame(tickRef.current);
       setFrames(prev => [...prev, frame].slice(-500));
-      if (frame.tps < 15) setWarnings(prev => [...prev, { id: `w${Date.now()}`, message: `TPS dropped to ${frame.tps}`, severity: 'critical' }].slice(-20));
+      if (frame.tps < 15) setWarnings(prev => [...prev, { id: `w${Date.now()}`, message: `TPS dropped to ${frame.tps}`, severity: 'critical' as const }].slice(-20));
     }, 50);
     return () => clearInterval(interval);
   }, [isRecording]);

@@ -1,8 +1,8 @@
 /**
  * Texture Editor v2 — Layer-based painting with blend modes
  */
-import { useState, useCallback, useRef, type FC } from 'react';
-import { Layers, Plus, Trash2, Eye, EyeOff, Lock, Unlock, Copy, MoveUp, MoveDown, FlipHorizontal, FlipVertical, Grid3x3, Save, Download, Film, RotateCcw } from 'lucide-react';
+import { useState, useRef, type FC } from 'react';
+import { Layers, Plus, Trash2, Eye, EyeOff, Lock, Unlock, MoveUp, MoveDown, FlipHorizontal, FlipVertical, Grid3x3, Save, Download, Film, RotateCcw } from 'lucide-react';
 
 type BlendMode = 'normal'|'multiply'|'screen'|'overlay'|'add';
 interface Layer { id:string; name:string; visible:boolean; locked:boolean; opacity:number; blendMode:BlendMode; }

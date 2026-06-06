@@ -2,7 +2,7 @@
  * Multiplayer Manager — Packets, permissions, economy, teams
  */
 import { useState, type FC } from 'react';
-import { Globe, ArrowUpDown, Shield, Coins, Users, Plus, Lock, ChevronRight, Settings } from 'lucide-react';
+import { Globe, ArrowUpDown, Shield, Coins, Users, Lock } from 'lucide-react';
 
 type Tab = 'packets'|'permissions'|'economy'|'teams';
 interface Packet { id:string; name:string; dir:'C2S'|'S2C'|'BOTH'; fields:{name:string;type:string}[]; }

@@ -2,7 +2,7 @@
  * Notification Center — Build alerts, AI suggestions, updates
  */
 import { useState, type FC } from 'react';
-import { Bell, Check, X, AlertTriangle, Info, Bot, Clock, Trash2, CheckCheck } from 'lucide-react';
+import { Bell, Check, X, AlertTriangle, Info, Bot, Clock, CheckCheck } from 'lucide-react';
 
 type NType = 'success'|'error'|'warning'|'info'|'ai';
 interface Notif { id:string; type:NType; title:string; msg:string; time:string; read:boolean; action?:string; }
