@@ -1,7 +1,7 @@
 {
   "name": "minecraft-mod-ui",
   "private": true,
-  "version": "1.1.0",
+  "version": "1.1.1",
   "main": "main.js",
   "description": "React UI for Minecraft Mod Generator - Desktop Application",
   "homepage": "https://github.com/BobbleMMC/for-kiro",
