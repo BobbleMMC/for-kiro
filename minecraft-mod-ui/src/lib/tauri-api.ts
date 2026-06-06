@@ -489,6 +489,48 @@ export const generateWorldgenFeature = (
   invoke<GeneratedFile[]>('generate_worldgen_feature', { asset_id });
 
 // ============================================================================
+// Loot Table codegen (PR #28)
+// ============================================================================
+
+export type LootKind = 'block' | 'entity' | 'chest' | 'fishing' | 'gift' | 'generic';
+
+export type RollsMeta =
+  | number
+  | {
+      min: number;
+      max: number;
+      range_type?: 'uniform' | 'binomial' | 'constant';
+    };
+
+export interface LootEntryMeta {
+  entry_type: 'item' | 'tag' | 'loot_table' | 'empty' | 'dynamic' | 'alternatives' | 'group' | 'sequence';
+  /** Required for item / tag / loot_table / dynamic. */
+  name?: string;
+  weight?: number;
+  quality?: number;
+  count?: RollsMeta;
+  conditions?: unknown[];
+  functions?: unknown[];
+  /** Required for alternatives / group / sequence. */
+  children?: LootEntryMeta[];
+}
+
+export interface LootPoolMeta {
+  rolls: RollsMeta;
+  bonus_rolls?: RollsMeta;
+  entries: LootEntryMeta[];
+  conditions?: unknown[];
+}
+
+export interface LootTableMeta {
+  kind: LootKind;
+  pools: LootPoolMeta[];
+}
+
+export const generateLootTableJson = (asset_id: number): Promise<GeneratedFile> =>
+  invoke<GeneratedFile>('generate_loot_table_json', { asset_id });
+
+// ============================================================================
 // Item-variant codegen
 // ============================================================================
 //
