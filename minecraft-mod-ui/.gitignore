@@ -31,3 +31,8 @@ preload.js
 *.njsproj
 *.sln
 *.sw?
+
+
+# Release output
+release-out/
+release-out/_stage_*/

@@ -2,9 +2,11 @@ pub mod db;
 pub mod watcher;
 pub mod codegen;
 pub mod commands;
+pub mod resources;
 
 use std::sync::Arc;
 use commands::project_commands::DbState;
+use tauri::Manager;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -32,6 +34,25 @@ pub fn run() {
                         .build(),
                 )?;
             }
+
+            // Load the sidecar resource bundle (studio.bin) on startup. The
+            // bin lives next to the executable as configured in
+            // tauri.conf.json -> bundle.resources, so resource_dir() resolves
+            // to the directory containing both files.
+            if let Ok(resource_dir) = app.path().resource_dir() {
+                let bin = resource_dir.join("studio.bin");
+                let manifest = resource_dir.join("manifest.json");
+                if bin.exists() && manifest.exists() {
+                    if let Err(e) = resources::init(bin, manifest) {
+                        log::warn!("Resource bundle failed to load: {}", e);
+                    } else {
+                        log::info!("Resource bundle loaded ({} entries)", resources::list().len());
+                    }
+                } else {
+                    log::warn!("studio.bin / manifest.json not found in resource_dir");
+                }
+            }
+
             log::info!("Minecraft Mod Studio started!");
             log::info!("Database path: {:?}", db_path);
             Ok(())
@@ -52,6 +73,9 @@ pub fn run() {
             // Build commands
             commands::build_commands::run_gradle_build,
             commands::build_commands::check_java_version,
+            // Resource commands
+            commands::resource_commands::get_resource_text,
+            commands::resource_commands::list_resources,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

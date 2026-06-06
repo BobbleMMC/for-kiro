@@ -1,0 +1,15 @@
+{
+  "name": "Dark (Default)",
+  "id": "dark-default",
+  "colors": {
+    "background": "#0f172a",
+    "surface": "#1e293b",
+    "border": "#334155",
+    "text": "#f1f5f9",
+    "muted": "#64748b",
+    "accent": "#3b82f6",
+    "success": "#22c55e",
+    "warning": "#eab308",
+    "error": "#ef4444"
+  }
+}

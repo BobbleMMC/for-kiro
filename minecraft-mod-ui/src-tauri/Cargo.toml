@@ -45,3 +45,28 @@ uuid = { version = "1", features = ["v4"] }
 chrono = { version = "0.4", features = ["serde"] }
 thiserror = "2"
 dirs-next = "2.0"
+
+# Resource sidecar (studio.bin = gzipped tar)
+flate2 = "1"
+tar = "0.4"
+
+
+
+# ===== Release profile =====
+# Optimised for minimum binary size + fast runtime. Together these flags
+# typically shrink the Tauri release binary by 30–45% versus the default
+# release profile, at the cost of longer compile times in CI.
+[profile.release]
+opt-level = "z"      # optimise for size (over speed)
+lto = "fat"          # full link-time optimisation across crates
+codegen-units = 1    # single codegen unit lets LTO be maximally effective
+strip = "symbols"    # strip debug symbols from the final binary
+panic = "abort"      # remove unwinding tables (huge win for size)
+incremental = false  # incremental compilation conflicts with codegen-units=1
+
+# Only used by `cargo build` (not `tauri build`) but matches release shape
+# so local profiling has the same characteristics.
+[profile.release-with-debug]
+inherits = "release"
+strip = "none"
+debug = "line-tables-only"

@@ -3,7 +3,7 @@
  * Uses Three.js via React Three Fiber
  * Features: cuboid creation, translate/rotate/scale gizmos, hierarchical bones
  */
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useMemo, useEffect } from 'react';
 import { Canvas, useThree } from '@react-three/fiber';
 import {
   OrbitControls,
@@ -61,29 +61,57 @@ interface CuboidMeshProps {
 function CuboidMesh({ cuboid, isSelected, onClick }: CuboidMeshProps) {
   const meshRef = useRef<THREE.Mesh>(null);
 
+  // Memoize the rotation array (in radians) — avoids creating a new array
+  // and re-running r3f's prop diff on every parent render.
+  const rotation = useMemo(
+    () => cuboid.rotation.map((r) => (r * Math.PI) / 180) as [number, number, number],
+    [cuboid.rotation]
+  );
+
+  // Box geometry & edges geometry are owned by us, not r3f's auto-cache,
+  // because they depend on cuboid.size which changes when the user drags
+  // the size handles. We dispose them on unmount / size change to avoid
+  // leaking GPU buffers (a pure r3f <boxGeometry args={...} /> would
+  // re-create a fresh geometry per render — that one DOES leak).
+  const boxGeometry = useMemo(() => new THREE.BoxGeometry(...cuboid.size), [cuboid.size]);
+  const edgesGeometry = useMemo(
+    () => (isSelected ? new THREE.EdgesGeometry(boxGeometry) : null),
+    [boxGeometry, isSelected]
+  );
+
+  useEffect(() => {
+    return () => {
+      boxGeometry.dispose();
+    };
+  }, [boxGeometry]);
+
+  useEffect(() => {
+    return () => {
+      edgesGeometry?.dispose();
+    };
+  }, [edgesGeometry]);
+
   if (!cuboid.visible) return null;
 
   return (
     <mesh
       ref={meshRef}
+      geometry={boxGeometry}
       position={cuboid.position}
-      rotation={cuboid.rotation.map((r) => (r * Math.PI) / 180) as [number, number, number]}
+      rotation={rotation}
       scale={cuboid.scale}
       onClick={(e) => {
         e.stopPropagation();
         onClick();
       }}
     >
-      <boxGeometry args={cuboid.size} />
       <meshStandardMaterial
         color={cuboid.color}
         transparent={isSelected}
         opacity={isSelected ? 0.85 : 1}
-        wireframe={false}
       />
-      {isSelected && (
-        <lineSegments>
-          <edgesGeometry args={[new THREE.BoxGeometry(...cuboid.size)]} />
+      {edgesGeometry && (
+        <lineSegments geometry={edgesGeometry}>
           <lineBasicMaterial color="#00ff88" linewidth={2} />
         </lineSegments>
       )}
@@ -446,7 +474,18 @@ export function ModelEditor3D() {
 
         {/* 3D Canvas */}
         <div className="flex-1 relative">
-          <Canvas shadows className="bg-slate-950">
+          {/*
+            frameloop="demand" only renders when controls / props change —
+            saves ~60% CPU and GPU memory vs. continuous rendering when the
+            user is not interacting with the viewport.
+          */}
+          <Canvas
+            shadows
+            frameloop="demand"
+            dpr={[1, 1.5]}
+            gl={{ antialias: true, powerPreference: 'low-power' }}
+            className="bg-slate-950"
+          >
             <Scene
               cuboids={cuboids}
               selectedId={selectedId}

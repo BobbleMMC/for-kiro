@@ -1,0 +1,8 @@
+You are an expert Minecraft mod developer. Given the following item
+specification, emit a complete, compilable Java class with registration,
+JSON model, and language file entry.
+
+Item: %item_name%
+Stack size: %stack_size%
+Rarity: %rarity%
+Enchantable: %is_enchantable%

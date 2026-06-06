@@ -1,72 +1,101 @@
-import { FC, useRef, useEffect, useState } from 'react';
+/**
+ * Console panel — renders the project store's console log with a cap
+ * and lightweight windowing.
+ *
+ * Performance design:
+ *  - Subscribes to the store with a stable selector (logs only) so it
+ *    re-renders only when logs actually change.
+ *  - LogRow is React.memo'd; identity-stable thanks to the message id
+ *    cap in the store.
+ *  - Windowing renders only the last MAX_RENDER rows from the filtered
+ *    list. Older entries stay in memory (capped at 200) but skip JSX
+ *    cost — keeps DOM nodes ≤ 80 even on a busy build.
+ *  - Auto-scroll uses requestAnimationFrame to coalesce consecutive log
+ *    bursts into one paint.
+ */
+import { FC, memo, useCallback, useMemo, useRef, useEffect, useState } from 'react';
 import { Trash2, Copy } from 'lucide-react';
+import { useProjectStore } from '../../stores/projectStore';
+import type { ConsoleMessage } from '../../types';
 
-interface LogEntry {
-  id: string;
-  timestamp: string;
-  level: 'info' | 'warn' | 'error' | 'success';
-  message: string;
-}
+const MAX_RENDER = 80;
 
-const mockLogs: LogEntry[] = [
-  { id: '1', timestamp: '14:32:10', level: 'info', message: '🔄 Project loaded: "My First Mod"' },
-  { id: '2', timestamp: '14:32:11', level: 'info', message: '📁 Assets scanned: 24 files found' },
-  { id: '3', timestamp: '14:32:12', level: 'success', message: '✅ All validations passed' },
-  { id: '4', timestamp: '14:32:13', level: 'info', message: '🔍 Watching for changes...' },
-  { id: '5', timestamp: '14:32:15', level: 'info', message: '⚙️ Gradle initialized' },
-  { id: '6', timestamp: '14:32:16', level: 'warn', message: '⚠️ Warning: Unused import in BlockRegistry' },
-  { id: '7', timestamp: '14:32:17', level: 'info', message: '🤖 AI Scanner ready for code analysis' },
-];
+type Filter = 'all' | 'info' | 'warning' | 'error' | 'success';
 
-const getLevelColor = (level: string) => {
-  switch (level) {
-    case 'error':
-      return 'text-red-400 bg-red-500/5';
-    case 'warn':
-      return 'text-yellow-400 bg-yellow-500/5';
-    case 'success':
-      return 'text-green-400 bg-green-500/5';
-    case 'info':
-    default:
-      return 'text-blue-400 bg-blue-500/5';
-  }
+const LEVEL_COLORS: Record<ConsoleMessage['level'], string> = {
+  info: 'text-blue-400 bg-blue-500/5',
+  warning: 'text-yellow-400 bg-yellow-500/5',
+  error: 'text-red-400 bg-red-500/5',
+  success: 'text-green-400 bg-green-500/5',
 };
 
-const getLevelIcon = (level: string) => {
-  switch (level) {
-    case 'error':
-      return '❌';
-    case 'warn':
-      return '⚠️';
-    case 'success':
-      return '✅';
-    case 'info':
-    default:
-      return 'ℹ️';
-  }
+const LEVEL_ICONS: Record<ConsoleMessage['level'], string> = {
+  info: 'i',
+  warning: '!',
+  error: 'x',
+  success: '✓',
 };
+
+const formatTime = (d: Date | string) => {
+  const date = typeof d === 'string' ? new Date(d) : d;
+  return date.toLocaleTimeString([], { hour12: false });
+};
+
+const LogRow = memo(function LogRow({ log }: { log: ConsoleMessage }) {
+  const colorClass = LEVEL_COLORS[log.level];
+  return (
+    <div className={`flex items-start gap-2 px-2 py-1 rounded text-xs font-mono ${colorClass}`}>
+      <span className="text-slate-500 flex-shrink-0 w-16">[{formatTime(log.timestamp)}]</span>
+      <span className="flex-shrink-0 w-3 text-center">{LEVEL_ICONS[log.level]}</span>
+      {log.source && <span className="flex-shrink-0 text-slate-500">[{log.source}]</span>}
+      <span className="break-all">{log.message}</span>
+    </div>
+  );
+});
 
 export const Console: FC = () => {
-  const [logs, setLogs] = useState<LogEntry[]>(mockLogs);
-  const [filter, setFilter] = useState<'all' | 'info' | 'warn' | 'error'>('all');
+  // Stable selectors — re-renders only when the specific slice changes.
+  const consoleLogs = useProjectStore((s) => s.consoleLogs);
+  const clearConsole = useProjectStore((s) => s.clearConsole);
+
+  const [filter, setFilter] = useState<Filter>('all');
   const endRef = useRef<HTMLDivElement>(null);
+  const rafRef = useRef<number | null>(null);
 
+  const filteredLogs = useMemo(
+    () => (filter === 'all' ? consoleLogs : consoleLogs.filter((l) => l.level === filter)),
+    [consoleLogs, filter]
+  );
+
+  // Render only the last MAX_RENDER rows for performance.
+  const visibleLogs = useMemo(
+    () => filteredLogs.slice(-MAX_RENDER),
+    [filteredLogs]
+  );
+
+  const hiddenCount = filteredLogs.length - visibleLogs.length;
+
+  // Auto-scroll to bottom, coalesced via rAF so log bursts paint once.
   useEffect(() => {
-    endRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [logs]);
+    if (rafRef.current !== null) return;
+    rafRef.current = requestAnimationFrame(() => {
+      rafRef.current = null;
+      endRef.current?.scrollIntoView({ behavior: 'auto', block: 'end' });
+    });
+    return () => {
+      if (rafRef.current !== null) {
+        cancelAnimationFrame(rafRef.current);
+        rafRef.current = null;
+      }
+    };
+  }, [visibleLogs]);
 
-  const filteredLogs = filter === 'all' 
-    ? logs 
-    : logs.filter((log) => log.level === filter);
-
-  const handleClear = () => {
-    setLogs([]);
-  };
-
-  const handleCopyAll = () => {
-    const text = logs.map((log) => `[${log.timestamp}] ${log.level.toUpperCase()}: ${log.message}`).join('\n');
-    navigator.clipboard.writeText(text);
-  };
+  const handleCopyAll = useCallback(() => {
+    const text = filteredLogs
+      .map((log) => `[${formatTime(log.timestamp)}] ${log.level.toUpperCase()}: ${log.message}`)
+      .join('\n');
+    navigator.clipboard.writeText(text).catch(() => { /* ignore */ });
+  }, [filteredLogs]);
 
   return (
     <div className="flex flex-col h-full bg-slate-900 text-slate-100">
@@ -74,7 +103,7 @@ export const Console: FC = () => {
       <div className="flex items-center justify-between px-4 py-2 bg-slate-800 border-b border-slate-700 flex-shrink-0">
         <div className="flex items-center gap-2">
           <span className="text-xs font-semibold text-slate-400">Filter:</span>
-          {(['all', 'info', 'warn', 'error'] as const).map((f) => (
+          {(['all', 'info', 'warning', 'error', 'success'] as const).map((f) => (
             <button
               key={f}
               onClick={() => setFilter(f)}
@@ -88,7 +117,7 @@ export const Console: FC = () => {
             </button>
           ))}
           <span className="text-xs text-slate-500 ml-4">
-            {filteredLogs.length} / {logs.length} messages
+            {filteredLogs.length} / {consoleLogs.length} messages
           </span>
         </div>
 
@@ -101,7 +130,7 @@ export const Console: FC = () => {
             <Copy size={14} className="text-slate-400" />
           </button>
           <button
-            onClick={handleClear}
+            onClick={clearConsole}
             className="p-1 hover:bg-slate-700 rounded transition-colors"
             title="Clear console"
           >
@@ -112,29 +141,25 @@ export const Console: FC = () => {
 
       {/* Logs */}
       <div className="flex-1 overflow-y-auto custom-scrollbar space-y-0.5 p-3">
-        {filteredLogs.length === 0 ? (
+        {hiddenCount > 0 && (
+          <div className="text-[10px] text-slate-500 italic px-2 py-1">
+            … {hiddenCount} older entries hidden (showing last {MAX_RENDER})
+          </div>
+        )}
+        {visibleLogs.length === 0 ? (
           <div className="flex items-center justify-center h-full text-slate-500">
             <p className="text-xs">No logs to display</p>
           </div>
         ) : (
-          filteredLogs.map((log) => (
-            <div
-              key={log.id}
-              className={`flex items-start gap-2 px-2 py-1 rounded text-xs font-mono ${getLevelColor(log.level)}`}
-            >
-              <span className="text-slate-500 flex-shrink-0 min-w-16">[{log.timestamp}]</span>
-              <span className="flex-shrink-0">{getLevelIcon(log.level)}</span>
-              <span className="break-all">{log.message}</span>
-            </div>
-          ))
+          visibleLogs.map((log) => <LogRow key={log.id} log={log} />)
         )}
         <div ref={endRef} />
       </div>
 
       {/* Status Bar */}
       <div className="px-4 py-2 bg-slate-800 border-t border-slate-700 flex items-center justify-between text-xs text-slate-500 flex-shrink-0">
-        <span>🟢 Ready</span>
-        <span>{new Date().toLocaleTimeString()}</span>
+        <span>● Ready</span>
+        <span>{consoleLogs.length} total · cap 200</span>
       </div>
     </div>
   );

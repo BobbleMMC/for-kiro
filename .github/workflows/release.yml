@@ -1,0 +1,107 @@
+name: Release (3-OS bundle)
+
+# Triggered manually or by pushing a tag like v1.0.0.
+# Produces three ZIP archives, each containing:
+#   • the platform-native installer (NSIS / DMG / AppImage+deb)
+#   • studio.bin      — gzipped tar of templates / prompts / themes
+#   • manifest.json   — sidecar manifest read by the Rust resource loader
+#
+# Splitting content into studio.bin keeps the executable small and lets
+# us hot-patch resources without rebuilding native code.
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to release (defaults to package.json value)'
+        required: false
+
+jobs:
+  build:
+    name: Build ${{ matrix.target }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-22.04
+            target: linux
+          - os: macos-13
+            target: macos
+          - os: windows-latest
+            target: windows
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: minecraft-mod-ui/package-lock.json
+
+      - name: Setup Rust (stable)
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Rust cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: minecraft-mod-ui/src-tauri -> target
+
+      - name: Install Linux deps
+        if: matrix.target == 'linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev \
+            libappindicator3-dev \
+            librsvg2-dev \
+            patchelf \
+            libgtk-3-dev \
+            zip
+
+      - name: Install npm dependencies
+        working-directory: minecraft-mod-ui
+        run: npm ci --legacy-peer-deps
+
+      - name: Run release script (Linux/macOS)
+        if: matrix.target != 'windows'
+        working-directory: minecraft-mod-ui
+        run: bash scripts/release.sh ${{ matrix.target }}
+
+      - name: Run release script (Windows)
+        if: matrix.target == 'windows'
+        working-directory: minecraft-mod-ui
+        shell: bash
+        run: bash scripts/release.sh windows
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.target }}-release-zip
+          path: minecraft-mod-ui/release-out/${{ matrix.target }}/*.zip
+          if-no-files-found: error
+          retention-days: 30
+
+  publish:
+    name: Attach to GitHub Release
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: artifacts/**/*.zip
+          generate_release_notes: true
+          fail_on_unmatched_files: true

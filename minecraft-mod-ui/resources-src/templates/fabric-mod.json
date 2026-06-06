@@ -1,0 +1,11 @@
+{
+  "name": "Empty Fabric Mod",
+  "description": "Minimal Fabric 1.20.4 mod skeleton",
+  "loader": "fabric",
+  "minecraftVersion": "1.20.4",
+  "files": {
+    "build.gradle": "// Auto-generated Fabric build.gradle\nplugins { id 'fabric-loom' version '1.5-SNAPSHOT' }\n",
+    "src/main/java/Main.java": "package %namespace%;\nimport net.fabricmc.api.ModInitializer;\npublic class Main implements ModInitializer { public void onInitialize() {} }\n",
+    "src/main/resources/fabric.mod.json": "{ \"schemaVersion\": 1, \"id\": \"%modid%\", \"version\": \"%version%\", \"environment\": \"*\", \"entrypoints\": { \"main\": [\"%namespace%.Main\"] } }\n"
+  }
+}

@@ -121,24 +121,33 @@ export const useProjectStore = create<ProjectState>((set) => ({
     entities: state.entities.filter(e => e.id !== id)
   })),
 
-  // Console
+  // Console — capped to last 200 messages to prevent unbounded growth
   consoleLogs: [],
-  addConsoleMessage: (message) => set((state) => ({
-    consoleLogs: [...state.consoleLogs, message].slice(-100) // Keep last 100 messages
-  })),
+  addConsoleMessage: (message) => set((state) => {
+    const next = state.consoleLogs.length >= 200
+      ? [...state.consoleLogs.slice(-199), message]
+      : [...state.consoleLogs, message];
+    return { consoleLogs: next };
+  }),
   clearConsole: () => set({ consoleLogs: [] }),
 
-  // Build Logs
+  // Build Logs — capped to last 50 (each can be a multi-MB Gradle log)
   buildLogs: [],
-  addBuildLog: (log) => set((state) => ({
-    buildLogs: [...state.buildLogs, log]
-  })),
+  addBuildLog: (log) => set((state) => {
+    const next = state.buildLogs.length >= 50
+      ? [...state.buildLogs.slice(-49), log]
+      : [...state.buildLogs, log];
+    return { buildLogs: next };
+  }),
 
-  // Agent Tasks
+  // Agent Tasks — capped to last 100
   agentTasks: [],
-  addAgentTask: (task) => set((state) => ({
-    agentTasks: [...state.agentTasks, task]
-  })),
+  addAgentTask: (task) => set((state) => {
+    const next = state.agentTasks.length >= 100
+      ? [...state.agentTasks.slice(-99), task]
+      : [...state.agentTasks, task];
+    return { agentTasks: next };
+  }),
   updateAgentTask: (task) => set((state) => ({
     agentTasks: state.agentTasks.map(t => t.id === task.id ? task : t)
   })),

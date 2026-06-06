@@ -9,7 +9,7 @@
  *  - 25+ editors registered as dockable panels (right dock strip)
  *  - Keyboard shortcuts (Ctrl+S, Ctrl+B, F5)
  */
-import { useState, useEffect, useCallback, type FC } from 'react';
+import { useState, useEffect, useCallback, useMemo, type FC } from 'react';
 import { useProjectStore } from '../../stores/projectStore';
 import { DockLayout } from '../dock-layout';
 import '../dock-layout/dock-styles.css';
@@ -20,11 +20,19 @@ import { CommandPalette, OnboardingWizard, NotificationBell, NotificationCenter 
 import { createWorkspacePanels } from './workspacePanels';
 
 export const DockWorkspace: FC = () => {
-  const { currentProject, addConsoleMessage } = useProjectStore();
+  // Stable selectors avoid full-store subscriptions and prevent re-renders
+  // when unrelated state (e.g. console logs) changes.
+  const currentProject = useProjectStore((s) => s.currentProject);
+  const addConsoleMessage = useProjectStore((s) => s.addConsoleMessage);
+
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
   const [onboardingOpen, setOnboardingOpen] = useState(false);
   const [darkMode, setDarkMode] = useState(true);
+
+  // Panel registry is heavy (30+ JSX nodes including lazy components).
+  // Build it ONCE per workspace mount, not on every keystroke / log update.
+  const panels = useMemo(() => createWorkspacePanels(), []);
 
   const log = useCallback(
     (level: 'info' | 'success' | 'warning' | 'error', message: string, source = 'Workspace') => {
@@ -86,8 +94,6 @@ export const DockWorkspace: FC = () => {
       </div>
     );
   }
-
-  const panels = createWorkspacePanels();
 
   return (
     <>
