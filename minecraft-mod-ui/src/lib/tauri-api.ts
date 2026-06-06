@@ -442,31 +442,60 @@ export const generateEnchantmentClass = (asset_id: number): Promise<GeneratedFil
 // ============================================================================
 // Item-variant codegen
 // ============================================================================
+//
+// As of PR #26 every parameter except `item_id` is optional: the Rust
+// side falls back to the persisted Item row's PR #24 columns
+// (tool_kind, tool_tier, armor_material, armor_slot, food_*) and only
+// uses the explicit args when they're sent. The TypeScript shapes
+// below mirror that — keep `item_id` required, mark the rest optional.
 
 export type ToolKind = 'pickaxe' | 'axe' | 'shovel' | 'hoe' | 'sword';
 export type ArmorSlotKind = 'head' | 'chest' | 'legs' | 'feet';
 export type ToolTier = 'WOOD' | 'STONE' | 'IRON' | 'GOLD' | 'DIAMOND' | 'NETHERITE';
 
+export interface ToolOverrides {
+  kind?: ToolKind;
+  tier?: ToolTier;
+  attack_damage_bonus?: number;
+  attack_speed_modifier?: number;
+}
+
 export const generateToolClass = (data: {
   item_id: number;
-  kind: ToolKind;
-  tier: ToolTier;
-  attack_damage_bonus: number;
-  attack_speed_modifier: number;
+  kind?: ToolKind;
+  tier?: ToolTier;
+  attack_damage_bonus?: number;
+  attack_speed_modifier?: number;
+  overrides?: ToolOverrides;
 }): Promise<GeneratedFile> => invoke<GeneratedFile>('generate_tool_class', data);
+
+export interface ArmorOverrides {
+  slot?: ArmorSlotKind;
+  armor_material_const?: string;
+}
 
 export const generateArmorClass = (data: {
   item_id: number;
-  slot: ArmorSlotKind;
-  armor_material_const: string;
+  slot?: ArmorSlotKind;
+  armor_material_const?: string;
+  overrides?: ArmorOverrides;
 }): Promise<GeneratedFile> => invoke<GeneratedFile>('generate_armor_class', data);
+
+export interface FoodOverrides {
+  nutrition?: number;
+  saturation_modifier?: number;
+  always_eat?: boolean;
+  can_eat_when_full?: boolean;
+  eat_seconds?: number;
+}
 
 export const generateFoodClass = (data: {
   item_id: number;
-  nutrition: number;
-  saturation_modifier: number;
-  always_eat: boolean;
-  can_eat_when_full: boolean;
+  nutrition?: number;
+  saturation_modifier?: number;
+  always_eat?: boolean;
+  can_eat_when_full?: boolean;
+  overrides?: FoodOverrides;
 }): Promise<GeneratedFile> => invoke<GeneratedFile>('generate_food_class', data);
 
 // ============================================================================

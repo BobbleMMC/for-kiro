@@ -312,18 +312,20 @@ pub async fn generate_block_class(
 // ============================================================================
 
 fn emit_item_class(
-    namespace: &str,
-    item_name: &str,
-    display_name: &str,
-    max_stack_size: i32,
-    rarity: &str,
-    durability: Option<i32>,
+    item: &crate::db::operations::Item,
     mod_loader: &str,
     mc_version: &str,
 ) -> String {
     use crate::feature_system::version_matrix::{profile_for, LoaderId};
 
     let profile = profile_for(mc_version, mod_loader);
+    let namespace = &item.namespace;
+    let item_name = &item.item_name;
+    let display_name = &item.display_name;
+    let max_stack_size = item.max_stack_size;
+    let rarity = &item.rarity;
+    let durability = item.durability;
+
     let class_name = to_pascal_case(item_name);
     let pkg = java_package(namespace);
     let constant = item_name.to_uppercase();
@@ -333,6 +335,25 @@ fn emit_item_class(
     let durability_call = durability
         .map(|d| format!("\n            .durability({})", d))
         .unwrap_or_default();
+
+    // PR #26: extras-aware chain. Reuses the helper from item_variants
+    // so the plain Item generator and the Tool/Armor/Food variants stay
+    // in sync about which fields are emitted on which profile.
+    let extras_chain = crate::commands::item_variants::build_item_props_chain(item, &profile);
+    // The legacy block below already hard-codes .stacksTo(maxStack),
+    // .rarity(Rarity.X) and (optionally) .durability(N), so strip those
+    // from the extras chain to avoid double emission.
+    let mut extras_filtered = String::new();
+    for piece in split_chain(&extras_chain) {
+        if piece.starts_with(".stacksTo(")
+            || piece.starts_with(".maxCount(")
+            || piece.starts_with(".rarity(")
+            || piece.starts_with(".durability(")
+        {
+            continue;
+        }
+        extras_filtered.push_str(piece);
+    }
 
     let is_fabric = matches!(profile.loader, LoaderId::Fabric);
 
@@ -357,7 +378,7 @@ fn emit_item_class(
              \x20       new Identifier(\"{ns}\", \"{rid}\"),\n\
              \x20       new Item(new Item.Settings()\n\
              \x20           .maxCount({stack})\n\
-             \x20           .rarity(Rarity.{rarity}){dur}\n\
+             \x20           .rarity(Rarity.{rarity}){dur}{extras}\n\
              \x20       )\n\
              \x20   );\n",
             const_name = constant,
@@ -366,6 +387,7 @@ fn emit_item_class(
             stack = max_stack_size,
             rarity = rarity_const,
             dur = durability_call,
+            extras = extras_filtered,
         )
     } else {
         let registry_module = match profile.loader {
@@ -379,7 +401,7 @@ fn emit_item_class(
              \x20       ITEMS.register(\"{rid}\", () -> new Item(\n\
              \x20           new Item.Properties()\n\
              \x20               .stacksTo({stack})\n\
-             \x20               .rarity(Rarity.{rarity}){dur}\n\
+             \x20               .rarity(Rarity.{rarity}){dur}{extras}\n\
              \x20       ));\n",
             registry = registry_module,
             ns = namespace,
@@ -388,6 +410,7 @@ fn emit_item_class(
             stack = max_stack_size,
             rarity = rarity_const,
             dur = durability_call,
+            extras = extras_filtered,
         )
     };
 
@@ -439,12 +462,7 @@ pub async fn generate_item_class(
         .ok_or_else(|| format!("Project {} not found", item.project_id))?;
 
     let source = emit_item_class(
-        &item.namespace,
-        &item.item_name,
-        &item.display_name,
-        item.max_stack_size,
-        &item.rarity,
-        item.durability,
+        &item,
         &project.mod_loader,
         &project.minecraft_version,
     );
@@ -457,6 +475,30 @@ pub async fn generate_item_class(
         package_path,
         source,
     })
+}
+
+/// Split an Item.Properties chain like `.stacksTo(16).rarity(Rarity.RARE)`
+/// into individual `.<call>(...)` segments. Used to filter duplicates
+/// when merging the legacy hardcoded chain with the PR #26 extras chain.
+fn split_chain(chain: &str) -> Vec<&str> {
+    let mut out = Vec::new();
+    let bytes = chain.as_bytes();
+    let mut start = 0;
+    let mut depth = 0i32;
+    for (i, &b) in bytes.iter().enumerate() {
+        if b == b'.' && depth == 0 && i > start {
+            out.push(&chain[start..i]);
+            start = i;
+        } else if b == b'(' {
+            depth += 1;
+        } else if b == b')' {
+            depth = depth.saturating_sub(1);
+        }
+    }
+    if start < chain.len() {
+        out.push(&chain[start..]);
+    }
+    out
 }
 
 
@@ -547,4 +589,86 @@ pub async fn write_generated_file(
         absolute_path: absolute.to_string_lossy().to_string(),
         relative_path: relative.to_string_lossy().to_string(),
     })
+}
+
+
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::db::operations::Item;
+
+    fn ruby_item() -> Item {
+        Item {
+            id: Some(1),
+            project_id: 1,
+            item_name: "ruby".into(),
+            display_name: "Ruby".into(),
+            namespace: "rubymod".into(),
+            ..Item::default()
+        }
+    }
+
+    #[test]
+    fn split_chain_handles_nested_parens() {
+        let parts = split_chain(
+            ".stacksTo(16).rarity(Rarity.RARE).craftRemainder(Items.BUCKET).fireResistant()",
+        );
+        assert_eq!(
+            parts,
+            vec![
+                ".stacksTo(16)",
+                ".rarity(Rarity.RARE)",
+                ".craftRemainder(Items.BUCKET)",
+                ".fireResistant()",
+            ],
+        );
+    }
+
+    #[test]
+    fn split_chain_empty_input() {
+        let parts = split_chain("");
+        assert!(parts.is_empty());
+    }
+
+    #[test]
+    fn item_emission_includes_fire_resistant_and_remainder() {
+        let mut item = ruby_item();
+        item.is_fire_resistant = true;
+        item.recipe_remainder = Some("Items.BUCKET".into());
+
+        let source = emit_item_class(&item, "forge", "1.20.4");
+        assert!(
+            source.contains(".fireResistant()"),
+            "Expected fireResistant() in:\n{source}"
+        );
+        assert!(
+            source.contains(".craftRemainder(Items.BUCKET)"),
+            "Expected craftRemainder(...) in:\n{source}"
+        );
+        // Defaults like .rarity(Rarity.COMMON) must NOT appear twice.
+        let rarity_count = source.matches(".rarity(Rarity.COMMON)").count();
+        assert!(
+            rarity_count <= 1,
+            "Rarity emitted {rarity_count} times — must be deduped:\n{source}"
+        );
+    }
+
+    #[test]
+    fn item_emission_skips_default_extras() {
+        let item = ruby_item();
+        let source = emit_item_class(&item, "forge", "1.20.4");
+        // Default item (no extras set) — must not contain any of the
+        // PR #24 extras markers.
+        assert!(!source.contains("fireResistant"), "default item should not be fire-resistant");
+        assert!(!source.contains("craftRemainder"), "default item should not have craftRemainder");
+    }
+
+    #[test]
+    fn item_emission_neoforge_uses_neoforge_registries() {
+        let item = ruby_item();
+        let source = emit_item_class(&item, "neoforge", "1.21");
+        assert!(source.contains("NeoForgeRegistries.ITEMS"), "got:\n{source}");
+        assert!(source.contains("net.neoforged.neoforge.registries"), "got:\n{source}");
+    }
 }
