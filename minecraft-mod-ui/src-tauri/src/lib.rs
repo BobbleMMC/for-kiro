@@ -124,6 +124,9 @@ pub fn run() {
             commands::item_variants::generate_tool_class,
             commands::item_variants::generate_armor_class,
             commands::item_variants::generate_food_class,
+            // Dependency resolver
+            commands::dependency_commands::list_dependencies,
+            commands::dependency_commands::resolve_dependency,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

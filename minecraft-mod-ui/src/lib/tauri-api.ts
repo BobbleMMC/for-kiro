@@ -417,6 +417,43 @@ export const generateFoodClass = (data: {
 }): Promise<GeneratedFile> => invoke<GeneratedFile>('generate_food_class', data);
 
 // ============================================================================
+// Dependency Resolver API
+// ============================================================================
+
+export interface DependencyCoordinate {
+  mc_version: string;
+  loader: string;
+  group: string;
+  artifact: string;
+  version: string;
+  maven_url: string;
+}
+
+export interface DependencyInfo {
+  id: string;
+  display_name: string;
+  description: string;
+  homepage: string;
+  supported_loaders: string[];
+  coordinates: DependencyCoordinate[];
+}
+
+export interface ResolvedDependency {
+  dependency: DependencyInfo;
+  matched: DependencyCoordinate | null;
+  gradle_snippet: string;
+}
+
+export const listDependencies = (): Promise<DependencyInfo[]> =>
+  invoke<DependencyInfo[]>('list_dependencies');
+
+export const resolveDependency = (data: {
+  id: string;
+  mc_version: string;
+  loader: string;
+}): Promise<ResolvedDependency> => invoke<ResolvedDependency>('resolve_dependency', data);
+
+// ============================================================================
 // Resource API
 // ============================================================================
 

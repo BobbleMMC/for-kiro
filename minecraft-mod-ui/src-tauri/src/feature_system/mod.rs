@@ -26,6 +26,7 @@
 
 pub mod skeleton;
 pub mod version_matrix;
+pub mod dependency_resolver;
 
 use serde::{Deserialize, Serialize};
 
@@ -627,18 +628,18 @@ pub fn all_features() -> Vec<FeatureInfo> {
         FeatureInfo {
             kind: DependencyIntegration,
             name: "Dependency Integration".into(),
-            description: "Adds a third-party mod (Architectury, Curios, Patchouli, …) to the build.".into(),
+            description: "Adds a third-party mod (Architectury, Curios, Patchouli, GeckoLib, JEI, REI) to the build.".into(),
             category: "Runtime".into(),
-            status: Skeleton,
+            status: Complete,
             supported_loaders: loaders_all(),
             supported_mc_versions: mc_versions_common(),
-            has_template: false,
-            has_validator: false,
-            has_dependency_resolver: false,
-            has_version_aware_generator: false,
-            command_name: None,
+            has_template: true,
+            has_validator: true,
+            has_dependency_resolver: true,
+            has_version_aware_generator: true,
+            command_name: Some("resolve_dependency".into()),
             editor_panel_id: None,
-            notes: "Skeleton emits a build.gradle snippet listing the new repository + dependency line.".into(),
+            notes: "Resolver knows GeckoLib, JEI, REI, Patchouli, Curios, Architectury across Forge / Fabric / NeoForge for the supported MC versions. Returns a ready-to-paste Gradle snippet with the right repository + dep line per loader (modImplementation vs implementation fg.deobf).".into(),
         },
     ]
 }

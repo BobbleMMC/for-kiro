@@ -11,3 +11,4 @@ pub mod recipe_commands;
 pub mod world_data_commands;
 pub mod enchantment_commands;
 pub mod item_variants;
+pub mod dependency_commands;
