@@ -50,6 +50,9 @@ dirs-next = "2.0"
 flate2 = "1"
 tar = "0.4"
 
+# Mod / modpack import (JAR + ZIP files)
+zip = { version = "2.2", default-features = false, features = ["deflate"] }
+
 
 
 # ===== Release profile =====

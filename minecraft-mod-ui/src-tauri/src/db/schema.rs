@@ -87,11 +87,65 @@ pub fn create_tables(conn: &Connection) -> Result<(), rusqlite::Error> {
             attack_damage REAL,
             attack_speed REAL NOT NULL DEFAULT 4.0,
             texture_path TEXT,
+            -- Extended item rules (added by PR #24)
+            has_glint INTEGER NOT NULL DEFAULT 0,
+            is_fire_resistant INTEGER NOT NULL DEFAULT 0,
+            food_eat_seconds REAL,
+            food_always_eat INTEGER NOT NULL DEFAULT 0,
+            food_eat_fast INTEGER NOT NULL DEFAULT 0,
+            food_effects_json TEXT,
+            tool_kind TEXT,
+            tool_tier TEXT,
+            armor_material TEXT,
+            armor_slot TEXT,
+            armor_defense INTEGER,
+            armor_toughness REAL,
+            knockback_resistance REAL,
+            attribute_modifiers_json TEXT,
+            tags_json TEXT,
+            custom_nbt_json TEXT,
+            tooltip_lines_json TEXT,
+            uses_remaining INTEGER,
+            cooldown_ticks INTEGER,
+            burn_time_ticks INTEGER,
+            repair_ingredient TEXT,
+            recipe_remainder TEXT,
             created_at TEXT NOT NULL DEFAULT (datetime('now')),
             updated_at TEXT NOT NULL DEFAULT (datetime('now')),
             FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
         );"
     )?;
+
+    // Migration: add new columns to existing items tables.
+    // SQLite raises 'duplicate column name' if the column already exists,
+    // so we wrap each ALTER in an ignore-error block.
+    let item_extras: &[&str] = &[
+        "ALTER TABLE items ADD COLUMN has_glint INTEGER NOT NULL DEFAULT 0",
+        "ALTER TABLE items ADD COLUMN is_fire_resistant INTEGER NOT NULL DEFAULT 0",
+        "ALTER TABLE items ADD COLUMN food_eat_seconds REAL",
+        "ALTER TABLE items ADD COLUMN food_always_eat INTEGER NOT NULL DEFAULT 0",
+        "ALTER TABLE items ADD COLUMN food_eat_fast INTEGER NOT NULL DEFAULT 0",
+        "ALTER TABLE items ADD COLUMN food_effects_json TEXT",
+        "ALTER TABLE items ADD COLUMN tool_kind TEXT",
+        "ALTER TABLE items ADD COLUMN tool_tier TEXT",
+        "ALTER TABLE items ADD COLUMN armor_material TEXT",
+        "ALTER TABLE items ADD COLUMN armor_slot TEXT",
+        "ALTER TABLE items ADD COLUMN armor_defense INTEGER",
+        "ALTER TABLE items ADD COLUMN armor_toughness REAL",
+        "ALTER TABLE items ADD COLUMN knockback_resistance REAL",
+        "ALTER TABLE items ADD COLUMN attribute_modifiers_json TEXT",
+        "ALTER TABLE items ADD COLUMN tags_json TEXT",
+        "ALTER TABLE items ADD COLUMN custom_nbt_json TEXT",
+        "ALTER TABLE items ADD COLUMN tooltip_lines_json TEXT",
+        "ALTER TABLE items ADD COLUMN uses_remaining INTEGER",
+        "ALTER TABLE items ADD COLUMN cooldown_ticks INTEGER",
+        "ALTER TABLE items ADD COLUMN burn_time_ticks INTEGER",
+        "ALTER TABLE items ADD COLUMN repair_ingredient TEXT",
+        "ALTER TABLE items ADD COLUMN recipe_remainder TEXT",
+    ];
+    for sql in item_extras {
+        let _ = conn.execute(sql, []);
+    }
 
     // Entities table
     conn.execute_batch(

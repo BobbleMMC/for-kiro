@@ -33,6 +33,7 @@ import { useProjectStore } from '../../stores/projectStore';
 import { saveVisualGraph, isTauri } from '../../lib/tauri-api';
 import { GeneratedCodeModal } from '../common/GeneratedCodeModal';
 import { FeatureCatalog } from '../feature-catalog';
+import { ModInspector } from '../mod-inspector';
 import type { Node, Edge } from '@xyflow/react';
 
 // ===== Lazy-loaded panels (heavy: Three.js, React Flow, etc.) =====
@@ -230,6 +231,7 @@ export function createWorkspacePanels(): PanelConfig[] {
     // ===== System tools (right dock) =====
     { id: 'inspector', title: 'Inspector', icon: Sliders, component: <SmartInspector />, closable: true, defaultVisible: true, dockSide: 'right', category: 'inspector', minWidth: 220 },
     { id: 'feature-catalog', title: 'Features', icon: LayoutDashboard, component: <FeatureCatalog />, closable: true, defaultVisible: false, dockSide: 'right', category: 'system', minWidth: 360 },
+    { id: 'mod-inspector', title: 'Open Mod', icon: Package, component: <ModInspector />, closable: true, defaultVisible: false, dockSide: 'right', category: 'system', minWidth: 360 },
     { id: 'profiler', title: 'Profiler', icon: Gauge, component: <ProfilerPanel />, closable: true, defaultVisible: false, dockSide: 'right', category: 'tools' },
     { id: 'tests', title: 'Tests', icon: FlaskConical, component: <TestRunnerPanel />, closable: true, defaultVisible: false, dockSide: 'right', category: 'tools' },
     { id: 'ai-hub', title: 'AI Hub', icon: Bot, component: <AIAgentHubPanel />, closable: true, defaultVisible: false, dockSide: 'right', category: 'tools' },

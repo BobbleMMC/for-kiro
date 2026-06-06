@@ -137,6 +137,23 @@ export function itemToTauri(i: Item): TauriItem {
   };
 }
 
+/**
+ * Build the `extras_json` payload from a partial Item.
+ *
+ * The frontend `Item` type is the union of "required core" + "optional
+ * extended rules"; we serialise the optional half so the Rust side can
+ * persist it via `ItemExtras` without having to widen every CRUD signature.
+ */
+export function itemExtrasToJson(extras: Record<string, unknown> | undefined): string | undefined {
+  if (!extras) return undefined;
+  const cleaned: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(extras)) {
+    if (v === undefined || v === null) continue;
+    cleaned[k] = v;
+  }
+  return Object.keys(cleaned).length === 0 ? undefined : JSON.stringify(cleaned);
+}
+
 
 
 // ============================================================================

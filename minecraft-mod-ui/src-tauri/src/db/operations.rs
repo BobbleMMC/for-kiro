@@ -52,6 +52,119 @@ pub struct Item {
     pub durability: Option<i32>,
     pub attack_damage: Option<f64>,
     pub texture_path: Option<String>,
+
+    // Extended item rules (PR #24).
+    // Every field is optional / has a sensible default so older callers
+    // that only set the legacy fields keep working.
+    #[serde(default)]
+    pub has_glint: bool,
+    #[serde(default)]
+    pub is_fire_resistant: bool,
+    pub food_eat_seconds: Option<f64>,
+    #[serde(default)]
+    pub food_always_eat: bool,
+    #[serde(default)]
+    pub food_eat_fast: bool,
+    pub food_effects_json: Option<String>,
+    pub tool_kind: Option<String>,
+    pub tool_tier: Option<String>,
+    pub armor_material: Option<String>,
+    pub armor_slot: Option<String>,
+    pub armor_defense: Option<i32>,
+    pub armor_toughness: Option<f64>,
+    pub knockback_resistance: Option<f64>,
+    pub attribute_modifiers_json: Option<String>,
+    pub tags_json: Option<String>,
+    pub custom_nbt_json: Option<String>,
+    pub tooltip_lines_json: Option<String>,
+    pub uses_remaining: Option<i32>,
+    pub cooldown_ticks: Option<i32>,
+    pub burn_time_ticks: Option<i32>,
+    pub repair_ingredient: Option<String>,
+    pub recipe_remainder: Option<String>,
+}
+
+impl Default for Item {
+    fn default() -> Self {
+        Self {
+            id: None,
+            project_id: 0,
+            item_name: String::new(),
+            display_name: String::new(),
+            namespace: String::new(),
+            max_stack_size: 64,
+            rarity: "common".into(),
+            is_enchantable: true,
+            durability: None,
+            attack_damage: None,
+            texture_path: None,
+            has_glint: false,
+            is_fire_resistant: false,
+            food_eat_seconds: None,
+            food_always_eat: false,
+            food_eat_fast: false,
+            food_effects_json: None,
+            tool_kind: None,
+            tool_tier: None,
+            armor_material: None,
+            armor_slot: None,
+            armor_defense: None,
+            armor_toughness: None,
+            knockback_resistance: None,
+            attribute_modifiers_json: None,
+            tags_json: None,
+            custom_nbt_json: None,
+            tooltip_lines_json: None,
+            uses_remaining: None,
+            cooldown_ticks: None,
+            burn_time_ticks: None,
+            repair_ingredient: None,
+            recipe_remainder: None,
+        }
+    }
+}
+
+impl Item {
+    /// Materialise an Item from a SELECT row that includes ALL extended
+    /// columns. Keep this in sync with the SELECT statements in
+    /// `get_item` / `get_items`.
+    pub(crate) fn from_full_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<Self> {
+        Ok(Item {
+            id: Some(row.get(0)?),
+            project_id: row.get(1)?,
+            item_name: row.get(2)?,
+            display_name: row.get(3)?,
+            namespace: row.get(4)?,
+            max_stack_size: row.get(5)?,
+            rarity: row.get(6)?,
+            is_enchantable: row.get::<_, i32>(7)? != 0,
+            durability: row.get(8)?,
+            attack_damage: row.get(9)?,
+            texture_path: row.get(10)?,
+            has_glint: row.get::<_, i32>(11)? != 0,
+            is_fire_resistant: row.get::<_, i32>(12)? != 0,
+            food_eat_seconds: row.get(13)?,
+            food_always_eat: row.get::<_, i32>(14)? != 0,
+            food_eat_fast: row.get::<_, i32>(15)? != 0,
+            food_effects_json: row.get(16)?,
+            tool_kind: row.get(17)?,
+            tool_tier: row.get(18)?,
+            armor_material: row.get(19)?,
+            armor_slot: row.get(20)?,
+            armor_defense: row.get(21)?,
+            armor_toughness: row.get(22)?,
+            knockback_resistance: row.get(23)?,
+            attribute_modifiers_json: row.get(24)?,
+            tags_json: row.get(25)?,
+            custom_nbt_json: row.get(26)?,
+            tooltip_lines_json: row.get(27)?,
+            uses_remaining: row.get(28)?,
+            cooldown_ticks: row.get(29)?,
+            burn_time_ticks: row.get(30)?,
+            repair_ingredient: row.get(31)?,
+            recipe_remainder: row.get(32)?,
+        })
+    }
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -347,19 +460,43 @@ impl Database {
     pub fn create_item(&self, item: &Item) -> Result<i64, DbError> {
         let conn = self.connection()?;
         conn.execute(
-            "INSERT INTO items (project_id, item_name, display_name, namespace, max_stack_size, rarity, is_enchantable, durability, attack_damage, texture_path)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)",
+            "INSERT INTO items (
+                project_id, item_name, display_name, namespace,
+                max_stack_size, rarity, is_enchantable,
+                durability, attack_damage, texture_path,
+                has_glint, is_fire_resistant,
+                food_eat_seconds, food_always_eat, food_eat_fast, food_effects_json,
+                tool_kind, tool_tier,
+                armor_material, armor_slot, armor_defense, armor_toughness, knockback_resistance,
+                attribute_modifiers_json, tags_json, custom_nbt_json, tooltip_lines_json,
+                uses_remaining, cooldown_ticks, burn_time_ticks,
+                repair_ingredient, recipe_remainder
+            ) VALUES (
+                ?1, ?2, ?3, ?4,
+                ?5, ?6, ?7,
+                ?8, ?9, ?10,
+                ?11, ?12,
+                ?13, ?14, ?15, ?16,
+                ?17, ?18,
+                ?19, ?20, ?21, ?22, ?23,
+                ?24, ?25, ?26, ?27,
+                ?28, ?29, ?30,
+                ?31, ?32
+            )",
             params![
-                item.project_id,
-                item.item_name,
-                item.display_name,
-                item.namespace,
-                item.max_stack_size,
-                item.rarity,
-                item.is_enchantable as i32,
-                item.durability,
-                item.attack_damage,
-                item.texture_path,
+                item.project_id, item.item_name, item.display_name, item.namespace,
+                item.max_stack_size, item.rarity, item.is_enchantable as i32,
+                item.durability, item.attack_damage, item.texture_path,
+                item.has_glint as i32, item.is_fire_resistant as i32,
+                item.food_eat_seconds, item.food_always_eat as i32,
+                item.food_eat_fast as i32, item.food_effects_json,
+                item.tool_kind, item.tool_tier,
+                item.armor_material, item.armor_slot,
+                item.armor_defense, item.armor_toughness, item.knockback_resistance,
+                item.attribute_modifiers_json, item.tags_json, item.custom_nbt_json,
+                item.tooltip_lines_json,
+                item.uses_remaining, item.cooldown_ticks, item.burn_time_ticks,
+                item.repair_ingredient, item.recipe_remainder,
             ],
         )?;
         Ok(conn.last_insert_rowid())
@@ -374,27 +511,35 @@ impl Database {
         let conn = self.connection()?;
         conn.execute(
             "UPDATE items SET
-                item_name = ?1,
-                display_name = ?2,
-                namespace = ?3,
-                max_stack_size = ?4,
-                rarity = ?5,
-                is_enchantable = ?6,
-                durability = ?7,
-                attack_damage = ?8,
-                texture_path = ?9,
+                item_name = ?1, display_name = ?2, namespace = ?3,
+                max_stack_size = ?4, rarity = ?5, is_enchantable = ?6,
+                durability = ?7, attack_damage = ?8, texture_path = ?9,
+                has_glint = ?10, is_fire_resistant = ?11,
+                food_eat_seconds = ?12, food_always_eat = ?13,
+                food_eat_fast = ?14, food_effects_json = ?15,
+                tool_kind = ?16, tool_tier = ?17,
+                armor_material = ?18, armor_slot = ?19,
+                armor_defense = ?20, armor_toughness = ?21, knockback_resistance = ?22,
+                attribute_modifiers_json = ?23, tags_json = ?24, custom_nbt_json = ?25,
+                tooltip_lines_json = ?26,
+                uses_remaining = ?27, cooldown_ticks = ?28, burn_time_ticks = ?29,
+                repair_ingredient = ?30, recipe_remainder = ?31,
                 updated_at = datetime('now')
-             WHERE id = ?10",
+             WHERE id = ?32",
             params![
-                item.item_name,
-                item.display_name,
-                item.namespace,
-                item.max_stack_size,
-                item.rarity,
-                item.is_enchantable as i32,
-                item.durability,
-                item.attack_damage,
-                item.texture_path,
+                item.item_name, item.display_name, item.namespace,
+                item.max_stack_size, item.rarity, item.is_enchantable as i32,
+                item.durability, item.attack_damage, item.texture_path,
+                item.has_glint as i32, item.is_fire_resistant as i32,
+                item.food_eat_seconds, item.food_always_eat as i32,
+                item.food_eat_fast as i32, item.food_effects_json,
+                item.tool_kind, item.tool_tier,
+                item.armor_material, item.armor_slot,
+                item.armor_defense, item.armor_toughness, item.knockback_resistance,
+                item.attribute_modifiers_json, item.tags_json, item.custom_nbt_json,
+                item.tooltip_lines_json,
+                item.uses_remaining, item.cooldown_ticks, item.burn_time_ticks,
+                item.repair_ingredient, item.recipe_remainder,
                 id,
             ],
         )?;
@@ -410,25 +555,18 @@ impl Database {
     pub fn get_item(&self, id: i64) -> Result<Option<Item>, DbError> {
         let conn = self.connection()?;
         let mut stmt = conn.prepare(
-            "SELECT id, project_id, item_name, display_name, namespace, max_stack_size, rarity, is_enchantable, durability, attack_damage, texture_path
+            "SELECT id, project_id, item_name, display_name, namespace, max_stack_size, rarity,
+                    is_enchantable, durability, attack_damage, texture_path,
+                    has_glint, is_fire_resistant, food_eat_seconds, food_always_eat,
+                    food_eat_fast, food_effects_json, tool_kind, tool_tier,
+                    armor_material, armor_slot, armor_defense, armor_toughness, knockback_resistance,
+                    attribute_modifiers_json, tags_json, custom_nbt_json, tooltip_lines_json,
+                    uses_remaining, cooldown_ticks, burn_time_ticks,
+                    repair_ingredient, recipe_remainder
              FROM items WHERE id = ?1"
         )?;
 
-        let result = stmt.query_row(params![id], |row| {
-            Ok(Item {
-                id: Some(row.get(0)?),
-                project_id: row.get(1)?,
-                item_name: row.get(2)?,
-                display_name: row.get(3)?,
-                namespace: row.get(4)?,
-                max_stack_size: row.get(5)?,
-                rarity: row.get(6)?,
-                is_enchantable: row.get::<_, i32>(7)? != 0,
-                durability: row.get(8)?,
-                attack_damage: row.get(9)?,
-                texture_path: row.get(10)?,
-            })
-        });
+        let result = stmt.query_row(params![id], |row| Ok(Item::from_full_row(row)?));
 
         match result {
             Ok(i) => Ok(Some(i)),
@@ -440,25 +578,19 @@ impl Database {
     pub fn get_items(&self, project_id: i64) -> Result<Vec<Item>, DbError> {
         let conn = self.connection()?;
         let mut stmt = conn.prepare(
-            "SELECT id, project_id, item_name, display_name, namespace, max_stack_size, rarity, is_enchantable, durability, attack_damage, texture_path
+            "SELECT id, project_id, item_name, display_name, namespace, max_stack_size, rarity,
+                    is_enchantable, durability, attack_damage, texture_path,
+                    has_glint, is_fire_resistant, food_eat_seconds, food_always_eat,
+                    food_eat_fast, food_effects_json, tool_kind, tool_tier,
+                    armor_material, armor_slot, armor_defense, armor_toughness, knockback_resistance,
+                    attribute_modifiers_json, tags_json, custom_nbt_json, tooltip_lines_json,
+                    uses_remaining, cooldown_ticks, burn_time_ticks,
+                    repair_ingredient, recipe_remainder
              FROM items WHERE project_id = ?1 ORDER BY display_name"
         )?;
 
-        let items = stmt.query_map(params![project_id], |row| {
-            Ok(Item {
-                id: Some(row.get(0)?),
-                project_id: row.get(1)?,
-                item_name: row.get(2)?,
-                display_name: row.get(3)?,
-                namespace: row.get(4)?,
-                max_stack_size: row.get(5)?,
-                rarity: row.get(6)?,
-                is_enchantable: row.get::<_, i32>(7)? != 0,
-                durability: row.get(8)?,
-                attack_damage: row.get(9)?,
-                texture_path: row.get(10)?,
-            })
-        })?.collect::<Result<Vec<_>, _>>()?;
+        let items = stmt.query_map(params![project_id], |row| Ok(Item::from_full_row(row)?))?
+            .collect::<Result<Vec<_>, _>>()?;
 
         Ok(items)
     }

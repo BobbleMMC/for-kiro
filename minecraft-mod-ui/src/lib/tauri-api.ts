@@ -128,10 +128,63 @@ export interface TauriItem {
   durability: number | null;
   attack_damage: number | null;
   texture_path: string | null;
+  // Extended item rules (PR #24) — all optional so legacy code stays valid.
+  has_glint?: boolean;
+  is_fire_resistant?: boolean;
+  food_eat_seconds?: number | null;
+  food_always_eat?: boolean;
+  food_eat_fast?: boolean;
+  food_effects_json?: string | null;
+  tool_kind?: string | null;
+  tool_tier?: string | null;
+  armor_material?: string | null;
+  armor_slot?: string | null;
+  armor_defense?: number | null;
+  armor_toughness?: number | null;
+  knockback_resistance?: number | null;
+  attribute_modifiers_json?: string | null;
+  tags_json?: string | null;
+  custom_nbt_json?: string | null;
+  tooltip_lines_json?: string | null;
+  uses_remaining?: number | null;
+  cooldown_ticks?: number | null;
+  burn_time_ticks?: number | null;
+  repair_ingredient?: string | null;
+  recipe_remainder?: string | null;
 }
 
-export type CreateItemInput = Omit<TauriItem, 'id'>;
-export type UpdateItemInput = TauriItem & { id: number };
+/**
+ * Optional extended-rules payload sent alongside `create_item` /
+ * `update_item`. The Rust side parses it as `ItemExtras` and merges it
+ * into the persisted Item row.
+ */
+export interface ItemExtras {
+  has_glint?: boolean;
+  is_fire_resistant?: boolean;
+  food_eat_seconds?: number;
+  food_always_eat?: boolean;
+  food_eat_fast?: boolean;
+  food_effects_json?: string;
+  tool_kind?: 'pickaxe' | 'axe' | 'shovel' | 'hoe' | 'sword' | string;
+  tool_tier?: 'WOOD' | 'STONE' | 'IRON' | 'GOLD' | 'DIAMOND' | 'NETHERITE' | string;
+  armor_material?: string;
+  armor_slot?: 'head' | 'chest' | 'legs' | 'feet' | string;
+  armor_defense?: number;
+  armor_toughness?: number;
+  knockback_resistance?: number;
+  attribute_modifiers_json?: string;
+  tags_json?: string;
+  custom_nbt_json?: string;
+  tooltip_lines_json?: string;
+  uses_remaining?: number;
+  cooldown_ticks?: number;
+  burn_time_ticks?: number;
+  repair_ingredient?: string;
+  recipe_remainder?: string;
+}
+
+export type CreateItemInput = Omit<TauriItem, 'id'> & { extras_json?: string };
+export type UpdateItemInput = TauriItem & { id: number; extras_json?: string };
 
 export const createItem = (data: CreateItemInput): Promise<number> =>
   invoke<number>('create_item', data);
@@ -452,6 +505,130 @@ export const resolveDependency = (data: {
   mc_version: string;
   loader: string;
 }): Promise<ResolvedDependency> => invoke<ResolvedDependency>('resolve_dependency', data);
+
+// ============================================================================
+// Mod / Modpack importer
+// ============================================================================
+
+export interface ModDependency {
+  mod_id: string;
+  version_range: string;
+  mandatory: boolean;
+}
+
+export interface FeatureCounts {
+  blocks: number;
+  items: number;
+  blockstates: number;
+  models_block: number;
+  models_item: number;
+  textures_block: number;
+  textures_item: number;
+  textures_entity: number;
+  recipes: number;
+  loot_tables: number;
+  advancements: number;
+  structures: number;
+  biomes: number;
+  dimensions: number;
+  worldgen_features: number;
+  tags: number;
+  lang_files: number;
+  sounds: number;
+  mixins: number;
+  jei_plugins: number;
+}
+
+export interface FeatureFiles {
+  blockstates: string[];
+  models_block: string[];
+  models_item: string[];
+  textures_block: string[];
+  textures_item: string[];
+  recipes: string[];
+  loot_tables: string[];
+  advancements: string[];
+  lang_files: string[];
+  other: string[];
+}
+
+export interface ImportedMod {
+  mod_id: string;
+  display_name: string;
+  version: string;
+  description: string;
+  authors: string[];
+  license: string;
+  homepage: string;
+  loader: string;
+  minecraft_version_range: string;
+  dependencies: ModDependency[];
+  feature_counts: FeatureCounts;
+  feature_files: FeatureFiles;
+  java_packages: Record<string, number>;
+  total_classes: number;
+  total_assets: number;
+  total_data_files: number;
+  raw_size_bytes: number;
+  warnings: string[];
+}
+
+export interface ModpackEntry {
+  project_id: string;
+  file_id: string;
+  name: string;
+  required: boolean;
+  source: string;
+}
+
+export interface ImportedModpack {
+  format: string;
+  name: string;
+  version: string;
+  author: string;
+  minecraft_version: string;
+  loader: string;
+  mod_count: number;
+  mods: ModpackEntry[];
+  override_files: string[];
+  warnings: string[];
+}
+
+export type ImportArchiveResult =
+  | { kind: 'mod'; Mod: ImportedMod }
+  | { kind: 'modpack'; Modpack: ImportedModpack };
+
+export const importModOrPack = (path: string): Promise<ImportArchiveResult> =>
+  invoke<ImportArchiveResult>('import_mod_or_pack', { path });
+
+export const extractJarFile = (data: {
+  jar_path: string;
+  internal_path: string;
+  target_dir: string;
+}): Promise<string> => invoke<string>('extract_jar_file', data);
+
+// ============================================================================
+// Vanilla+ template library
+// ============================================================================
+
+export type VariantKind =
+  | 'slab' | 'stairs' | 'wall' | 'fence' | 'fence_gate'
+  | 'button' | 'pressure_plate' | 'door' | 'trapdoor'
+  | 'vertical_slab' | 'glowing_variant';
+
+export interface VanillaPlusRequest {
+  namespace: string;
+  base_block_name: string;
+  display_name: string;
+  mc_version: string;
+  loader: string;
+  variants: VariantKind[];
+}
+
+export const generateVanillaPlusVariants = (
+  request: VanillaPlusRequest
+): Promise<GeneratedFile[]> =>
+  invoke<GeneratedFile[]>('generate_vanilla_plus_variants', { request });
 
 // ============================================================================
 // Resource API

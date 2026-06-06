@@ -93,6 +93,84 @@ pub fn profile_for(mc_version: &str, loader: &str) -> VersionProfile {
     let normalised = normalise_version(mc_version);
 
     match (normalised.as_str(), loader_id) {
+        // ---- 1.16.5 (Java 8) ----
+        ("1.16", LoaderId::Forge) | ("1.16.5", LoaderId::Forge) => VersionProfile {
+            mc_version: normalised.clone(),
+            loader: LoaderId::Forge,
+            forge_package_root: "net.minecraftforge",
+            block_properties_init: "AbstractBlock.Properties.of(Material.STONE)",
+            has_map_color_setter: false,
+            has_item_attributes_setter: false,
+            uses_component_literal: false, // pre-1.19, still TextComponent
+            pack_format: 6,
+            java_version: 8,
+            loader_version_constraint: "[36,)",
+        },
+        ("1.16", LoaderId::Fabric) | ("1.16.5", LoaderId::Fabric) => VersionProfile {
+            mc_version: normalised.clone(),
+            loader: LoaderId::Fabric,
+            forge_package_root: "net.fabricmc",
+            block_properties_init: "FabricBlockSettings.of(Material.STONE)",
+            has_map_color_setter: false,
+            has_item_attributes_setter: false,
+            uses_component_literal: false,
+            pack_format: 6,
+            java_version: 8,
+            loader_version_constraint: ">=0.11.0",
+        },
+
+        // ---- 1.17.1 (Java 16) ----
+        ("1.17", LoaderId::Forge) | ("1.17.1", LoaderId::Forge) => VersionProfile {
+            mc_version: normalised.clone(),
+            loader: LoaderId::Forge,
+            forge_package_root: "net.minecraftforge",
+            block_properties_init: "BlockBehaviour.Properties.of(Material.STONE)",
+            has_map_color_setter: false,
+            has_item_attributes_setter: false,
+            uses_component_literal: false,
+            pack_format: 7,
+            java_version: 16,
+            loader_version_constraint: "[37,)",
+        },
+        ("1.17", LoaderId::Fabric) | ("1.17.1", LoaderId::Fabric) => VersionProfile {
+            mc_version: normalised.clone(),
+            loader: LoaderId::Fabric,
+            forge_package_root: "net.fabricmc",
+            block_properties_init: "FabricBlockSettings.of(Material.STONE)",
+            has_map_color_setter: false,
+            has_item_attributes_setter: false,
+            uses_component_literal: false,
+            pack_format: 7,
+            java_version: 16,
+            loader_version_constraint: ">=0.12.0",
+        },
+
+        // ---- 1.18.2 (Java 17) ----
+        ("1.18", LoaderId::Forge) | ("1.18.2", LoaderId::Forge) => VersionProfile {
+            mc_version: normalised.clone(),
+            loader: LoaderId::Forge,
+            forge_package_root: "net.minecraftforge",
+            block_properties_init: "BlockBehaviour.Properties.of(Material.STONE)",
+            has_map_color_setter: false,
+            has_item_attributes_setter: false,
+            uses_component_literal: false,
+            pack_format: 8,
+            java_version: 17,
+            loader_version_constraint: "[40,)",
+        },
+        ("1.18", LoaderId::Fabric) | ("1.18.2", LoaderId::Fabric) => VersionProfile {
+            mc_version: normalised.clone(),
+            loader: LoaderId::Fabric,
+            forge_package_root: "net.fabricmc",
+            block_properties_init: "FabricBlockSettings.of(Material.STONE)",
+            has_map_color_setter: false,
+            has_item_attributes_setter: false,
+            uses_component_literal: false,
+            pack_format: 8,
+            java_version: 17,
+            loader_version_constraint: ">=0.13.0",
+        },
+
         // ---- 1.19.2 ----
         ("1.19", LoaderId::Forge) | ("1.19.2", LoaderId::Forge) => VersionProfile {
             mc_version: normalised.clone(),
@@ -221,6 +299,70 @@ pub fn profile_for(mc_version: &str, loader: &str) -> VersionProfile {
             loader_version_constraint: ">=0.16.0",
         },
 
+        // ---- 1.21.1 ----
+        ("1.21.1", LoaderId::NeoForge) => VersionProfile {
+            mc_version: normalised.clone(),
+            loader: LoaderId::NeoForge,
+            forge_package_root: "net.neoforged.neoforge",
+            block_properties_init: "BlockBehaviour.Properties.of()",
+            has_map_color_setter: true,
+            has_item_attributes_setter: true,
+            uses_component_literal: true,
+            pack_format: 34,
+            java_version: 21,
+            loader_version_constraint: "[21.1,)",
+        },
+        ("1.21.1", LoaderId::Forge) => VersionProfile {
+            mc_version: normalised.clone(),
+            loader: LoaderId::Forge,
+            forge_package_root: "net.minecraftforge",
+            block_properties_init: "BlockBehaviour.Properties.of()",
+            has_map_color_setter: true,
+            has_item_attributes_setter: true,
+            uses_component_literal: true,
+            pack_format: 34,
+            java_version: 21,
+            loader_version_constraint: "[52,)",
+        },
+        ("1.21.1", LoaderId::Fabric) => VersionProfile {
+            mc_version: normalised.clone(),
+            loader: LoaderId::Fabric,
+            forge_package_root: "net.fabricmc",
+            block_properties_init: "FabricBlockSettings.create()",
+            has_map_color_setter: true,
+            has_item_attributes_setter: true,
+            uses_component_literal: true,
+            pack_format: 34,
+            java_version: 21,
+            loader_version_constraint: ">=0.16.0",
+        },
+
+        // ---- 1.21.4 ----
+        ("1.21.4", LoaderId::NeoForge) => VersionProfile {
+            mc_version: normalised.clone(),
+            loader: LoaderId::NeoForge,
+            forge_package_root: "net.neoforged.neoforge",
+            block_properties_init: "BlockBehaviour.Properties.of()",
+            has_map_color_setter: true,
+            has_item_attributes_setter: true,
+            uses_component_literal: true,
+            pack_format: 46,
+            java_version: 21,
+            loader_version_constraint: "[21.4,)",
+        },
+        ("1.21.4", LoaderId::Fabric) => VersionProfile {
+            mc_version: normalised.clone(),
+            loader: LoaderId::Fabric,
+            forge_package_root: "net.fabricmc",
+            block_properties_init: "FabricBlockSettings.create()",
+            has_map_color_setter: true,
+            has_item_attributes_setter: true,
+            uses_component_literal: true,
+            pack_format: 46,
+            java_version: 21,
+            loader_version_constraint: ">=0.16.5",
+        },
+
         // ---- Anything else falls back to "unknown" with a marker ----
         _ => VersionProfile {
             mc_version: normalised,
@@ -255,6 +397,12 @@ fn normalise_version(s: &str) -> String {
 /// Used by the Feature Catalog to compute supported_mc_versions per feature.
 pub fn supported_pairs() -> Vec<(&'static str, LoaderId)> {
     vec![
+        ("1.16.5", LoaderId::Forge),
+        ("1.16.5", LoaderId::Fabric),
+        ("1.17.1", LoaderId::Forge),
+        ("1.17.1", LoaderId::Fabric),
+        ("1.18.2", LoaderId::Forge),
+        ("1.18.2", LoaderId::Fabric),
         ("1.19.2", LoaderId::Forge),
         ("1.19.2", LoaderId::Fabric),
         ("1.20.1", LoaderId::Forge),
@@ -265,6 +413,11 @@ pub fn supported_pairs() -> Vec<(&'static str, LoaderId)> {
         ("1.21", LoaderId::Forge),
         ("1.21", LoaderId::Fabric),
         ("1.21", LoaderId::NeoForge),
+        ("1.21.1", LoaderId::Forge),
+        ("1.21.1", LoaderId::Fabric),
+        ("1.21.1", LoaderId::NeoForge),
+        ("1.21.4", LoaderId::Fabric),
+        ("1.21.4", LoaderId::NeoForge),
     ]
 }
 
@@ -330,5 +483,31 @@ mod tests {
                 l_str
             );
         }
+    }
+
+    #[test]
+    fn supports_old_versions_with_correct_java() {
+        let p = profile_for("1.16.5", "forge");
+        assert_eq!(p.java_version, 8);
+        assert_eq!(p.pack_format, 6);
+        assert!(p.block_properties_init.contains("Material.STONE"));
+
+        let p = profile_for("1.17.1", "fabric");
+        assert_eq!(p.java_version, 16);
+        assert_eq!(p.pack_format, 7);
+
+        let p = profile_for("1.18.2", "forge");
+        assert_eq!(p.java_version, 17);
+        assert_eq!(p.pack_format, 8);
+    }
+
+    #[test]
+    fn supports_1_21_minor_versions() {
+        let p = profile_for("1.21.1", "neoforge");
+        assert_eq!(p.java_version, 21);
+        assert_eq!(p.pack_format, 34);
+
+        let p = profile_for("1.21.4", "neoforge");
+        assert_eq!(p.pack_format, 46);
     }
 }

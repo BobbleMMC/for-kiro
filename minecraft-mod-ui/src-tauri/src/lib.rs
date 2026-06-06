@@ -4,6 +4,7 @@ pub mod codegen;
 pub mod commands;
 pub mod resources;
 pub mod feature_system;
+pub mod mod_importer;
 
 use std::sync::Arc;
 use commands::project_commands::DbState;
@@ -127,6 +128,11 @@ pub fn run() {
             // Dependency resolver
             commands::dependency_commands::list_dependencies,
             commands::dependency_commands::resolve_dependency,
+            // Mod / modpack importer
+            commands::import_commands::import_mod_or_pack,
+            commands::import_commands::extract_jar_file,
+            // Vanilla+ template library
+            commands::vanilla_plus_commands::generate_vanilla_plus_variants,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

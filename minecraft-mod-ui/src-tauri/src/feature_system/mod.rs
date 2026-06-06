@@ -27,6 +27,7 @@
 pub mod skeleton;
 pub mod version_matrix;
 pub mod dependency_resolver;
+pub mod vanilla_plus;
 
 use serde::{Deserialize, Serialize};
 
