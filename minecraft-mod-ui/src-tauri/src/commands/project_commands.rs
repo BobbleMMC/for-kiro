@@ -12,6 +12,7 @@ pub async fn create_project(
     description: Option<String>,
     minecraft_version: String,
     mod_loader: String,
+    mod_version: Option<String>,
     author: String,
     namespace: String,
 ) -> Result<i64, String> {
@@ -21,7 +22,7 @@ pub async fn create_project(
         description,
         minecraft_version,
         mod_loader,
-        mod_version: "1.0.0".to_string(),
+        mod_version: mod_version.unwrap_or_else(|| "1.0.0".to_string()),
         author,
         namespace,
         build_count: 0,
@@ -32,6 +33,37 @@ pub async fn create_project(
 
     db.0.create_project(&project)
         .map_err(|e| format!("Failed to create project: {}", e))
+}
+
+#[tauri::command]
+pub async fn update_project(
+    db: State<'_, DbState>,
+    id: i64,
+    name: String,
+    description: Option<String>,
+    minecraft_version: String,
+    mod_loader: String,
+    mod_version: String,
+    author: String,
+    namespace: String,
+) -> Result<(), String> {
+    let project = Project {
+        id: Some(id),
+        name,
+        description,
+        minecraft_version,
+        mod_loader,
+        mod_version,
+        author,
+        namespace,
+        build_count: 0,
+        is_archived: false,
+        created_at: None,
+        updated_at: None,
+    };
+
+    db.0.update_project(&project)
+        .map_err(|e| format!("Failed to update project: {}", e))
 }
 
 #[tauri::command]

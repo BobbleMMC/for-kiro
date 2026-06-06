@@ -60,16 +60,32 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             // Project commands
             commands::project_commands::create_project,
+            commands::project_commands::update_project,
             commands::project_commands::get_projects,
             commands::project_commands::get_project,
             commands::project_commands::delete_project,
-            // Asset commands
+            // Asset commands — Block
             commands::asset_commands::create_block,
+            commands::asset_commands::update_block,
+            commands::asset_commands::delete_block,
+            commands::asset_commands::get_block,
             commands::asset_commands::get_blocks,
+            // Asset commands — Item
             commands::asset_commands::create_item,
-            // Graph commands
+            commands::asset_commands::update_item,
+            commands::asset_commands::delete_item,
+            commands::asset_commands::get_item,
+            commands::asset_commands::get_items,
+            // Visual graph commands
             commands::graph_commands::save_visual_graph,
             commands::graph_commands::get_visual_graphs,
+            // Codegen commands
+            commands::codegen_commands::generate_event_handlers,
+            commands::codegen_commands::generate_block_class,
+            commands::codegen_commands::generate_item_class,
+            // Scaffold commands
+            commands::scaffold_commands::scaffold_project,
+            commands::scaffold_commands::get_project_path,
             // Build commands
             commands::build_commands::run_gradle_build,
             commands::build_commands::check_java_version,

@@ -25,34 +25,40 @@ const Dashboard: FC<DashboardProps> = ({ onProjectSelect }) => {
     description: '',
   });
 
-  const handleCreateProject = (e: React.FormEvent) => {
+  const handleCreateProject = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    const newProject = createProject({
-      name: formData.name,
-      description: formData.description,
-      minecraft_version: formData.minecraft_version,
-      mod_loader: formData.mod_loader,
-      mod_version: formData.mod_version,
-      author: formData.author,
-      namespace: formData.namespace,
-      last_build_at: undefined,
-    });
+    try {
+      const newProject = await createProject({
+        name: formData.name,
+        description: formData.description,
+        minecraft_version: formData.minecraft_version,
+        mod_loader: formData.mod_loader,
+        mod_version: formData.mod_version,
+        author: formData.author,
+        namespace: formData.namespace,
+        last_build_at: undefined,
+      });
 
-    setCurrentProject(newProject);
-    selectProject(newProject);
-    setShowCreateModal(false);
-    setFormData({
-      name: '',
-      minecraft_version: '1.20.1',
-      mod_loader: 'fabric',
-      mod_version: '1.0.0',
-      author: '',
-      namespace: '',
-      description: '',
-    });
+      setCurrentProject(newProject);
+      selectProject(newProject);
+      setShowCreateModal(false);
+      setFormData({
+        name: '',
+        minecraft_version: '1.20.1',
+        mod_loader: 'fabric',
+        mod_version: '1.0.0',
+        author: '',
+        namespace: '',
+        description: '',
+      });
 
-    onProjectSelect?.();
+      onProjectSelect?.();
+    } catch (err) {
+      // eslint-disable-next-line no-console
+      console.error('Failed to create project:', err);
+      alert(`Failed to create project: ${err instanceof Error ? err.message : err}`);
+    }
   };
 
   return (
@@ -228,7 +234,7 @@ const Dashboard: FC<DashboardProps> = ({ onProjectSelect }) => {
               variant="primary"
               onClick={(e) => {
                 e.preventDefault();
-                handleCreateProject(e as any);
+                void handleCreateProject(e as unknown as React.FormEvent);
               }}
               className="flex-1"
             >

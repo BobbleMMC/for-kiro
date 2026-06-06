@@ -97,6 +97,51 @@ impl Database {
         Ok(conn.last_insert_rowid())
     }
 
+    pub fn update_project(&self, project: &Project) -> Result<(), DbError> {
+        let id = project.id.ok_or_else(|| {
+            DbError::Sqlite(rusqlite::Error::InvalidParameterName(
+                "project.id is required for update".to_string(),
+            ))
+        })?;
+        let conn = self.connection()?;
+        conn.execute(
+            "UPDATE projects SET
+                name = ?1,
+                description = ?2,
+                minecraft_version = ?3,
+                mod_loader = ?4,
+                mod_version = ?5,
+                author = ?6,
+                namespace = ?7,
+                updated_at = datetime('now')
+             WHERE id = ?8",
+            params![
+                project.name,
+                project.description,
+                project.minecraft_version,
+                project.mod_loader,
+                project.mod_version,
+                project.author,
+                project.namespace,
+                id,
+            ],
+        )?;
+        Ok(())
+    }
+
+    pub fn increment_build_count(&self, project_id: i64) -> Result<(), DbError> {
+        let conn = self.connection()?;
+        conn.execute(
+            "UPDATE projects SET
+                build_count = build_count + 1,
+                last_build_at = datetime('now'),
+                updated_at = datetime('now')
+             WHERE id = ?1",
+            params![project_id],
+        )?;
+        Ok(())
+    }
+
     pub fn get_projects(&self) -> Result<Vec<Project>, DbError> {
         let conn = self.connection()?;
         let mut stmt = conn.prepare(
@@ -187,6 +232,87 @@ impl Database {
         Ok(conn.last_insert_rowid())
     }
 
+    pub fn update_block(&self, block: &Block) -> Result<(), DbError> {
+        let id = block.id.ok_or_else(|| {
+            DbError::Sqlite(rusqlite::Error::InvalidParameterName(
+                "block.id is required for update".to_string(),
+            ))
+        })?;
+        let conn = self.connection()?;
+        conn.execute(
+            "UPDATE blocks SET
+                block_name = ?1,
+                display_name = ?2,
+                namespace = ?3,
+                hardness = ?4,
+                resistance = ?5,
+                luminance = ?6,
+                is_solid = ?7,
+                has_collision = ?8,
+                has_gravity = ?9,
+                is_flammable = ?10,
+                material_type = ?11,
+                texture_all = ?12,
+                updated_at = datetime('now')
+             WHERE id = ?13",
+            params![
+                block.block_name,
+                block.display_name,
+                block.namespace,
+                block.hardness,
+                block.resistance,
+                block.luminance,
+                block.is_solid as i32,
+                block.has_collision as i32,
+                block.has_gravity as i32,
+                block.is_flammable as i32,
+                block.material_type,
+                block.texture_all,
+                id,
+            ],
+        )?;
+        Ok(())
+    }
+
+    pub fn delete_block(&self, id: i64) -> Result<(), DbError> {
+        let conn = self.connection()?;
+        conn.execute("DELETE FROM blocks WHERE id = ?1", params![id])?;
+        Ok(())
+    }
+
+    pub fn get_block(&self, id: i64) -> Result<Option<Block>, DbError> {
+        let conn = self.connection()?;
+        let mut stmt = conn.prepare(
+            "SELECT id, project_id, block_name, display_name, namespace, hardness, resistance, luminance, is_solid, has_collision, has_gravity, is_flammable, material_type, texture_all
+             FROM blocks WHERE id = ?1"
+        )?;
+
+        let result = stmt.query_row(params![id], |row| {
+            Ok(Block {
+                id: Some(row.get(0)?),
+                project_id: row.get(1)?,
+                block_name: row.get(2)?,
+                display_name: row.get(3)?,
+                namespace: row.get(4)?,
+                hardness: row.get(5)?,
+                resistance: row.get(6)?,
+                luminance: row.get(7)?,
+                is_solid: row.get::<_, i32>(8)? != 0,
+                has_collision: row.get::<_, i32>(9)? != 0,
+                has_gravity: row.get::<_, i32>(10)? != 0,
+                is_flammable: row.get::<_, i32>(11)? != 0,
+                material_type: row.get(12)?,
+                texture_all: row.get(13)?,
+            })
+        });
+
+        match result {
+            Ok(b) => Ok(Some(b)),
+            Err(rusqlite::Error::QueryReturnedNoRows) => Ok(None),
+            Err(e) => Err(DbError::Sqlite(e)),
+        }
+    }
+
     pub fn get_blocks(&self, project_id: i64) -> Result<Vec<Block>, DbError> {
         let conn = self.connection()?;
         let mut stmt = conn.prepare(
@@ -239,6 +365,104 @@ impl Database {
         Ok(conn.last_insert_rowid())
     }
 
+    pub fn update_item(&self, item: &Item) -> Result<(), DbError> {
+        let id = item.id.ok_or_else(|| {
+            DbError::Sqlite(rusqlite::Error::InvalidParameterName(
+                "item.id is required for update".to_string(),
+            ))
+        })?;
+        let conn = self.connection()?;
+        conn.execute(
+            "UPDATE items SET
+                item_name = ?1,
+                display_name = ?2,
+                namespace = ?3,
+                max_stack_size = ?4,
+                rarity = ?5,
+                is_enchantable = ?6,
+                durability = ?7,
+                attack_damage = ?8,
+                texture_path = ?9,
+                updated_at = datetime('now')
+             WHERE id = ?10",
+            params![
+                item.item_name,
+                item.display_name,
+                item.namespace,
+                item.max_stack_size,
+                item.rarity,
+                item.is_enchantable as i32,
+                item.durability,
+                item.attack_damage,
+                item.texture_path,
+                id,
+            ],
+        )?;
+        Ok(())
+    }
+
+    pub fn delete_item(&self, id: i64) -> Result<(), DbError> {
+        let conn = self.connection()?;
+        conn.execute("DELETE FROM items WHERE id = ?1", params![id])?;
+        Ok(())
+    }
+
+    pub fn get_item(&self, id: i64) -> Result<Option<Item>, DbError> {
+        let conn = self.connection()?;
+        let mut stmt = conn.prepare(
+            "SELECT id, project_id, item_name, display_name, namespace, max_stack_size, rarity, is_enchantable, durability, attack_damage, texture_path
+             FROM items WHERE id = ?1"
+        )?;
+
+        let result = stmt.query_row(params![id], |row| {
+            Ok(Item {
+                id: Some(row.get(0)?),
+                project_id: row.get(1)?,
+                item_name: row.get(2)?,
+                display_name: row.get(3)?,
+                namespace: row.get(4)?,
+                max_stack_size: row.get(5)?,
+                rarity: row.get(6)?,
+                is_enchantable: row.get::<_, i32>(7)? != 0,
+                durability: row.get(8)?,
+                attack_damage: row.get(9)?,
+                texture_path: row.get(10)?,
+            })
+        });
+
+        match result {
+            Ok(i) => Ok(Some(i)),
+            Err(rusqlite::Error::QueryReturnedNoRows) => Ok(None),
+            Err(e) => Err(DbError::Sqlite(e)),
+        }
+    }
+
+    pub fn get_items(&self, project_id: i64) -> Result<Vec<Item>, DbError> {
+        let conn = self.connection()?;
+        let mut stmt = conn.prepare(
+            "SELECT id, project_id, item_name, display_name, namespace, max_stack_size, rarity, is_enchantable, durability, attack_damage, texture_path
+             FROM items WHERE project_id = ?1 ORDER BY display_name"
+        )?;
+
+        let items = stmt.query_map(params![project_id], |row| {
+            Ok(Item {
+                id: Some(row.get(0)?),
+                project_id: row.get(1)?,
+                item_name: row.get(2)?,
+                display_name: row.get(3)?,
+                namespace: row.get(4)?,
+                max_stack_size: row.get(5)?,
+                rarity: row.get(6)?,
+                is_enchantable: row.get::<_, i32>(7)? != 0,
+                durability: row.get(8)?,
+                attack_damage: row.get(9)?,
+                texture_path: row.get(10)?,
+            })
+        })?.collect::<Result<Vec<_>, _>>()?;
+
+        Ok(items)
+    }
+
     // ===== Visual Graph CRUD =====
 
     pub fn save_visual_graph(&self, graph: &VisualGraph) -> Result<i64, DbError> {
@@ -266,6 +490,33 @@ impl Database {
                 ],
             )?;
             Ok(conn.last_insert_rowid())
+        }
+    }
+
+    pub fn get_visual_graph(&self, id: i64) -> Result<Option<VisualGraph>, DbError> {
+        let conn = self.connection()?;
+        let mut stmt = conn.prepare(
+            "SELECT id, project_id, graph_name, graph_type, nodes_json, edges_json, viewport_json, is_active
+             FROM visual_nodes_data WHERE id = ?1"
+        )?;
+
+        let result = stmt.query_row(params![id], |row| {
+            Ok(VisualGraph {
+                id: Some(row.get(0)?),
+                project_id: row.get(1)?,
+                graph_name: row.get(2)?,
+                graph_type: row.get(3)?,
+                nodes_json: row.get(4)?,
+                edges_json: row.get(5)?,
+                viewport_json: row.get(6)?,
+                is_active: row.get::<_, i32>(7)? != 0,
+            })
+        });
+
+        match result {
+            Ok(g) => Ok(Some(g)),
+            Err(rusqlite::Error::QueryReturnedNoRows) => Ok(None),
+            Err(e) => Err(DbError::Sqlite(e)),
         }
     }
 
@@ -342,5 +593,45 @@ impl Database {
         })?.collect::<Result<Vec<_>, _>>()?;
 
         Ok(files)
+    }
+
+    // ===== Build Logs =====
+
+    pub fn create_build_log(
+        &self,
+        project_id: i64,
+        status: &str,
+        log_content: &str,
+        error_summary: Option<&str>,
+        warnings_count: i32,
+        errors_count: i32,
+        build_time_ms: i64,
+    ) -> Result<i64, DbError> {
+        let conn = self.connection()?;
+
+        // Determine next build_number
+        let build_number: i32 = conn
+            .query_row(
+                "SELECT COALESCE(MAX(build_number), 0) + 1 FROM build_logs WHERE project_id = ?1",
+                params![project_id],
+                |row| row.get(0),
+            )
+            .unwrap_or(1);
+
+        conn.execute(
+            "INSERT INTO build_logs (project_id, build_number, status, log_content, error_summary, warnings_count, errors_count, build_time_ms)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
+            params![
+                project_id,
+                build_number,
+                status,
+                log_content,
+                error_summary,
+                warnings_count,
+                errors_count,
+                build_time_ms,
+            ],
+        )?;
+        Ok(conn.last_insert_rowid())
     }
 }

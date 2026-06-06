@@ -8,49 +8,76 @@
  *  - Onboarding wizard for first-time users
  *  - 25+ editors registered as dockable panels (right dock strip)
  *  - Keyboard shortcuts (Ctrl+S, Ctrl+B, F5)
+ *
+ * Save / Build / Export are wired through `useProjectActions`, which talks to
+ * the Rust backend (SQLite + Gradle) when running inside Tauri and falls back
+ * to in-memory operation in the browser dev server.
  */
 import { useState, useEffect, useCallback, useMemo, type FC } from 'react';
 import { useProjectStore } from '../../stores/projectStore';
+import { useProjectActions } from '../../hooks/useProjectActions';
 import { DockLayout } from '../dock-layout';
 import '../dock-layout/dock-styles.css';
 
-import { Save, Play, Download, Sun, Moon } from 'lucide-react';
+import { Save, Play, Download, Sun, Moon, Loader2 } from 'lucide-react';
 import { HotReloadStatus } from '../hot-reload/HotReloadStatus';
 import { CommandPalette, OnboardingWizard, NotificationBell, NotificationCenter } from '../ux';
 import { createWorkspacePanels } from './workspacePanels';
 
 export const DockWorkspace: FC = () => {
-  // Stable selectors avoid full-store subscriptions and prevent re-renders
-  // when unrelated state (e.g. console logs) changes.
   const currentProject = useProjectStore((s) => s.currentProject);
-  const addConsoleMessage = useProjectStore((s) => s.addConsoleMessage);
+  const { save, build, exportJar } = useProjectActions();
 
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
   const [onboardingOpen, setOnboardingOpen] = useState(false);
   const [darkMode, setDarkMode] = useState(true);
+  const [busy, setBusy] = useState<null | 'save' | 'build' | 'export'>(null);
 
   // Panel registry is heavy (30+ JSX nodes including lazy components).
   // Build it ONCE per workspace mount, not on every keystroke / log update.
   const panels = useMemo(() => createWorkspacePanels(), []);
 
-  const log = useCallback(
-    (level: 'info' | 'success' | 'warning' | 'error', message: string, source = 'Workspace') => {
-      addConsoleMessage({
-        id: `msg-${Date.now()}-${Math.random()}`,
-        timestamp: new Date(),
-        level,
-        message,
-        source,
-      });
-    },
-    [addConsoleMessage]
-  );
+  const handleSave = useCallback(async () => {
+    if (busy) return;
+    setBusy('save');
+    try {
+      await save(currentProject);
+    } finally {
+      setBusy(null);
+    }
+  }, [busy, save, currentProject]);
 
-  const handleSave = useCallback(() => log('success', 'Project saved', 'Save'), [log]);
-  const handleBuild = useCallback(() => log('info', 'Build started…', 'Gradle'), [log]);
-  const handleExport = useCallback(() => log('info', 'Exporting .jar…', 'Export'), [log]);
-  const handleRun = useCallback(() => log('info', 'Launching Minecraft client…', 'Run'), [log]);
+  const handleBuild = useCallback(async () => {
+    if (busy) return;
+    setBusy('build');
+    try {
+      await build(currentProject);
+    } finally {
+      setBusy(null);
+    }
+  }, [busy, build, currentProject]);
+
+  const handleExport = useCallback(async () => {
+    if (busy) return;
+    setBusy('export');
+    try {
+      await exportJar(currentProject);
+    } finally {
+      setBusy(null);
+    }
+  }, [busy, exportJar, currentProject]);
+
+  const handleRun = useCallback(() => {
+    // Run-in-Minecraft (gradle runClient) is a separate follow-up task.
+    useProjectStore.getState().addConsoleMessage({
+      id: `msg-${Date.now()}`,
+      timestamp: new Date(),
+      level: 'info',
+      message: 'Run client is not yet wired — use Build for now',
+      source: 'Run',
+    });
+  }, []);
 
   // Global keyboard shortcuts
   useEffect(() => {
@@ -60,13 +87,13 @@ export const DockWorkspace: FC = () => {
         setPaletteOpen(true);
       } else if (e.ctrlKey && !e.shiftKey && e.key.toLowerCase() === 's') {
         e.preventDefault();
-        handleSave();
+        void handleSave();
       } else if (e.ctrlKey && !e.shiftKey && e.key.toLowerCase() === 'b') {
         e.preventDefault();
-        handleBuild();
+        void handleBuild();
       } else if (e.ctrlKey && !e.shiftKey && e.key.toLowerCase() === 'e') {
         e.preventDefault();
-        handleExport();
+        void handleExport();
       } else if (e.key === 'F5') {
         e.preventDefault();
         handleRun();
@@ -122,24 +149,30 @@ export const DockWorkspace: FC = () => {
             {/* Action buttons */}
             <button
               onClick={handleSave}
-              className="flex items-center gap-1.5 px-2.5 py-1 bg-blue-600 hover:bg-blue-700 text-white text-[10px] font-medium rounded transition-colors"
+              disabled={busy !== null}
+              className="flex items-center gap-1.5 px-2.5 py-1 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-white text-[10px] font-medium rounded transition-colors"
               title="Save (Ctrl+S)"
             >
-              <Save size={11} /> Save
+              {busy === 'save' ? <Loader2 size={11} className="animate-spin" /> : <Save size={11} />}
+              Save
             </button>
             <button
               onClick={handleBuild}
-              className="flex items-center gap-1.5 px-2.5 py-1 bg-green-600 hover:bg-green-700 text-white text-[10px] font-medium rounded transition-colors"
+              disabled={busy !== null}
+              className="flex items-center gap-1.5 px-2.5 py-1 bg-green-600 hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed text-white text-[10px] font-medium rounded transition-colors"
               title="Build (Ctrl+B)"
             >
-              <Play size={11} /> Build
+              {busy === 'build' ? <Loader2 size={11} className="animate-spin" /> : <Play size={11} />}
+              Build
             </button>
             <button
               onClick={handleExport}
-              className="flex items-center gap-1.5 px-2.5 py-1 bg-purple-600 hover:bg-purple-700 text-white text-[10px] font-medium rounded transition-colors"
+              disabled={busy !== null}
+              className="flex items-center gap-1.5 px-2.5 py-1 bg-purple-600 hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed text-white text-[10px] font-medium rounded transition-colors"
               title="Export .jar (Ctrl+E)"
             >
-              <Download size={11} /> Export
+              {busy === 'export' ? <Loader2 size={11} className="animate-spin" /> : <Download size={11} />}
+              Export
             </button>
 
             <div className="h-4 w-px bg-slate-700" />
@@ -175,7 +208,13 @@ export const DockWorkspace: FC = () => {
           setOnboardingOpen(false);
         }}
         onComplete={(data) => {
-          log('success', `Project setup complete: ${data.modName || 'Untitled'}`, 'Onboarding');
+          useProjectStore.getState().addConsoleMessage({
+            id: `msg-${Date.now()}`,
+            timestamp: new Date(),
+            level: 'success',
+            message: `Project setup complete: ${data.modName || 'Untitled'}`,
+            source: 'Onboarding',
+          });
         }}
       />
     </>
