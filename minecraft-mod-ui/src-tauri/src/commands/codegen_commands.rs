@@ -118,7 +118,11 @@ fn emit_block_class(
     is_flammable: bool,
     material_type: &str,
     mod_loader: &str,
+    mc_version: &str,
 ) -> String {
+    use crate::feature_system::version_matrix::{profile_for, LoaderId};
+
+    let profile = profile_for(mc_version, mod_loader);
     let class_name = to_pascal_case(block_name);
     let pkg = java_package(namespace);
     let constant = block_name.to_uppercase();
@@ -134,32 +138,51 @@ fn emit_block_class(
         _ => ("SoundType.STONE", "MapColor.STONE"),
     };
 
-    let loader_imports = if mod_loader == "fabric" {
+    let is_fabric = matches!(profile.loader, LoaderId::Fabric);
+
+    let loader_imports = if is_fabric {
         "import net.fabricmc.fabric.api.object.builder.v1.block.FabricBlockSettings;\n\
          import net.minecraft.util.Identifier;\n\
-         import net.minecraft.util.registry.Registry;\n"
+         import net.minecraft.core.registries.Registries;\n\
+         import net.minecraft.core.Registry;\n"
     } else {
-        "import net.minecraftforge.registries.DeferredRegister;\n\
-         import net.minecraftforge.registries.ForgeRegistries;\n\
-         import net.minecraftforge.registries.RegistryObject;\n"
+        match profile.loader {
+            LoaderId::NeoForge => "import net.neoforged.neoforge.registries.DeferredRegister;\n\
+                                   import net.neoforged.neoforge.registries.NeoForgeRegistries;\n\
+                                   import net.neoforged.bus.api.IEventBus;\n",
+            _ => "import net.minecraftforge.registries.DeferredRegister;\n\
+                  import net.minecraftforge.registries.ForgeRegistries;\n\
+                  import net.minecraftforge.registries.RegistryObject;\n",
+        }
     };
 
-    let registration = if mod_loader == "fabric" {
+    // Material.STONE arg in 1.19; nothing in 1.20+.
+    let props_init = profile.block_properties_init;
+    // mapColor was added in 1.20; older versions skip the line.
+    let map_color_line = if profile.has_map_color_setter {
+        format!("                .mapColor({})\n", map_color)
+    } else {
+        String::new()
+    };
+
+    let registration = if is_fabric {
         format!(
             "    public static final Block {const_name} = Registry.register(\n\
-             \x20       Registry.BLOCK,\n\
+             \x20       net.minecraft.registry.Registries.BLOCK,\n\
              \x20       new Identifier(\"{ns}\", \"{rid}\"),\n\
-             \x20       new Block(FabricBlockSettings.create()\n\
+             \x20       new Block({props_init}\n\
+             {map_color_line}\
              \x20           .strength({hardness}f, {resistance}f)\n\
-             \x20           .luminance({luminance})\n\
-             \x20           .sounds({sound})\n\
-             {gravity}\
-             {fire}\
+             \x20           .lightLevel(state -> {luminance})\n\
+             \x20           .sound({sound})\n\
+             {gravity}{fire}\
              \x20       )\n\
              \x20   );\n",
             const_name = constant,
             ns = namespace,
             rid = registry_id,
+            props_init = props_init.replace("BlockBehaviour.Properties", "FabricBlockSettings"),
+            map_color_line = map_color_line,
             hardness = hardness,
             resistance = resistance,
             luminance = luminance,
@@ -168,47 +191,76 @@ fn emit_block_class(
             fire = if is_flammable { "            // flammability handled via FireBlock.setFireInfo\n" } else { "" },
         )
     } else {
+        let registry_module = match profile.loader {
+            LoaderId::NeoForge => "NeoForgeRegistries.BLOCKS",
+            _ => "ForgeRegistries.BLOCKS",
+        };
         format!(
             "    public static final DeferredRegister<Block> BLOCKS =\n\
-             \x20       DeferredRegister.create(ForgeRegistries.BLOCKS, \"{ns}\");\n\n\
+             \x20       DeferredRegister.create({registry}, \"{ns}\");\n\n\
              \x20   public static final RegistryObject<Block> {const_name} =\n\
              \x20       BLOCKS.register(\"{rid}\", () -> new Block(\n\
-             \x20           BlockBehaviour.Properties.of()\n\
-             \x20               .mapColor({map_color})\n\
+             \x20           {props_init}\n\
+             {map_color_line}\
              \x20               .strength({hardness}f, {resistance}f)\n\
              \x20               .lightLevel(state -> {luminance})\n\
              \x20               .sound({sound})\n\
              \x20       ));\n",
+            registry = registry_module,
             ns = namespace,
             const_name = constant,
             rid = registry_id,
+            props_init = props_init,
+            map_color_line = map_color_line.replace("                ", "                    "),
             hardness = hardness,
             resistance = resistance,
             luminance = luminance,
             sound = sound_type,
-            map_color = map_color,
         )
     };
 
+    let material_import = if !profile.has_map_color_setter {
+        "import net.minecraft.world.level.material.Material;\n"
+    } else {
+        ""
+    };
+
     format!(
-        "package {pkg}.block;\n\n\
+        "// =============================================================================\n\
+         //  Generated by Minecraft Mod Studio — Block\n\
+         //  Target: {mc_version} · loader: {loader:?} · pack_format: {pf} · java: {jv}\n\
+         // =============================================================================\n\n\
+         package {pkg}.block;\n\n\
          import net.minecraft.world.level.block.Block;\n\
          import net.minecraft.world.level.block.SoundType;\n\
          import net.minecraft.world.level.block.state.BlockBehaviour;\n\
-         import net.minecraft.world.level.material.MapColor;\n\
+         {material_import}\
+         {map_color_import}\
          {loader_imports}\n\
          /**\n\
          \x20* {display_name} — auto-generated by Minecraft Mod Studio.\n\
-         \x20* Edit visual properties in the Block Editor; this file will be regenerated.\n\
+",
+        mc_version = profile.mc_version,
+        loader = profile.loader,
+        pf = profile.pack_format,
+        jv = profile.java_version,
+        pkg = pkg,
+        material_import = material_import,
+        map_color_import = if profile.has_map_color_setter {
+            "import net.minecraft.world.level.material.MapColor;\n"
+        } else {
+            ""
+        },
+        loader_imports = loader_imports,
+        display_name = display_name,
+    ) + &format!(
+        "\x20* Edit visual properties in the Block Editor; this file will be regenerated.\n\
          \x20*/\n\
          public final class {class_name} {{\n\
          \n\
          {registration}\n\
          \x20   private {class_name}() {{}} // utility class — registry container only\n\
          }}\n",
-        pkg = pkg,
-        loader_imports = loader_imports,
-        display_name = display_name,
         class_name = class_name,
         registration = registration,
     )
@@ -242,6 +294,7 @@ pub async fn generate_block_class(
         block.is_flammable,
         &block.material_type,
         &project.mod_loader,
+        &project.minecraft_version,
     );
 
     let class_name = to_pascal_case(&block.block_name);
@@ -266,7 +319,11 @@ fn emit_item_class(
     rarity: &str,
     durability: Option<i32>,
     mod_loader: &str,
+    mc_version: &str,
 ) -> String {
+    use crate::feature_system::version_matrix::{profile_for, LoaderId};
+
+    let profile = profile_for(mc_version, mod_loader);
     let class_name = to_pascal_case(item_name);
     let pkg = java_package(namespace);
     let constant = item_name.to_uppercase();
@@ -277,19 +334,26 @@ fn emit_item_class(
         .map(|d| format!("\n            .durability({})", d))
         .unwrap_or_default();
 
-    let loader_imports = if mod_loader == "fabric" {
+    let is_fabric = matches!(profile.loader, LoaderId::Fabric);
+
+    let loader_imports = if is_fabric {
         "import net.minecraft.util.Identifier;\n\
-         import net.minecraft.util.registry.Registry;\n"
+         import net.minecraft.core.registries.Registries;\n\
+         import net.minecraft.core.Registry;\n"
     } else {
-        "import net.minecraftforge.registries.DeferredRegister;\n\
-         import net.minecraftforge.registries.ForgeRegistries;\n\
-         import net.minecraftforge.registries.RegistryObject;\n"
+        match profile.loader {
+            LoaderId::NeoForge => "import net.neoforged.neoforge.registries.DeferredRegister;\n\
+                                   import net.neoforged.neoforge.registries.NeoForgeRegistries;\n",
+            _ => "import net.minecraftforge.registries.DeferredRegister;\n\
+                  import net.minecraftforge.registries.ForgeRegistries;\n\
+                  import net.minecraftforge.registries.RegistryObject;\n",
+        }
     };
 
-    let registration = if mod_loader == "fabric" {
+    let registration = if is_fabric {
         format!(
             "    public static final Item {const_name} = Registry.register(\n\
-             \x20       Registry.ITEM,\n\
+             \x20       net.minecraft.registry.Registries.ITEM,\n\
              \x20       new Identifier(\"{ns}\", \"{rid}\"),\n\
              \x20       new Item(new Item.Settings()\n\
              \x20           .maxCount({stack})\n\
@@ -304,15 +368,20 @@ fn emit_item_class(
             dur = durability_call,
         )
     } else {
+        let registry_module = match profile.loader {
+            LoaderId::NeoForge => "NeoForgeRegistries.ITEMS",
+            _ => "ForgeRegistries.ITEMS",
+        };
         format!(
             "    public static final DeferredRegister<Item> ITEMS =\n\
-             \x20       DeferredRegister.create(ForgeRegistries.ITEMS, \"{ns}\");\n\n\
+             \x20       DeferredRegister.create({registry}, \"{ns}\");\n\n\
              \x20   public static final RegistryObject<Item> {const_name} =\n\
              \x20       ITEMS.register(\"{rid}\", () -> new Item(\n\
              \x20           new Item.Properties()\n\
              \x20               .stacksTo({stack})\n\
              \x20               .rarity(Rarity.{rarity}){dur}\n\
              \x20       ));\n",
+            registry = registry_module,
             ns = namespace,
             const_name = constant,
             rid = registry_id,
@@ -323,7 +392,11 @@ fn emit_item_class(
     };
 
     format!(
-        "package {pkg}.item;\n\n\
+        "// =============================================================================\n\
+         //  Generated by Minecraft Mod Studio — Item\n\
+         //  Target: {mc_version} · loader: {loader:?} · pack_format: {pf} · java: {jv}\n\
+         // =============================================================================\n\n\
+         package {pkg}.item;\n\n\
          import net.minecraft.world.item.Item;\n\
          import net.minecraft.world.item.Rarity;\n\
          {loader_imports}\n\
@@ -336,6 +409,10 @@ fn emit_item_class(
          {registration}\n\
          \x20   private {class_name}() {{}} // utility class — registry container only\n\
          }}\n",
+        mc_version = profile.mc_version,
+        loader = profile.loader,
+        pf = profile.pack_format,
+        jv = profile.java_version,
         pkg = pkg,
         loader_imports = loader_imports,
         display_name = display_name,
@@ -369,6 +446,7 @@ pub async fn generate_item_class(
         &item.rarity,
         item.durability,
         &project.mod_loader,
+        &project.minecraft_version,
     );
 
     let class_name = to_pascal_case(&item.item_name);

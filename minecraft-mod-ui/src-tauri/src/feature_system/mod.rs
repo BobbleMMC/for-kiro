@@ -25,6 +25,7 @@
 //! Today only `Block`, `Item`, and `EventHandler` reach that bar.
 
 pub mod skeleton;
+pub mod version_matrix;
 
 use serde::{Deserialize, Serialize};
 
@@ -238,10 +239,10 @@ pub fn all_features() -> Vec<FeatureInfo> {
             has_template: true,
             has_validator: true,
             has_dependency_resolver: true,
-            has_version_aware_generator: false,
+            has_version_aware_generator: true,
             command_name: Some("generate_block_class".into()),
             editor_panel_id: Some("block-editor".into()),
-            notes: "DB-persisted. Generates a registry-ready Java class with proper imports for both Forge (DeferredRegister) and Fabric (Registry.register). Version-aware emitter pending — currently targets 1.20.x APIs.".into(),
+            notes: "DB-persisted. Version-aware emitter consults version_matrix and emits Material.STONE arg for 1.19, .mapColor() for 1.20+, NeoForge package roots for 1.21, and the right Java toolchain for each.".into(),
         },
         FeatureInfo {
             kind: Item,
@@ -254,10 +255,10 @@ pub fn all_features() -> Vec<FeatureInfo> {
             has_template: true,
             has_validator: true,
             has_dependency_resolver: true,
-            has_version_aware_generator: false,
+            has_version_aware_generator: true,
             command_name: Some("generate_item_class".into()),
             editor_panel_id: Some("item-editor".into()),
-            notes: "DB-persisted. Forge / Fabric registry-class output works. Version-aware emitter pending.".into(),
+            notes: "DB-persisted. Version-aware emitter switches between ForgeRegistries and NeoForgeRegistries / FabricRegistries based on (loader, mc_version).".into(),
         },
         FeatureInfo {
             kind: Tool,
