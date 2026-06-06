@@ -133,6 +133,8 @@ pub fn run() {
             commands::import_commands::extract_jar_file,
             // Vanilla+ template library
             commands::vanilla_plus_commands::generate_vanilla_plus_variants,
+            // Worldgen feature codegen
+            commands::worldgen_commands::generate_worldgen_feature,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

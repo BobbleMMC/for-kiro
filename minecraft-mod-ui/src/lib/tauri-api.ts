@@ -440,6 +440,55 @@ export const generateEnchantmentClass = (asset_id: number): Promise<GeneratedFil
   invoke<GeneratedFile>('generate_enchantment_class', { asset_id });
 
 // ============================================================================
+// Worldgen Feature codegen (PR #27)
+// ============================================================================
+//
+// Unlike the other generators, a worldgen feature ships as a *bundle* of
+// 3 files: configured_feature.json + placed_feature.json + a biome
+// modifier (Forge / NeoForge JSON, or a Fabric BiomeModifications Java
+// helper). The command therefore returns Vec<GeneratedFile>; the
+// frontend modal renders one tab per file and the "Write to project"
+// button writes them all.
+
+export type WorldgenKind = 'ore' | 'scattered_ore' | 'tree' | 'lake' | 'spring' | 'disk';
+
+export interface WorldgenMeta {
+  kind: WorldgenKind;
+  /** Block to place. Required for ore / scattered_ore / disk. */
+  target_block?: string;
+  /** Tag or block id to replace. Defaults to `#minecraft:stone_ore_replaceables`. */
+  replace_target?: string;
+  /** 1..=64. */
+  vein_size?: number;
+  /** 0..=1. */
+  discard_chance_on_air_exposure?: number;
+  /** Attempts per chunk. 1..=128. */
+  count?: number;
+  min_y?: number;
+  max_y?: number;
+  /** 1 in N chunks; 0 disables. */
+  rarity?: number;
+  /** `#tag` or block id Forge/NeoForge biome_modifier should target. */
+  biome_tag?: string;
+  /** e.g. "underground_ores" / "vegetal_decoration" / "lakes". */
+  generation_step?: string;
+  /** Tree-only. */
+  trunk_block?: string;
+  leaves_block?: string;
+  trunk_height?: number;
+  foliage_radius?: number;
+  /** Lake / Spring fluid. */
+  fluid?: string;
+  /** Disk-only. */
+  disk_radius?: number;
+}
+
+export const generateWorldgenFeature = (
+  asset_id: number
+): Promise<GeneratedFile[]> =>
+  invoke<GeneratedFile[]>('generate_worldgen_feature', { asset_id });
+
+// ============================================================================
 // Item-variant codegen
 // ============================================================================
 //
