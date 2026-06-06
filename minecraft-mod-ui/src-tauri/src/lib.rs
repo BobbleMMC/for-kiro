@@ -135,6 +135,8 @@ pub fn run() {
             commands::vanilla_plus_commands::generate_vanilla_plus_variants,
             // Worldgen feature codegen
             commands::worldgen_commands::generate_worldgen_feature,
+            // Loot table codegen
+            commands::loot_table_commands::generate_loot_table_json,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
