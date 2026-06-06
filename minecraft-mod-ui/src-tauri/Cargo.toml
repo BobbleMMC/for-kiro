@@ -1,6 +1,6 @@
 [package]
 name = "minecraft-mod-studio"
-version = "1.0.0"
+version = "1.1.0"
 description = "Minecraft Mod Studio - All-in-One Visual Mod Editor"
 authors = ["BobbleMMC"]
 license = "MIT"
