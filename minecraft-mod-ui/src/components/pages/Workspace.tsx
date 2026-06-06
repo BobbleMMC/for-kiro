@@ -10,9 +10,25 @@ import { RecipeEditor } from '../editors/RecipeEditor';
 import { EntityEditor } from '../editors/EntityEditor';
 import { EnchantmentEditor } from '../editors/EnchantmentEditor';
 import { NodeEditor } from '../node-editor';
+import { ModelEditor3D } from '../editors-3d';
+import { PixelCanvas } from '../editors-2d';
+import { BehaviorTreeEditor } from '../editors-ai';
+import { BiomeNoisePreview, HudBuilder } from '../editors-world';
 import type { Node, Edge } from '@xyflow/react';
 
-type EditorMode = 'default' | 'recipe' | 'entity' | 'enchantment' | 'block' | 'item' | 'node-editor';
+export type EditorMode =
+  | 'default'
+  | 'recipe'
+  | 'entity'
+  | 'enchantment'
+  | 'block'
+  | 'item'
+  | 'node-editor'
+  | 'model-3d'
+  | 'texture-2d'
+  | 'behavior-tree'
+  | 'biome-noise'
+  | 'hud-builder';
 
 export const Workspace: FC = () => {
   const { currentProject, addConsoleMessage } = useProjectStore();
@@ -60,7 +76,6 @@ export const Workspace: FC = () => {
       message: `Generating Java code from ${nodes.length} nodes...`,
       source: 'CodeGen',
     });
-    // TODO: Call Tauri backend for actual code generation
   };
 
   // Render appropriate canvas content based on editor mode
@@ -79,10 +94,41 @@ export const Workspace: FC = () => {
             onGenerateCode={handleGenerateCode}
           />
         );
+      case 'model-3d':
+        return <ModelEditor3D />;
+      case 'texture-2d':
+        return <PixelCanvas />;
+      case 'behavior-tree':
+        return <BehaviorTreeEditor />;
+      case 'biome-noise':
+        return <BiomeNoisePreview />;
+      case 'hud-builder':
+        return <HudBuilder />;
       default:
         return <CanvasWorkspace onOpenNodeEditor={() => setEditorMode('node-editor')} />;
     }
   };
+
+  // Full-width editors (no sidebars needed)
+  const isFullWidthEditor = ['model-3d', 'texture-2d', 'behavior-tree', 'biome-noise', 'hud-builder'].includes(editorMode);
+
+  if (isFullWidthEditor) {
+    return (
+      <div className="flex flex-col h-full">
+        <WorkspaceHeader
+          projectName={currentProject.name}
+          editorMode={editorMode}
+          onEditorModeChange={setEditorMode}
+          onSave={() => console.log('Saving project...')}
+          onBuild={() => console.log('Building project...')}
+          onExport={() => console.log('Exporting project...')}
+        />
+        <div className="flex-1 overflow-hidden">
+          {renderCanvas()}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <PanelLayout

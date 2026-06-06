@@ -1,7 +1,6 @@
 import { FC, useState } from 'react';
-import { Save, Play, Download, Settings, Menu, X, Sun, Moon, Workflow, Box, Sword, Sparkles, ChefHat, Bug } from 'lucide-react';
-
-type EditorMode = 'default' | 'recipe' | 'entity' | 'enchantment' | 'block' | 'item' | 'node-editor';
+import { Save, Play, Download, Settings, Menu, X, Sun, Moon, Workflow, Box, Sword, Sparkles, ChefHat, Bug, Paintbrush, Package, GitBranch, Mountain, Layout } from 'lucide-react';
+import type { EditorMode } from '../pages/Workspace';
 
 interface WorkspaceHeaderProps {
   projectName?: string;
@@ -22,6 +21,11 @@ const editorTabs: { mode: EditorMode; label: string; icon: typeof Box }[] = [
   { mode: 'recipe', label: 'Recipes', icon: ChefHat },
   { mode: 'entity', label: 'Entities', icon: Bug },
   { mode: 'enchantment', label: 'Enchants', icon: Sparkles },
+  { mode: 'model-3d', label: '3D Model', icon: Package },
+  { mode: 'texture-2d', label: 'Texture', icon: Paintbrush },
+  { mode: 'behavior-tree', label: 'AI Tree', icon: GitBranch },
+  { mode: 'biome-noise', label: 'Biome', icon: Mountain },
+  { mode: 'hud-builder', label: 'HUD', icon: Layout },
 ];
 
 export const WorkspaceHeader: FC<WorkspaceHeaderProps> = ({
