@@ -27,6 +27,7 @@ import {
   ConnectedEnchantmentEditor,
   ConnectedBiomeEditor,
   ConnectedAdvancementEditor,
+  ConnectedDimensionEditor,
 } from './editorConnectors';
 import { useProjectStore } from '../../stores/projectStore';
 import { saveVisualGraph, isTauri } from '../../lib/tauri-api';
@@ -206,6 +207,7 @@ export function createWorkspacePanels(): PanelConfig[] {
     { id: 'entity-editor', title: 'Entities', icon: Bug, component: <ConnectedEntityEditor />, closable: true, defaultVisible: false, category: 'editor' },
     { id: 'enchantment-editor', title: 'Enchantments', icon: Sparkles, component: <ConnectedEnchantmentEditor />, closable: true, defaultVisible: false, category: 'editor' },
     { id: 'biome-editor', title: 'Biomes', icon: Mountain, component: <ConnectedBiomeEditor />, closable: true, defaultVisible: false, category: 'editor' },
+    { id: 'dimension-editor', title: 'Dimensions', icon: Globe, component: <ConnectedDimensionEditor />, closable: true, defaultVisible: false, category: 'editor' },
     { id: 'advancement-editor', title: 'Advancements', icon: Sparkles, component: <ConnectedAdvancementEditor />, closable: true, defaultVisible: false, category: 'editor' },
     { id: 'node-editor', title: 'Visual Script', icon: Workflow, component: <NodeEditorPanel />, closable: true, defaultVisible: false, category: 'editor', minWidth: 500, minHeight: 300 },
 

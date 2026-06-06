@@ -109,6 +109,15 @@ pub fn run() {
             commands::recipe_commands::get_recipe,
             commands::recipe_commands::get_recipes,
             commands::recipe_commands::generate_recipe_json,
+            // World-data (Entity / Biome / Dimension / Advancement)
+            commands::world_data_commands::save_asset,
+            commands::world_data_commands::delete_asset,
+            commands::world_data_commands::get_asset,
+            commands::world_data_commands::get_assets,
+            commands::world_data_commands::generate_entity_class,
+            commands::world_data_commands::generate_biome_json,
+            commands::world_data_commands::generate_dimension_json,
+            commands::world_data_commands::generate_advancement_json,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

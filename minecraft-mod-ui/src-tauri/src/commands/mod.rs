@@ -8,3 +8,4 @@ pub mod scaffold_commands;
 pub mod watcher_commands;
 pub mod feature_commands;
 pub mod recipe_commands;
+pub mod world_data_commands;

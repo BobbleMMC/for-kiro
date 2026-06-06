@@ -782,3 +782,131 @@ impl Database {
         Ok(recipes)
     }
 }
+
+
+
+// ============================================================================
+// Generic asset registry
+// ============================================================================
+//
+// The legacy editors (Entity, Biome, Dimension, Advancement, …) each use
+// their own local TypeScript shape. Refactoring all of them onto canonical
+// types is out of scope for the immediate persistence work; instead we
+// persist their payloads as opaque JSON via the `registry` table that is
+// already in the schema. Every row carries:
+//
+//   * `asset_type`  — discriminator like "entity" / "biome"
+//   * `asset_name`  — registry id used in JSON / Java codegen
+//   * `namespace`   — usually the project's modid
+//   * `metadata`    — full editor payload as a JSON string
+//
+// Per-feature generators live in `commands::asset_codegen_commands` and
+// know how to parse the metadata for their asset_type.
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct RegistryAsset {
+    pub id: Option<i64>,
+    pub project_id: i64,
+    pub asset_type: String,
+    pub asset_name: String,
+    pub namespace: String,
+    pub display_name: Option<String>,
+    pub file_path: Option<String>,
+    pub metadata: Option<String>,
+}
+
+impl Database {
+    pub fn upsert_asset(&self, asset: &RegistryAsset) -> Result<i64, DbError> {
+        let conn = self.connection()?;
+        if let Some(id) = asset.id {
+            conn.execute(
+                "UPDATE registry SET
+                    asset_type = ?1,
+                    asset_name = ?2,
+                    namespace = ?3,
+                    display_name = ?4,
+                    file_path = ?5,
+                    metadata = ?6,
+                    updated_at = datetime('now')
+                 WHERE id = ?7",
+                params![
+                    asset.asset_type,
+                    asset.asset_name,
+                    asset.namespace,
+                    asset.display_name,
+                    asset.file_path,
+                    asset.metadata,
+                    id,
+                ],
+            )?;
+            Ok(id)
+        } else {
+            conn.execute(
+                "INSERT INTO registry (project_id, asset_type, asset_name, namespace, display_name, file_path, metadata)
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+                params![
+                    asset.project_id,
+                    asset.asset_type,
+                    asset.asset_name,
+                    asset.namespace,
+                    asset.display_name,
+                    asset.file_path,
+                    asset.metadata,
+                ],
+            )?;
+            Ok(conn.last_insert_rowid())
+        }
+    }
+
+    pub fn delete_asset(&self, id: i64) -> Result<(), DbError> {
+        let conn = self.connection()?;
+        conn.execute("DELETE FROM registry WHERE id = ?1", params![id])?;
+        Ok(())
+    }
+
+    pub fn get_asset(&self, id: i64) -> Result<Option<RegistryAsset>, DbError> {
+        let conn = self.connection()?;
+        let mut stmt = conn.prepare(
+            "SELECT id, project_id, asset_type, asset_name, namespace, display_name, file_path, metadata
+             FROM registry WHERE id = ?1"
+        )?;
+        let result = stmt.query_row(params![id], |row| {
+            Ok(RegistryAsset {
+                id: Some(row.get(0)?),
+                project_id: row.get(1)?,
+                asset_type: row.get(2)?,
+                asset_name: row.get(3)?,
+                namespace: row.get(4)?,
+                display_name: row.get(5)?,
+                file_path: row.get(6)?,
+                metadata: row.get(7)?,
+            })
+        });
+        match result {
+            Ok(a) => Ok(Some(a)),
+            Err(rusqlite::Error::QueryReturnedNoRows) => Ok(None),
+            Err(e) => Err(DbError::Sqlite(e)),
+        }
+    }
+
+    pub fn get_assets(&self, project_id: i64, asset_type: &str) -> Result<Vec<RegistryAsset>, DbError> {
+        let conn = self.connection()?;
+        let mut stmt = conn.prepare(
+            "SELECT id, project_id, asset_type, asset_name, namespace, display_name, file_path, metadata
+             FROM registry WHERE project_id = ?1 AND asset_type = ?2 ORDER BY asset_name"
+        )?;
+        let assets = stmt.query_map(params![project_id, asset_type], |row| {
+            Ok(RegistryAsset {
+                id: Some(row.get(0)?),
+                project_id: row.get(1)?,
+                asset_type: row.get(2)?,
+                asset_name: row.get(3)?,
+                namespace: row.get(4)?,
+                display_name: row.get(5)?,
+                file_path: row.get(6)?,
+                metadata: row.get(7)?,
+            })
+        })?.collect::<Result<Vec<_>, _>>()?;
+        Ok(assets)
+    }
+}

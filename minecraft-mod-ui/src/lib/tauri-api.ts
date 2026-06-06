@@ -335,6 +335,55 @@ export const generateRecipeJson = (recipe_id: number): Promise<GeneratedFile> =>
   invoke<GeneratedFile>('generate_recipe_json', { recipe_id });
 
 // ============================================================================
+// World-data API (Entity / Biome / Dimension / Advancement)
+// ============================================================================
+
+export interface RegistryAsset {
+  id: number | null;
+  project_id: number;
+  asset_type: string;
+  asset_name: string;
+  namespace: string;
+  display_name: string | null;
+  file_path: string | null;
+  metadata: string | null;
+}
+
+export const saveAsset = (data: {
+  id?: number;
+  project_id: number;
+  asset_type: string;
+  asset_name: string;
+  namespace: string;
+  display_name?: string;
+  metadata?: string;
+}): Promise<number> => invoke<number>('save_asset', data);
+
+export const deleteAsset = (id: number): Promise<void> =>
+  invoke<void>('delete_asset', { id });
+
+export const getAsset = (id: number): Promise<RegistryAsset | null> =>
+  invoke<RegistryAsset | null>('get_asset', { id });
+
+export const getAssets = (
+  project_id: number,
+  asset_type: string
+): Promise<RegistryAsset[]> =>
+  invoke<RegistryAsset[]>('get_assets', { project_id, asset_type });
+
+export const generateEntityClass = (asset_id: number): Promise<GeneratedFile> =>
+  invoke<GeneratedFile>('generate_entity_class', { asset_id });
+
+export const generateBiomeJson = (asset_id: number): Promise<GeneratedFile> =>
+  invoke<GeneratedFile>('generate_biome_json', { asset_id });
+
+export const generateDimensionJson = (asset_id: number): Promise<GeneratedFile> =>
+  invoke<GeneratedFile>('generate_dimension_json', { asset_id });
+
+export const generateAdvancementJson = (asset_id: number): Promise<GeneratedFile> =>
+  invoke<GeneratedFile>('generate_advancement_json', { asset_id });
+
+// ============================================================================
 // Resource API
 // ============================================================================
 
