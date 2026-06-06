@@ -16,3 +16,4 @@ pub mod import_commands;
 pub mod vanilla_plus_commands;
 pub mod worldgen_commands;
 pub mod loot_table_commands;
+pub mod asset_misc_commands;
