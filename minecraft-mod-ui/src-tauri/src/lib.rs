@@ -137,6 +137,10 @@ pub fn run() {
             commands::worldgen_commands::generate_worldgen_feature,
             // Loot table codegen
             commands::loot_table_commands::generate_loot_table_json,
+            // Sound / Keybind / Config asset codegen (PR #29)
+            commands::asset_misc_commands::generate_sound_assets,
+            commands::asset_misc_commands::generate_keybind_class,
+            commands::asset_misc_commands::generate_config_class,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

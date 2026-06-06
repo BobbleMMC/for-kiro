@@ -531,6 +531,70 @@ export const generateLootTableJson = (asset_id: number): Promise<GeneratedFile> 
   invoke<GeneratedFile>('generate_loot_table_json', { asset_id });
 
 // ============================================================================
+// Sound / Keybind / Config codegen (PR #29)
+// ============================================================================
+
+export type SoundCategory =
+  | 'master' | 'music' | 'record' | 'weather' | 'block' | 'hostile'
+  | 'neutral' | 'player' | 'ambient' | 'voice';
+
+export interface SoundEventMeta {
+  /** Snake-case registry id. */
+  name: string;
+  category?: SoundCategory;
+  subtitle?: string;
+  /** Each entry is either a string id ("modid:foo") or an object form
+   *  ({name, volume, pitch, weight, stream}) — passed through verbatim. */
+  sounds: Array<string | Record<string, unknown>>;
+}
+
+export interface SoundMeta {
+  events: SoundEventMeta[];
+}
+
+/** Generates the SoundEvents Java class **and** sounds.json fragment. */
+export const generateSoundAssets = (asset_id: number): Promise<GeneratedFile[]> =>
+  invoke<GeneratedFile[]>('generate_sound_assets', { asset_id });
+
+export interface KeybindMeta {
+  /** Snake-case action id; becomes `key.<modid>.<action_id>` translation key. */
+  action_id: string;
+  display_name?: string;
+  /** GLFW key — single letter/digit ("K", "9") or named ("F4", "SPACE",
+   *  "LEFT_SHIFT"). Strict server-side validation against a known list. */
+  default_key?: string;
+  /** "key.categories.misc" / "key.categories.gameplay" / custom. */
+  category?: string;
+}
+
+export const generateKeybindClass = (asset_id: number): Promise<GeneratedFile> =>
+  invoke<GeneratedFile>('generate_keybind_class', { asset_id });
+
+export type ConfigFieldType = 'bool' | 'int' | 'double' | 'string' | 'enum';
+
+export interface ConfigFieldMeta {
+  name: string;
+  field_type: ConfigFieldType;
+  default_value: unknown;
+  min?: number;
+  max?: number;
+  comment?: string;
+  /** Required for `field_type === 'enum'`. */
+  allowed_values?: string[];
+}
+
+export interface ConfigMeta {
+  /** "common" / "client" / "server" — controls Forge ModConfig.Type. */
+  kind: 'common' | 'client' | 'server';
+  /** Optional class name override; defaults to PascalCase(asset_name). */
+  class_name?: string;
+  fields: ConfigFieldMeta[];
+}
+
+export const generateConfigClass = (asset_id: number): Promise<GeneratedFile> =>
+  invoke<GeneratedFile>('generate_config_class', { asset_id });
+
+// ============================================================================
 // Item-variant codegen
 // ============================================================================
 //
