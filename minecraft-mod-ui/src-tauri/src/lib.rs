@@ -5,6 +5,7 @@ pub mod commands;
 pub mod resources;
 pub mod feature_system;
 pub mod mod_importer;
+pub mod project_core;
 
 use std::sync::Arc;
 use commands::project_commands::DbState;

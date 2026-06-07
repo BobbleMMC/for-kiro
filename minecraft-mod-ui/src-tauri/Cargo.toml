@@ -54,6 +54,11 @@ tar = "0.4"
 zip = { version = "2.2", default-features = false, features = ["deflate"] }
 
 
+[dev-dependencies]
+# Used in project_core tests for ephemeral filesystem fixtures.
+tempfile = "3"
+
+
 
 # ===== Release profile =====
 # Optimised for minimum binary size + fast runtime. Together these flags

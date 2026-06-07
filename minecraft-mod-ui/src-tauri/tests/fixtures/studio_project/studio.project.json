@@ -1,0 +1,34 @@
+{
+  "schemaVersion": 1,
+  "studioVersion": "1.3.2",
+  "project": {
+    "id": "fixture-studio-001",
+    "name": "Fixture Studio Project",
+    "modId": "fixture",
+    "namespace": "com.bobblemmc.fixture",
+    "loader": "fabric",
+    "minecraftVersion": "1.21",
+    "javaVersion": 21,
+    "mappings": "yarn",
+    "modVersion": "1.0.0"
+  },
+  "features": [],
+  "dependencies": [],
+  "paths": {
+    "root": ".",
+    "source": "src/main/java",
+    "resources": "src/main/resources"
+  },
+  "build": {
+    "lastStatus": "unknown",
+    "lastSuccessfulBuild": null,
+    "lastError": null,
+    "buildCount": 0
+  },
+  "metadata": {
+    "createdAt": "2025-06-01T00:00:00Z",
+    "updatedAt": "2025-06-01T00:00:00Z",
+    "isArchived": false,
+    "tags": []
+  }
+}
