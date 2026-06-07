@@ -130,7 +130,7 @@ pub fn emit_non_java_skeleton(
         FeatureKind::Recipe => Some(GeneratedFile {
             file_name: format!("{}.json", name.to_lowercase()),
             package_path: format!("../resources/data/{modid}/recipe"),
-            source: r#"{
+            source: r####"{
   "_comment": "TODO: recipe skeleton — fill in `type`, `pattern`, `key`, and `result`.",
   "type": "minecraft:crafting_shaped",
   "pattern": [
@@ -146,7 +146,7 @@ pub fn emit_non_java_skeleton(
     "count": 1
   }
 }
-"#
+"####
             .into(),
         }),
         FeatureKind::LootTable => Some(GeneratedFile {
