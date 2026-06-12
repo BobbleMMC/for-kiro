@@ -1,0 +1,12 @@
+{
+  "schemaVersion": 1,
+  "id": "samplemod",
+  "version": "0.1.0",
+  "name": "Sample Mod",
+  "description": "Used by project_core workspace detection tests; not a real mod.",
+  "depends": {
+    "fabricloader": ">=0.15.0",
+    "minecraft": "~1.21",
+    "java": ">=21"
+  }
+}

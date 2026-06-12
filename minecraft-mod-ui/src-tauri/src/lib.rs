@@ -5,6 +5,10 @@ pub mod commands;
 pub mod resources;
 pub mod feature_system;
 pub mod mod_importer;
+pub mod project_core;
+
+// Re-export validate_commands types for external use (tests, etc.)
+pub use commands::validate_commands::{ValidationReport, ValidationIssue, Severity};
 
 use std::sync::Arc;
 use commands::project_commands::DbState;
@@ -141,6 +145,8 @@ pub fn run() {
             commands::asset_misc_commands::generate_sound_assets,
             commands::asset_misc_commands::generate_keybind_class,
             commands::asset_misc_commands::generate_config_class,
+            // Project validator
+            commands::validate_commands::validate_project,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

@@ -1,0 +1,97 @@
+{
+  "$id": "https://github.com/BobbleMMC/for-kiro/schemas/studio.project.schema.json",
+  "title": "Minecraft Mod Studio - Project Manifest",
+  "description": "Disk representation of a Minecraft Mod Studio project. Authoritative source of truth: a project on disk is whatever this file says it is. The SQLite database is a derived cache.",
+  "type": "object",
+  "required": ["schemaVersion", "studioVersion", "project", "paths", "metadata"],
+  "additionalProperties": false,
+  "properties": {
+    "schemaVersion": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Layout version of this manifest."
+    },
+    "studioVersion": {
+      "type": "string",
+      "pattern": "^\\d+\\.\\d+\\.\\d+(?:[-+].+)?$"
+    },
+    "project": {
+      "type": "object",
+      "required": ["id", "name", "modId", "namespace", "loader", "minecraftVersion", "javaVersion", "mappings"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "name": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "modId": { "type": "string", "pattern": "^[a-z][a-z0-9_]{1,63}$" },
+        "namespace": { "type": "string", "pattern": "^[a-z][a-z0-9_]*(?:\\.[a-z][a-z0-9_]*)+$" },
+        "loader": { "type": "string", "enum": ["fabric", "forge", "neoforge", "quilt"] },
+        "minecraftVersion": { "type": "string", "pattern": "^1\\.\\d+(?:\\.\\d+)?$" },
+        "javaVersion": { "type": "integer", "enum": [8, 11, 16, 17, 21] },
+        "mappings": { "type": "string", "enum": ["yarn", "mojmap", "parchment"] },
+        "description": { "type": "string", "maxLength": 2048 },
+        "author": { "type": "string", "maxLength": 128 },
+        "modVersion": { "type": "string", "pattern": "^\\d+\\.\\d+\\.\\d+(?:[-+].+)?$", "default": "1.0.0" }
+      }
+    },
+    "features": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "type"],
+        "additionalProperties": true,
+        "properties": {
+          "id": { "type": "string", "minLength": 1 },
+          "type": { "type": "string", "minLength": 1 }
+        }
+      },
+      "default": []
+    },
+    "dependencies": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id"],
+        "additionalProperties": true,
+        "properties": {
+          "id": { "type": "string", "minLength": 1 },
+          "version": { "type": "string" },
+          "scope": { "type": "string", "enum": ["modImplementation", "implementation", "compileOnly", "runtimeOnly"] }
+        }
+      },
+      "default": []
+    },
+    "paths": {
+      "type": "object",
+      "required": ["root", "source", "resources"],
+      "additionalProperties": false,
+      "properties": {
+        "root": { "type": "string" },
+        "source": { "type": "string", "default": "src/main/java" },
+        "resources": { "type": "string", "default": "src/main/resources" },
+        "generated": { "type": "string", "default": "src/main/generated" },
+        "test": { "type": "string", "default": "src/test/java" }
+      }
+    },
+    "build": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "lastStatus": { "type": "string", "enum": ["unknown", "success", "failed", "running", "cancelled"], "default": "unknown" },
+        "lastSuccessfulBuild": { "type": ["string", "null"], "format": "date-time", "default": null },
+        "lastError": { "type": ["string", "null"], "default": null },
+        "buildCount": { "type": "integer", "minimum": 0, "default": 0 }
+      }
+    },
+    "metadata": {
+      "type": "object",
+      "required": ["createdAt", "updatedAt"],
+      "additionalProperties": false,
+      "properties": {
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" },
+        "isArchived": { "type": "boolean", "default": false },
+        "tags": { "type": "array", "items": { "type": "string" }, "default": [] }
+      }
+    }
+  }
+}

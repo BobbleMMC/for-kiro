@@ -847,3 +847,44 @@ export async function listenToBuildStatus(
   const unlisten = await listen<string>('build-status', (e) => callback(e.payload));
   return unlisten;
 }
+
+// ============================================================================
+// Validation API
+// ============================================================================
+
+/** Mirrors Rust `validate_commands::Severity` */
+export type ValidationSeverity = 'error' | 'warning' | 'info';
+
+/** Jump-to-editor hint returned for each issue. */
+export interface IssueFix {
+  editor_panel_id: string;
+  entity_id: number | null;
+}
+
+/** Single diagnostic from the pre-export validator. */
+export interface ValidationIssue {
+  severity: ValidationSeverity;
+  /** Short machine-readable code, e.g. "LUMINANCE_OUT_OF_RANGE". */
+  code: string;
+  message: string;
+  fix: IssueFix | null;
+}
+
+/** Full validation report returned by `validate_project`. */
+export interface ValidationReport {
+  project_id: number;
+  error_count: number;
+  warning_count: number;
+  info_count: number;
+  /** `true` when error_count === 0; export/build is allowed. */
+  may_export: boolean;
+  issues: ValidationIssue[];
+}
+
+/**
+ * Run the full pre-export validator for a project.
+ * Returns a structured report — never throws for validation failures,
+ * only throws for DB / infrastructure errors.
+ */
+export const validateProject = (project_id: number): Promise<ValidationReport> =>
+  invoke<ValidationReport>('validate_project', { project_id });
