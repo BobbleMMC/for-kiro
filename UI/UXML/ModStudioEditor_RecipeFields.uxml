@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ui:UXML xmlns:ui="UnityEngine.UIElements" xmlns:uie="UnityEditor.UIElements" noNamespaceSchemaLocation="../../../UIElementsSchema/UIElementsSchema.xsd">
+    <ui:VisualElement name="recipe-editor-container" style="flex-direction: column; padding: 10px;">
+        <ui:Label text="Crafting Table (3x3 Retsept)" style="color: #aeaeae; font-size: 12px; font-weight: bold; margin-bottom: 10px;" />
+        
+        <!-- Premium Beveled Workspace -->
+        <ui:VisualElement class="recipe-workspace" style="flex-direction: row; align-items: center; justify-content: center;">
+            <!-- 3x3 Grid Layout -->
+            <ui:VisualElement name="recipe-grid" class="recipe-grid">
+                <!-- Row 0 -->
+                <ui:VisualElement class="recipe-row">
+                    <ui:VisualElement class="recipe-slot" name="slot-0"><ui:TextField name="input-slot-0" class="recipe-slot-input" /></ui:VisualElement>
+                    <ui:VisualElement class="recipe-slot" name="slot-1"><ui:TextField name="input-slot-1" class="recipe-slot-input" /></ui:VisualElement>
+                    <ui:VisualElement class="recipe-slot" name="slot-2"><ui:TextField name="input-slot-2" class="recipe-slot-input" /></ui:VisualElement>
+                </ui:VisualElement>
+                <!-- Row 1 -->
+                <ui:VisualElement class="recipe-row">
+                    <ui:VisualElement class="recipe-slot" name="slot-3"><ui:TextField name="input-slot-3" class="recipe-slot-input" /></ui:VisualElement>
+                    <ui:VisualElement class="recipe-slot" name="slot-4"><ui:TextField name="input-slot-4" class="recipe-slot-input" /></ui:VisualElement>
+                    <ui:VisualElement class="recipe-slot" name="slot-5"><ui:TextField name="input-slot-5" class="recipe-slot-input" /></ui:VisualElement>
+                </ui:VisualElement>
+                <!-- Row 2 -->
+                <ui:VisualElement class="recipe-row">
+                    <ui:VisualElement class="recipe-slot" name="slot-6"><ui:TextField name="input-slot-6" class="recipe-slot-input" /></ui:VisualElement>
+                    <ui:VisualElement class="recipe-slot" name="slot-7"><ui:TextField name="input-slot-7" class="recipe-slot-input" /></ui:VisualElement>
+                    <ui:VisualElement class="recipe-slot" name="slot-8"><ui:TextField name="input-slot-8" class="recipe-slot-input" /></ui:VisualElement>
+                </ui:VisualElement>
+            </ui:VisualElement>
+            
+            <!-- Arrow Container -->
+            <ui:VisualElement class="recipe-arrow-container">
+                <ui:Label text="➔" name="recipe-arrow" class="recipe-arrow-text" />
+            </ui:VisualElement>
+            
+            <!-- Result Slot Container -->
+            <ui:VisualElement class="result-slot-container">
+                <ui:VisualElement class="recipe-slot result-slot" name="slot-result">
+                    <ui:TextField name="input-slot-result" class="recipe-slot-input" value="custom_ruby_block" />
+                </ui:VisualElement>
+                <ui:IntegerField label="Soni:" name="input-result-count" value="1" style="width: 80px; --unity-font-size: 10px; margin-top: 5px;" />
+            </ui:VisualElement>
+        </ui:VisualElement>
+        
+        <ui:Label text="Kataklarga buyum nomlarini kiriting (masalan: 'diamond', 'stick', 'custom_ruby'). Bo'sh kataklar retseptda hisobga olinmaydi." style="color: #666666; font-size: 10px; white-space: normal; margin-top: 10px;" />
+    </ui:VisualElement>
+</ui:UXML>

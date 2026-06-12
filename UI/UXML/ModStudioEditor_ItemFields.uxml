@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ui:UXML xmlns:ui="UnityEngine.UIElements" xmlns:uie="UnityEditor.UIElements" noNamespaceSchemaLocation="../../../UIElementsSchema/UIElementsSchema.xsd">
+    <ui:TextField label="Item ID:" name="input-item-id" value="custom_ruby" />
+    <ui:TextField label="Ko'rinadigan Nomi:" name="input-item-name" value="Ruby" />
+    <ui:IntegerField label="Stack Sig'imi (Stack Size):" name="input-item-stack" value="64" />
+    <ui:Toggle label="Yegulik (Is Food):" name="input-item-isfood" value="false" />
+</ui:UXML>

@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ui:UXML xmlns:ui="UnityEngine.UIElements" xmlns:uie="UnityEditor.UIElements" noNamespaceSchemaLocation="../../../UIElementsSchema/UIElementsSchema.xsd">
+    <!-- Viewport konteyneri faqat UXML ildizi ichida bo'lishi shart -->
+    <ui:VisualElement name="viewport-3d-container" class="viewport-wrapper">
+        <ui:Label text="3D Blok Ko'rinishi" class="viewport-label" />
+        <!-- Psevdo-klass o'rniga yordamchi Label qo'shamiz -->
+        <ui:Label text="⟳ Aylantirish uchun sudrang (Drag)" class="viewport-hint-label" />
+    </ui:VisualElement>
+</ui:UXML>

@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ui:UXML xmlns:ui="UnityEngine.UIElements" xmlns:uie="UnityEditor.UIElements" noNamespaceSchemaLocation="../../../UIElementsSchema/UIElementsSchema.xsd">
+    <ui:TextField label="Qurol ID:" name="input-tool-id" value="custom_ruby_sword" />
+    <ui:TextField label="Ko'rinadigan Nomi:" name="input-tool-name" value="Ruby Sword" />
+    <ui:DropdownField label="Qurol Turi:" name="input-tool-type" choices="Sword,Pickaxe,Axe,Shovel,Hoe" value="Sword" />
+    <ui:Slider label="Hujum Kuchi (Damage):" start-value="0" end-value="20" name="slider-tool-damage" show-input-value="true" />
+    <ui:Slider label="Hujum Tezligi (Speed):" start-value="-4" end-value="4" name="slider-tool-speed" show-input-value="true" />
+    <ui:IntegerField label="Chidamliligi (Durability):" name="input-tool-durability" value="1561" />
+    <ui:IntegerField label="Qazish Darajasi (Mining Lvl):" name="input-tool-mininglvl" value="3" />
+</ui:UXML>
