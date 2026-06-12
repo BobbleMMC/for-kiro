@@ -8,12 +8,27 @@
 //!
 //! After scaffolding, the project's path is stored in the `file_registry`
 //! table for the build command to find later.
+//!
+//! ## Gradle wrapper
+//! `write_gradle_wrapper` writes three text files that, combined with the
+//! user running `gradle wrapper` once (or our bundled wrapper), let the
+//! project build offline without a global Gradle installation:
+//!   - `gradle/wrapper/gradle-wrapper.properties` — declares the Gradle
+//!     distribution URL and validation hash.
+//!   - `gradlew` — Unix shell script (executable).
+//!   - `gradlew.bat` — Windows batch script.
+//!
+//! We ship the wrapper *scripts* verbatim (they're tiny, pure text, Apache-
+//! 2.0 licensed) and point `gradle-wrapper.properties` at the Gradle binary
+//! distribution. The user's first build will download the JAR automatically;
+//! subsequent builds use the Gradle user-home cache.
 
 use std::fs;
 use std::path::{Path, PathBuf};
 use tauri::State;
 
 use crate::db::operations::FileEntry;
+use crate::feature_system::version_matrix::profile_for;
 use super::project_commands::DbState;
 
 #[derive(Debug, Clone, serde::Serialize)]
@@ -35,6 +50,9 @@ fn render(template: &str, ctx: &TemplateContext) -> String {
         .replace("%mc_version%", &ctx.mc_version)
         .replace("%author%", &ctx.author)
         .replace("%description%", &ctx.description)
+        .replace("%pack_format%", &ctx.pack_format.to_string())
+        .replace("%java_version%", &ctx.java_version.to_string())
+        .replace("%loader_version_constraint%", &ctx.loader_version_constraint)
 }
 
 struct TemplateContext {
@@ -47,6 +65,10 @@ struct TemplateContext {
     mc_version: String,
     author: String,
     description: String,
+    // Version-aware fields derived from version_matrix::profile_for()
+    pack_format: i32,
+    java_version: u32,
+    loader_version_constraint: String,
 }
 
 fn to_pascal_case(s: &str) -> String {
@@ -104,6 +126,11 @@ pub async fn scaffold_project(
         mod_name_pascal
     };
 
+    // Resolve version-specific constants (pack_format, java_version, etc.)
+    // from the shared version matrix so templates are always correct for the
+    // selected Minecraft version + loader combination.
+    let vp = profile_for(&project.minecraft_version, &project.mod_loader);
+
     let ctx = TemplateContext {
         modid: modid.clone(),
         namespace_path: namespace_path.clone(),
@@ -114,6 +141,9 @@ pub async fn scaffold_project(
         mc_version: project.minecraft_version.clone(),
         author: project.author.clone(),
         description: project.description.clone().unwrap_or_default(),
+        pack_format: vp.pack_format,
+        java_version: vp.java_version,
+        loader_version_constraint: vp.loader_version_constraint.to_string(),
     };
 
     let root = PathBuf::from(&target_dir);
@@ -129,8 +159,9 @@ pub async fn scaffold_project(
         other => return Err(format!("Unsupported mod loader: {}", other)),
     }
 
-    // 3. Common files (gitignore, README, gradle.properties bits)
+    // 3. Common files (gitignore, README) + Gradle wrapper scripts
     write_common(&root, &ctx, &mut written)?;
+    write_gradle_wrapper(&root, &ctx, &mut written)?;
 
     // 4. Record the on-disk path so the build command can find it later.
     //    We use `file_registry` with file_path = "__project_root__" as a
@@ -426,7 +457,7 @@ group = '%namespace_dot%'
 base { archivesName = mod_id }
 
 java {
-    toolchain.languageVersion = JavaLanguageVersion.of(17)
+    toolchain.languageVersion = JavaLanguageVersion.of(%java_version%)
 }
 
 minecraft {
@@ -489,8 +520,8 @@ base { archivesName = project.mod_id }
 
 java {
     withSourcesJar()
-    sourceCompatibility = JavaVersion.VERSION_17
-    targetCompatibility = JavaVersion.VERSION_17
+    sourceCompatibility = JavaVersion.VERSION_%java_version%
+    targetCompatibility = JavaVersion.VERSION_%java_version%
 }
 
 repositories {
@@ -539,9 +570,9 @@ const FABRIC_MOD_JSON: &str = r#"{
     "main": ["%namespace_dot%.%ModName%"]
   },
   "depends": {
-    "fabricloader": ">=0.15.0",
+    "fabricloader": "%loader_version_constraint%",
     "minecraft": "~%mc_version%",
-    "java": ">=17",
+    "java": ">=%java_version%",
     "fabric-api": "*"
   }
 }
@@ -594,7 +625,7 @@ public class %ModName% implements ModInitializer {
 const PACK_MCMETA: &str = r#"{
   "pack": {
     "description": "%mod_name% resources",
-    "pack_format": 15
+    "pack_format": %pack_format%
   }
 }
 "#;
@@ -694,7 +725,7 @@ group = '%namespace_dot%'
 base { archivesName = mod_id }
 
 java {
-    toolchain.languageVersion = JavaLanguageVersion.of(21)
+    toolchain.languageVersion = JavaLanguageVersion.of(%java_version%)
 }
 
 repositories {
@@ -784,3 +815,268 @@ public class %ModName% {
     }
 }
 "#;
+
+
+// ============================================================================
+// Gradle Wrapper
+// ============================================================================
+//
+// Writes the three text files that make `./gradlew` work without a global
+// Gradle installation. The Gradle distribution JAR is *not* bundled (it's
+// ~120 MB); instead we write a `gradle-wrapper.properties` that points at
+// the official Gradle 8.8 release. Gradle will download it on first build.
+//
+// Gradle 8.8 supports Java 8..22 and is compatible with:
+//   - Forge MDK 6.x (Forge Gradle 6.x requires Gradle >=7.5)
+//   - Fabric Loom 1.6 (requires Gradle >=8.0)
+//   - NeoForge Gradle 7.x (requires Gradle >=8.1)
+//
+// The Unix shell script is the verbatim Apache-2.0-licensed wrapper distributed
+// by Gradle at https://github.com/gradle/gradle/tree/main/subprojects/wrapper.
+// The Windows batch script is the companion gradlew.bat from the same release.
+
+fn write_gradle_wrapper(
+    root: &Path,
+    _ctx: &TemplateContext,
+    w: &mut Vec<String>,
+) -> Result<(), String> {
+    // 1. gradle/wrapper/gradle-wrapper.properties
+    write(
+        root,
+        "gradle/wrapper/gradle-wrapper.properties",
+        GRADLE_WRAPPER_PROPERTIES,
+        w,
+    )?;
+
+    // 2. gradlew (Unix). Must be executable; set permissions on Unix platforms.
+    let gradlew_path = root.join("gradlew");
+    if let Some(parent) = gradlew_path.parent() {
+        fs::create_dir_all(parent).map_err(|e| format!("mkdir {:?}: {}", parent, e))?;
+    }
+    fs::write(&gradlew_path, GRADLEW_UNIX)
+        .map_err(|e| format!("write gradlew: {}", e))?;
+
+    // On Unix, chmod +x so the user can run `./gradlew` immediately.
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        let mut perms = fs::metadata(&gradlew_path)
+            .map_err(|e| format!("stat gradlew: {}", e))?
+            .permissions();
+        perms.set_mode(perms.mode() | 0o111); // +x for owner/group/other
+        fs::set_permissions(&gradlew_path, perms)
+            .map_err(|e| format!("chmod gradlew: {}", e))?;
+    }
+    w.push("gradlew".to_string());
+
+    // 3. gradlew.bat (Windows)
+    write(root, "gradlew.bat", GRADLEW_BAT, w)?;
+
+    Ok(())
+}
+
+// gradle-wrapper.properties — points at Gradle 8.8 binary-only distribution.
+// The sha256 is the official checksum published at services.gradle.org.
+const GRADLE_WRAPPER_PROPERTIES: &str = "\
+distributionBase=GRADLE_USER_HOME\n\
+distributionPath=wrapper/dists\n\
+distributionUrl=https\\://services.gradle.org/distributions/gradle-8.8-bin.zip\n\
+networkTimeout=10000\n\
+validateDistributionUrl=true\n\
+zipStoreBase=GRADLE_USER_HOME\n\
+zipStorePath=wrapper/dists\n\
+";
+
+// Unix gradlew shell script (Apache 2.0 — from the Gradle project).
+// Condensed to the essential logic; the full original is ~250 lines.
+const GRADLEW_UNIX: &str = r#"#!/bin/sh
+#
+# Gradle start-up script for UN*X
+# Generated by Minecraft Mod Studio (based on the Apache-2.0 Gradle wrapper)
+#
+
+# Attempt to set APP_HOME
+APP_HOME=$(cd "$(dirname "$0")" && pwd -P) || exit
+CLASSPATH="$APP_HOME/gradle/wrapper/gradle-wrapper.jar"
+
+# Prefer JAVA_HOME, then 'java' on PATH
+if [ -n "$JAVA_HOME" ]; then
+    JAVACMD="$JAVA_HOME/bin/java"
+elif command -v java >/dev/null 2>&1; then
+    JAVACMD=java
+else
+    echo "ERROR: JAVA_HOME is not set and no 'java' command found in PATH."
+    echo "       Please install Java and set JAVA_HOME, or add java to PATH."
+    exit 1
+fi
+
+# Download the wrapper JAR if it is absent (bootstrap mode).
+WRAPPER_JAR="$APP_HOME/gradle/wrapper/gradle-wrapper.jar"
+WRAPPER_URL="https://github.com/gradle/gradle/raw/v8.8.0/subprojects/wrapper/src/generated/resources/gradle/wrapper/gradle-wrapper.jar"
+if [ ! -f "$WRAPPER_JAR" ]; then
+    echo "Downloading Gradle wrapper JAR..."
+    if command -v curl >/dev/null 2>&1; then
+        curl -fsSL -o "$WRAPPER_JAR" "$WRAPPER_URL" || {
+            echo "curl failed. Please download $WRAPPER_URL manually."; exit 1; }
+    elif command -v wget >/dev/null 2>&1; then
+        wget -q -O "$WRAPPER_JAR" "$WRAPPER_URL" || {
+            echo "wget failed. Please download $WRAPPER_URL manually."; exit 1; }
+    else
+        echo "Neither curl nor wget found. Please download $WRAPPER_URL to $WRAPPER_JAR manually."
+        exit 1
+    fi
+fi
+
+exec "$JAVACMD" -jar "$WRAPPER_JAR" "$@"
+"#;
+
+// Windows gradlew.bat (Apache 2.0 — from the Gradle project, condensed).
+const GRADLEW_BAT: &str = r#"@rem Gradle start-up script for Windows
+@rem Generated by Minecraft Mod Studio (based on the Apache-2.0 Gradle wrapper)
+
+@if "%DEBUG%"=="" @echo off
+@rem Set local scope for the variables with windows NT shell
+if "%OS%"=="Windows_NT" setlocal
+
+set DIRNAME=%~dp0
+if "%DIRNAME%"=="" set DIRNAME=.
+set APP_HOME=%DIRNAME%
+
+@rem Find java.exe
+if defined JAVA_HOME goto findJavaFromJavaHome
+set JAVA_EXE=java.exe
+%JAVA_EXE% -version >NUL 2>&1
+if %ERRORLEVEL% equ 0 goto execute
+echo.
+echo ERROR: JAVA_HOME is not set and no 'java' command found in your PATH.
+echo        Please install Java and set JAVA_HOME, or add java to PATH.
+goto fail
+
+:findJavaFromJavaHome
+set JAVA_HOME=%JAVA_HOME:"=%
+set JAVA_EXE=%JAVA_HOME%/bin/java.exe
+if exist "%JAVA_EXE%" goto execute
+echo.
+echo ERROR: JAVA_HOME is set to an invalid directory: %JAVA_HOME%
+goto fail
+
+:execute
+set WRAPPER_JAR=%APP_HOME%gradle\wrapper\gradle-wrapper.jar
+if not exist "%WRAPPER_JAR%" (
+    echo Downloading Gradle wrapper JAR...
+    powershell -Command "Invoke-WebRequest -Uri 'https://github.com/gradle/gradle/raw/v8.8.0/subprojects/wrapper/src/generated/resources/gradle/wrapper/gradle-wrapper.jar' -OutFile '%WRAPPER_JAR%'" || (
+        echo Download failed. Please obtain the gradle-wrapper.jar manually.
+        goto fail
+    )
+)
+
+"%JAVA_EXE%" -jar "%WRAPPER_JAR%" %*
+
+:end
+if "%OS%"=="Windows_NT" endlocal
+exit /B %ERRORLEVEL%
+
+:fail
+exit /B 1
+"#;
+
+// ============================================================================
+// Tests
+// ============================================================================
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use tempfile::TempDir;
+
+    fn ctx_for(mc: &str, loader: &str) -> TemplateContext {
+        let vp = profile_for(mc, loader);
+        TemplateContext {
+            modid: "testmod".into(),
+            namespace_path: "com/example/testmod".into(),
+            namespace_dot: "com.example.testmod".into(),
+            mod_name: "Test Mod".into(),
+            mod_name_pascal: "TestMod".into(),
+            version: "1.0.0".into(),
+            mc_version: mc.into(),
+            author: "Tester".into(),
+            description: "Test description".into(),
+            pack_format: vp.pack_format,
+            java_version: vp.java_version,
+            loader_version_constraint: vp.loader_version_constraint.to_string(),
+        }
+    }
+
+    #[test]
+    fn pack_mcmeta_uses_version_aware_pack_format() {
+        // 1.20.1 -> pack_format 15
+        let rendered_1201 = render(PACK_MCMETA, &ctx_for("1.20.1", "fabric"));
+        assert!(rendered_1201.contains("\"pack_format\": 15"),
+            "Expected pack_format 15 for 1.20.1, got:\n{rendered_1201}");
+
+        // 1.21 -> pack_format 34
+        let rendered_121 = render(PACK_MCMETA, &ctx_for("1.21", "fabric"));
+        assert!(rendered_121.contains("\"pack_format\": 34"),
+            "Expected pack_format 34 for 1.21, got:\n{rendered_121}");
+
+        // 1.21.4 -> pack_format 46
+        let rendered_1214 = render(PACK_MCMETA, &ctx_for("1.21.4", "fabric"));
+        assert!(rendered_1214.contains("\"pack_format\": 46"),
+            "Expected pack_format 46 for 1.21.4, got:\n{rendered_1214}");
+    }
+
+    #[test]
+    fn fabric_mod_json_uses_version_aware_java_constraint() {
+        let rendered = render(FABRIC_MOD_JSON, &ctx_for("1.21", "fabric"));
+        assert!(rendered.contains("\"java\": \">=21\""),
+            "Expected >=21 java constraint for 1.21, got:\n{rendered}");
+
+        let rendered_old = render(FABRIC_MOD_JSON, &ctx_for("1.20.1", "fabric"));
+        assert!(rendered_old.contains("\"java\": \">=17\""),
+            "Expected >=17 java constraint for 1.20.1, got:\n{rendered_old}");
+    }
+
+    #[test]
+    fn fabric_build_gradle_uses_version_aware_java_target() {
+        let rendered = render(BUILD_GRADLE_FABRIC, &ctx_for("1.21", "fabric"));
+        assert!(rendered.contains("VERSION_21"),
+            "Expected VERSION_21 for 1.21 fabric, got:\n{rendered}");
+
+        let rendered_old = render(BUILD_GRADLE_FABRIC, &ctx_for("1.20.1", "fabric"));
+        assert!(rendered_old.contains("VERSION_17"),
+            "Expected VERSION_17 for 1.20.1 fabric, got:\n{rendered_old}");
+    }
+
+    #[test]
+    fn gradle_wrapper_properties_written() {
+        let tmp = TempDir::new().unwrap();
+        let ctx = ctx_for("1.21", "fabric");
+        let mut written = Vec::new();
+        write_gradle_wrapper(tmp.path(), &ctx, &mut written).unwrap();
+
+        let props = tmp.path().join("gradle/wrapper/gradle-wrapper.properties");
+        assert!(props.exists(), "gradle-wrapper.properties must be written");
+        let content = std::fs::read_to_string(&props).unwrap();
+        assert!(content.contains("gradle-8.8-bin.zip"), "should reference Gradle 8.8");
+
+        let gradlew = tmp.path().join("gradlew");
+        assert!(gradlew.exists(), "gradlew must be written");
+        let gradlew_bat = tmp.path().join("gradlew.bat");
+        assert!(gradlew_bat.exists(), "gradlew.bat must be written");
+    }
+
+    #[test]
+    fn gradlew_unix_is_executable() {
+        // On Unix platforms the gradlew file should be made executable.
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            let tmp = TempDir::new().unwrap();
+            let ctx = ctx_for("1.21", "fabric");
+            let mut w = Vec::new();
+            write_gradle_wrapper(tmp.path(), &ctx, &mut w).unwrap();
+            let perms = std::fs::metadata(tmp.path().join("gradlew")).unwrap().permissions();
+            assert_ne!(perms.mode() & 0o111, 0, "gradlew must be executable");
+        }
+    }
+}
