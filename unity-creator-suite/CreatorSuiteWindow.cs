@@ -202,6 +202,56 @@ public class CreatorSuiteWindow : EditorWindow
 
     private TextField _expModId, _expPkg;
 
+    private class ModElement { public string kind, id, code; public Color[] tex; }
+    private readonly List<ModElement> _project = new List<ModElement>();
+
+    private void Upsert(string kind, string id, string code, bool withTex)
+    {
+        if(string.IsNullOrEmpty(id)) id = kind;
+        var el = _project.Find(e => e.kind == kind && e.id == id);
+        if(el == null){ el = new ModElement{ kind = kind, id = id }; _project.Add(el); }
+        el.code = code;
+        if(withTex){ if(_layers == null) SeedTexture(); el.tex = Composite(); }
+    }
+    private void SaveElement(string kind, string id, string code, bool withTex)
+    {
+        Upsert(kind, id, code, withTex);
+        this.ShowNotification(new GUIContent("Saved " + kind + " \"" + (string.IsNullOrEmpty(id)?kind:id) + "\" to project"));
+        if(_projectList != null) RefreshProjectUI();
+    }
+    private void CaptureOpenEditors()
+    {
+        if(_codeLabel != null && _bId != null) Upsert("block", _bId.value, _codeLabel.text, true);
+        if(_iCode != null && _iId != null)     Upsert("item", _iId.value, _iCode.text, true);
+        if(_pCode != null && _pId != null)      Upsert("particle", _pId.value, _pCode.text, false);
+        if(_eCode != null && _eId != null)       Upsert("entity", _eId.value, _eCode.text, false);
+        if(_enCode != null && _enId != null)      Upsert("enchant", _enId.value, _enCode.text, false);
+        if(_biCode != null && _biId != null)       Upsert("biome", _biId.value, _biCode.text, false);
+        if(_stCode != null && _stId != null)        Upsert("structure", _stId.value, _stCode.text, false);
+        if(_recCode != null){ string rn = (_result>=0 && _result<INGS.Length) ? INGS[_result].id : "result"; rn = rn.Substring(rn.IndexOf(':')+1); Upsert("recipe", rn, _recCode.text, false); }
+        if(_ltCode != null && _ltId != null)        Upsert("loot", _ltId.value, _ltCode.text, false);
+        if(_adCode != null && _adId != null)         Upsert("advancement", _adId.value, _adCode.text, false);
+        if(_soCode != null) Upsert("sound", (_soId != null && !string.IsNullOrEmpty(_soId.value)) ? _soId.value : "sound", _soCode.text, false);
+    }
+
+    private VisualElement _projectList;
+    private void RefreshProjectUI()
+    {
+        if(_projectList == null) return;
+        _projectList.Clear();
+        if(_project.Count == 0){
+            var empty = new Label("No elements saved yet. Use 💾 Save in any editor."); empty.style.color = FAINT; empty.style.fontSize = 12; _projectList.Add(empty); return;
+        }
+        foreach(var e in _project){
+            var el = e;
+            var row = Row(); row.style.alignItems = Align.Center; row.style.marginBottom = 6; row.style.paddingLeft = 10; row.style.paddingRight = 8; row.style.height = 34; Round(row, 8); row.style.backgroundColor = BG;
+            var tag = new Label(el.kind.ToUpper()); tag.style.color = GREEN; tag.style.fontSize = 10; tag.style.width = 86; tag.style.unityFontStyleAndWeight = FontStyle.Bold;
+            var nm = new Label(el.id); nm.style.color = TEXT; nm.style.fontSize = 12; nm.style.flexGrow = 1;
+            var del = new Button(()=>{ _project.Remove(el); RefreshProjectUI(); }){ text = "✕" }; del.style.width = 24; del.style.height = 24; ClearBorder(del); Round(del,6); del.style.backgroundColor = Color.clear; del.style.color = RED;
+            row.Add(tag); row.Add(nm); row.Add(del); _projectList.Add(row);
+        }
+    }
+
     private void ShowDashboard()
     {
         SetActiveNav("Dashboard"); SetHeader("Dashboard", "Manage every element of your mod");
@@ -234,6 +284,16 @@ public class CreatorSuiteWindow : EditorWindow
         exHint.style.color = FAINT; exHint.style.fontSize = 11; exHint.style.marginTop = 10; exHint.style.whiteSpace = WhiteSpace.Normal;
         exP.Add(exHint);
         _content.Add(exP);
+
+        // ---- Project elements ----
+        var prP = Panel(); prP.style.marginBottom = 22;
+        var prh = Row(); prh.style.justifyContent = Justify.SpaceBetween; prh.style.alignItems = Align.Center; prh.style.marginBottom = 12;
+        var prhl = new Label("PROJECT ELEMENTS"); prhl.style.color = MUTED; prhl.style.fontSize = 11; prhl.style.letterSpacing = 1; prhl.style.unityFontStyleAndWeight = FontStyle.Bold;
+        var clearBtn = PillButton("Clear All", PANEL2, MUTED, ()=>{ _project.Clear(); RefreshProjectUI(); }); clearBtn.style.height = 26;
+        prh.Add(prhl); prh.Add(clearBtn); prP.Add(prh);
+        _projectList = new VisualElement(); prP.Add(_projectList);
+        RefreshProjectUI();
+        _content.Add(prP);
 
         _content.Add(SectionLabel("CREATE NEW ELEMENT"));
 
@@ -316,7 +376,7 @@ public class CreatorSuiteWindow : EditorWindow
     // TEXTURE EDITOR VIEW
     // =========================================================================
     private const int TEX = 16;
-    private class TexLayer { public Color[] px = new Color[TEX*TEX]; public bool visible = true; public string name; public TexLayer(string n){ name = n; } }
+    private class TexLayer { public Color[] px = new Color[TEX*TEX]; public bool visible = true; public float opacity = 1f; public string name; public TexLayer(string n){ name = n; } }
     private List<TexLayer> _layers;     // index 0 = top-most
     private int _active;
     private Color[] Px => _layers[_active].px;
@@ -470,16 +530,16 @@ public class CreatorSuiteWindow : EditorWindow
         for(int i=0;i<outp.Length;i++) outp[i] = new Color(0,0,0,0);
         for(int l=_layers.Count-1; l>=0; l--){
             if(!_layers[l].visible) continue;
-            var px = _layers[l].px;
+            var px = _layers[l].px; float lop = _layers[l].opacity;
             for(int i=0;i<outp.Length;i++){
-                var s = px[i]; if(s.a <= 0.001f) continue;
+                var s = px[i]; float sa = s.a * lop; if(sa <= 0.001f) continue;
                 var d = outp[i];
-                float a = s.a + d.a*(1-s.a);
+                float a = sa + d.a*(1-sa);
                 if(a <= 0.001f){ outp[i] = new Color(0,0,0,0); continue; }
                 outp[i] = new Color(
-                    (s.r*s.a + d.r*d.a*(1-s.a))/a,
-                    (s.g*s.a + d.g*d.a*(1-s.a))/a,
-                    (s.b*s.a + d.b*d.a*(1-s.a))/a, a);
+                    (s.r*sa + d.r*d.a*(1-sa))/a,
+                    (s.g*sa + d.g*d.a*(1-sa))/a,
+                    (s.b*sa + d.b*d.a*(1-sa))/a, a);
             }
         }
         return outp;
@@ -519,6 +579,7 @@ public class CreatorSuiteWindow : EditorWindow
         _active = Mathf.Clamp(_active, 0, _layers.Count-1);
         RefreshLayersUI(); RebuildTextures();
     }
+    private int _layerDragFrom = -1;
     private void RefreshLayersUI()
     {
         if(_layersList == null) return;
@@ -526,16 +587,33 @@ public class CreatorSuiteWindow : EditorWindow
         for(int i=0;i<_layers.Count;i++){
             int idx = i; var lay = _layers[i];
             var row = Row(); row.style.alignItems = Align.Center; row.style.marginBottom = 6;
-            row.style.paddingLeft = 9; row.style.paddingRight = 9; row.style.height = 36; Round(row, 9);
+            row.style.paddingLeft = 6; row.style.paddingRight = 8; row.style.height = 40; Round(row, 9);
             row.style.backgroundColor = (idx==_active) ? PANEL2 : BG;
             if(idx==_active){ row.style.borderLeftWidth = 2; row.style.borderLeftColor = GREEN; }
+
+            var handle = new Label("⋮⋮"); handle.style.color = FAINT; handle.style.width = 16; handle.style.unityTextAlign = TextAnchor.MiddleCenter;
+            handle.RegisterCallback<PointerDownEvent>(evt=>{ _layerDragFrom = idx; handle.CapturePointer(evt.pointerId); evt.StopPropagation(); });
+            handle.RegisterCallback<PointerUpEvent>(evt=>{ if(handle.HasPointerCapture(evt.pointerId)){ handle.ReleasePointer(evt.pointerId); LayerDrop(evt.position); } });
+
             var eye = new Button(()=>{ lay.visible = !lay.visible; RefreshLayersUI(); RebuildTextures(); }){ text = lay.visible ? "👁" : "—" };
-            eye.style.width = 26; eye.style.height = 26; ClearBorder(eye); eye.style.backgroundColor = Color.clear; eye.style.color = lay.visible ? TEXT : FAINT; eye.style.fontSize = 13;
-            var nm = new Label(lay.name); nm.style.color = (idx==_active)?TEXT:MUTED; nm.style.fontSize = 13; nm.style.flexGrow = 1; nm.style.marginLeft = 4;
-            row.Add(eye); row.Add(nm);
-            row.RegisterCallback<MouseDownEvent>(_=>{ _active = idx; RefreshLayersUI(); });
+            eye.style.width = 24; eye.style.height = 24; ClearBorder(eye); eye.style.backgroundColor = Color.clear; eye.style.color = lay.visible ? TEXT : FAINT; eye.style.fontSize = 12;
+            var nm = new Label(lay.name); nm.style.color = (idx==_active)?TEXT:MUTED; nm.style.fontSize = 12; nm.style.flexGrow = 1; nm.style.marginLeft = 2;
+            nm.RegisterCallback<MouseDownEvent>(_=>{ _active = idx; RefreshLayersUI(); });
+            var op = new Slider(0f, 1f){ value = lay.opacity }; op.style.width = 58;
+            op.RegisterValueChangedCallback(e=>{ lay.opacity = e.newValue; RebuildTextures(); });
+            row.Add(handle); row.Add(eye); row.Add(nm); row.Add(op);
             _layersList.Add(row);
         }
+    }
+    private void LayerDrop(Vector2 pos)
+    {
+        if(_layerDragFrom < 0) return;
+        int target = _layerDragFrom, idx = 0;
+        foreach(var row in _layersList.Children()){ if(row.worldBound.Contains(pos)){ target = idx; break; } idx++; }
+        if(target != _layerDragFrom && target >= 0 && target < _layers.Count){
+            var el = _layers[_layerDragFrom]; _layers.RemoveAt(_layerDragFrom); _layers.Insert(target, el); _active = target;
+        }
+        _layerDragFrom = -1; RefreshLayersUI(); RebuildTextures();
     }
 
     private void OnCanvasDown(MouseDownEvent e){
@@ -709,12 +787,8 @@ public class CreatorSuiteWindow : EditorWindow
         col.Add(prevP);
 
         var codeP = Panel();
-        var ch = Row(); ch.style.justifyContent = Justify.SpaceBetween; ch.style.alignItems = Align.Center; ch.style.marginBottom = 12;
-        var chl = new Label("GENERATED CODE · JAVA"); chl.style.color = MUTED; chl.style.fontSize = 11; chl.style.letterSpacing = 1; chl.style.unityFontStyleAndWeight = FontStyle.Bold;
-        var bExp = PillButton("⭳ Export .java", GREEN, Color.white, ()=> ExportCode(Pascal(_bId.value), "java", _codeLabel.text)); bExp.style.height = 28;
-        ch.Add(chl); ch.Add(bExp); codeP.Add(ch);
-        _codeLabel = new Label(); _codeLabel.style.whiteSpace = WhiteSpace.Normal; _codeLabel.style.color = C("#cdd6e0");
-        _codeLabel.style.fontSize = 12; _codeLabel.style.backgroundColor = BG; SetPadding(_codeLabel, 12); Round(_codeLabel, 9);
+        codeP.Add(CodeHeader("Java", Pascal(_bId.value), "java", () => _codeLabel.text, "block", () => _bId.value, true));
+        _codeLabel = CodeLabel();
         codeP.Add(_codeLabel); col.Add(codeP);
         shell.Add(col);
 
@@ -832,7 +906,7 @@ $@"public static final DeferredBlock<Block> {ID} =
 
         // code column
         var col = new VisualElement(); col.style.width = 420; col.style.flexShrink = 0;
-        var codeP = Panel(); codeP.Add(CodeHeader("JSON", "recipe", "json", ()=> _recCode.text));
+        var codeP = Panel(); codeP.Add(CodeHeader("JSON", "recipe", "json", ()=> _recCode.text, "recipe", null));
         _recCode = CodeLabel(); codeP.Add(_recCode); col.Add(codeP);
         shell.Add(col);
         _content.Add(shell);
@@ -1064,7 +1138,7 @@ $@"{{
         var prevP = Panel(); prevP.style.marginBottom = 14; prevP.Add(PanelHeader("Preview"));
         var stg = new VisualElement(); stg.style.height = 200; stg.style.alignItems = Align.Center; stg.style.justifyContent = Justify.Center; stg.style.backgroundColor = C("#0d1219"); Round(stg, 10);
         var ic = new Label("⚔"); ic.style.fontSize = 72; ic.style.color = AMBER; stg.Add(ic); prevP.Add(stg); col.Add(prevP);
-        var codeP = Panel(); codeP.Add(CodeHeader("Java", Pascal(_iId.value), "java", ()=> _iCode.text));
+        var codeP = Panel(); codeP.Add(CodeHeader("Java", Pascal(_iId.value), "java", ()=> _iCode.text, "item", ()=> _iId.value, true));
         _iCode = CodeLabel(); codeP.Add(_iCode); col.Add(codeP);
         shell.Add(col);
         _content.Add(shell);
@@ -1134,7 +1208,7 @@ $@"public static final DeferredItem<Item> {ID} =
         var prevP = Panel(); prevP.style.marginBottom = 14; prevP.Add(PanelHeader("Preview"));
         var stg = new VisualElement(); stg.style.height = 200; stg.style.alignItems = Align.Center; stg.style.justifyContent = Justify.Center; stg.style.backgroundColor = C("#0d1219"); Round(stg, 10);
         var ic = new Label("🐺"); ic.style.fontSize = 72; stg.Add(ic); prevP.Add(stg); col.Add(prevP);
-        var codeP = Panel(); codeP.Add(CodeHeader("Java", Pascal(_eId.value), "java", ()=> _eCode.text));
+        var codeP = Panel(); codeP.Add(CodeHeader("Java", Pascal(_eId.value), "java", ()=> _eCode.text, "entity", ()=> _eId.value));
         _eCode = CodeLabel(); codeP.Add(_eCode); col.Add(codeP);
         shell.Add(col);
         _content.Add(shell);
@@ -1208,7 +1282,7 @@ public static AttributeSupplier.Builder registerAttributes() {{
         var prevP = Panel(); prevP.style.marginBottom = 14; prevP.Add(PanelHeader("Preview"));
         var stg = new VisualElement(); stg.style.height = 200; stg.style.alignItems = Align.Center; stg.style.justifyContent = Justify.Center; stg.style.backgroundColor = C("#0d1219"); Round(stg, 10);
         _pDot = new VisualElement(); _pDot.style.width = 26; _pDot.style.height = 26; Round(_pDot, 13); _pDot.style.backgroundColor = _pColor; stg.Add(_pDot); prevP.Add(stg); col.Add(prevP);
-        var codeP = Panel(); codeP.Add(CodeHeader("Java", Pascal(_pId.value), "java", ()=> _pCode.text));
+        var codeP = Panel(); codeP.Add(CodeHeader("Java", Pascal(_pId.value), "java", ()=> _pCode.text, "particle", ()=> _pId.value));
         _pCode = CodeLabel(); codeP.Add(_pCode); col.Add(codeP);
         shell.Add(col);
         _content.Add(shell);
@@ -1266,7 +1340,7 @@ $@"public static final DeferredHolder<ParticleType<?>, SimpleParticleType> {ID} 
         var prevP = Panel(); prevP.style.marginBottom = 14; prevP.Add(PanelHeader("Preview"));
         var stg = new VisualElement(); stg.style.height = 160; stg.style.alignItems = Align.Center; stg.style.justifyContent = Justify.Center; stg.style.backgroundColor = C("#0d1219"); Round(stg, 10);
         var ic = new Label("✨"); ic.style.fontSize = 64; ic.style.color = C("#7c8cff"); stg.Add(ic); prevP.Add(stg); col.Add(prevP);
-        var codeP = Panel(); codeP.Add(CodeHeader("Java", Pascal(_enId.value), "java", ()=> _enCode.text));
+        var codeP = Panel(); codeP.Add(CodeHeader("Java", Pascal(_enId.value), "java", ()=> _enCode.text, "enchant", ()=> _enId.value));
         _enCode = CodeLabel(); codeP.Add(_enCode); col.Add(codeP);
         shell.Add(col);
         _content.Add(shell);
@@ -1327,7 +1401,7 @@ $@"public static final DeferredHolder<Enchantment, Enchantment> {ID} =
         var grass = new VisualElement(); grass.style.height = Length.Percent(40); grass.style.backgroundColor = _biGrass; stg.Add(grass);
         _biSkyBox = sky; _biGrassBox = grass;
         prevP.Add(stg); col.Add(prevP);
-        var codeP = Panel(); codeP.Add(CodeHeader("Java", Pascal(_biId.value), "java", ()=> _biCode.text));
+        var codeP = Panel(); codeP.Add(CodeHeader("Java", Pascal(_biId.value), "java", ()=> _biCode.text, "biome", ()=> _biId.value));
         _biCode = CodeLabel(); codeP.Add(_biCode); col.Add(codeP);
         shell.Add(col);
         _content.Add(shell);
@@ -1406,7 +1480,7 @@ $@"context.register({ID}, biomeWithDefaults(
         var prevP = Panel(); prevP.style.marginBottom = 14; prevP.Add(PanelHeader("Preview"));
         var stg = new VisualElement(); stg.style.height = 150; stg.style.alignItems = Align.Center; stg.style.justifyContent = Justify.Center; stg.style.backgroundColor = C("#0d1219"); Round(stg, 10);
         var ic = new Label("🏰"); ic.style.fontSize = 64; stg.Add(ic); prevP.Add(stg); col.Add(prevP);
-        var codeP = Panel(); codeP.Add(CodeHeader("JSON", "structure_set", "json", ()=> _stCode.text));
+        var codeP = Panel(); codeP.Add(CodeHeader("JSON", "structure_set", "json", ()=> _stCode.text, "structure", ()=> _stId.value));
         _stCode = CodeLabel(); codeP.Add(_stCode); col.Add(codeP);
         shell.Add(col); _content.Add(shell);
 
@@ -1468,7 +1542,7 @@ $@"context.register({ID}, biomeWithDefaults(
         shell.Add(form);
 
         var col = new VisualElement(); col.style.width = 420; col.style.flexShrink = 0;
-        var codeP = Panel(); codeP.Add(CodeHeader("JSON", "loot_table", "json", ()=> _ltCode.text));
+        var codeP = Panel(); codeP.Add(CodeHeader("JSON", "loot_table", "json", ()=> _ltCode.text, "loot", ()=> _ltId.value));
         _ltCode = CodeLabel(); codeP.Add(_ltCode); col.Add(codeP);
         shell.Add(col); _content.Add(shell);
 
@@ -1542,7 +1616,7 @@ $@"context.register({ID}, biomeWithDefaults(
         shell.Add(form);
 
         var col = new VisualElement(); col.style.width = 420; col.style.flexShrink = 0;
-        var codeP = Panel(); codeP.Add(CodeHeader("JSON", "advancement", "json", ()=> _adCode.text));
+        var codeP = Panel(); codeP.Add(CodeHeader("JSON", "advancement", "json", ()=> _adCode.text, "advancement", ()=> _adId.value));
         _adCode = CodeLabel(); codeP.Add(_adCode); col.Add(codeP);
         shell.Add(col); _content.Add(shell);
 
@@ -1617,7 +1691,7 @@ $@"context.register({ID}, biomeWithDefaults(
         stg.Add(wave); prevP.Add(stg);
         var sIco = new Label("🔊"); sIco.style.fontSize = 22; sIco.style.unityTextAlign = TextAnchor.MiddleCenter; sIco.style.marginTop = 8; prevP.Add(sIco);
         col.Add(prevP);
-        var codeP = Panel(); codeP.Add(CodeHeader("JSON", "sounds", "json", ()=> _soCode.text));
+        var codeP = Panel(); codeP.Add(CodeHeader("JSON", "sounds", "json", ()=> _soCode.text, "sound", ()=> _soId.value));
         _soCode = CodeLabel(); codeP.Add(_soCode); col.Add(codeP);
         shell.Add(col); _content.Add(shell);
 
@@ -1658,12 +1732,18 @@ $@"context.register({ID}, biomeWithDefaults(
     }
 
     // code panel header with an Export button on the right
-    private VisualElement CodeHeader(string lang, string defaultName, string ext, Func<string> getContent)
+    private VisualElement CodeHeader(string lang, string defaultName, string ext, Func<string> getContent, string kind = null, Func<string> getId = null, bool withTex = false)
     {
         var ch = Row(); ch.style.justifyContent = Justify.SpaceBetween; ch.style.alignItems = Align.Center; ch.style.marginBottom = 12;
         var chl = new Label("GENERATED CODE · " + lang.ToUpper()); chl.style.color = MUTED; chl.style.fontSize = 11; chl.style.letterSpacing = 1; chl.style.unityFontStyleAndWeight = FontStyle.Bold;
+        var btns = Row(); btns.style.alignItems = Align.Center;
+        if(kind != null){
+            var save = PillButton("💾 Save", PANEL2, TEXT, ()=> SaveElement(kind, getId != null ? getId() : defaultName, getContent(), withTex));
+            save.style.height = 28; save.style.marginRight = 8; btns.Add(save);
+        }
         var btn = PillButton("⭳ Export ." + ext, GREEN, Color.white, ()=> ExportCode(defaultName, ext, getContent())); btn.style.height = 28;
-        ch.Add(chl); ch.Add(btn);
+        btns.Add(btn);
+        ch.Add(chl); ch.Add(btns);
         return ch;
     }
 
@@ -1719,62 +1799,94 @@ $@"context.register({ID}, biomeWithDefaults(
         Func<string,string> T = s => s.Replace("%MODID%",modId).Replace("%PKG%",pkg).Replace("%MAIN%",main).Replace("%NAME%",main);
         Func<string,string> NS = s => s == null ? null : s.Replace("mymod:", modId + ":");
 
-        // resolve current elements from open editors (fallback to examples)
-        string blockId = (_bId != null && !string.IsNullOrEmpty(_bId.value)) ? _bId.value : "example_block";
-        string itemId  = (_iId != null && !string.IsNullOrEmpty(_iId.value)) ? _iId.value : "example_item";
+        // bake in everything created this session (saved + currently-open editors)
+        CaptureOpenEditors();
+        var blocks = _project.FindAll(e => e.kind == "block");
+        var items  = _project.FindAll(e => e.kind == "item");
+        var parts  = _project.FindAll(e => e.kind == "particle");
 
-        // --- registration classes (inject the real elements where they compile cleanly) ---
+        string blockExtra = ""; foreach(var b in blocks) if(b.code != null) blockExtra += Indent(NS(b.code)) + "\n";
+        string itemExtra  = ""; foreach(var it in items) if(it.code != null) itemExtra += Indent(NS(it.code)) + "\n";
+        string partExtra  = ""; foreach(var p in parts) if(p.code != null) partExtra += Indent(p.code.Replace("PARTICLE_TYPES","PARTICLES")) + "\n";
+
+        // --- registration classes (inject all compile-safe elements) ---
         File.WriteAllText(Path.Combine(javaDir, main + ".java"), T(TPL_MAIN));
-        File.WriteAllText(Path.Combine(initDir, "ModBlocks.java"),
-            T(TPL_BLOCKS).Replace("%EXTRA%", _codeLabel != null ? Indent(NS(_codeLabel.text)) : ""));
-        File.WriteAllText(Path.Combine(initDir, "ModItems.java"),
-            T(TPL_ITEMS).Replace("%EXTRA%", _iCode != null ? Indent(NS(_iCode.text)) : ""));
+        File.WriteAllText(Path.Combine(initDir, "ModBlocks.java"),       T(TPL_BLOCKS).Replace("%EXTRA%", blockExtra.TrimEnd()));
+        File.WriteAllText(Path.Combine(initDir, "ModItems.java"),        T(TPL_ITEMS).Replace("%EXTRA%", itemExtra.TrimEnd()));
         File.WriteAllText(Path.Combine(initDir, "ModEntities.java"),     T(TPL_ENTITIES));
-        File.WriteAllText(Path.Combine(initDir, "ModParticles.java"),
-            T(TPL_PARTICLES).Replace("%EXTRA%", _pCode != null ? Indent(_pCode.text.Replace("PARTICLE_TYPES","PARTICLES")) : ""));
+        File.WriteAllText(Path.Combine(initDir, "ModParticles.java"),    T(TPL_PARTICLES).Replace("%EXTRA%", partExtra.TrimEnd()));
         File.WriteAllText(Path.Combine(initDir, "ModEnchantments.java"), T(TPL_ENCHANTS));
         File.WriteAllText(Path.Combine(initDir, "ModCreativeTabs.java"), T(TPL_TABS));
         File.WriteAllText(Path.Combine(resDir, "META-INF/neoforge.mods.toml"), T(TPL_TOML));
         File.WriteAllText(Path.Combine(resDir, "pack.mcmeta"), T(TPL_PACK));
         File.WriteAllText(Path.Combine(baseDir, "gradle.properties"), T(TPL_GRADLE));
 
-        // --- painted texture + blockstate/models ---
+        // --- textures + models per block/item (fallback example uses current canvas) ---
         if(_layers == null) SeedTexture();
-        var comp = Composite();
-        WritePng(comp, Path.Combine(resDir, "assets/"+modId+"/textures/block/"+blockId+".png"));
-        WritePng(comp, Path.Combine(resDir, "assets/"+modId+"/textures/item/"+itemId+".png"));
-        WriteText(Path.Combine(resDir, "assets/"+modId+"/blockstates/"+blockId+".json"),
-            "{\n  \"variants\": {\n    \"\": { \"model\": \""+modId+":block/"+blockId+"\" }\n  }\n}\n");
-        WriteText(Path.Combine(resDir, "assets/"+modId+"/models/block/"+blockId+".json"),
-            "{\n  \"parent\": \"minecraft:block/cube_all\",\n  \"textures\": { \"all\": \""+modId+":block/"+blockId+"\" }\n}\n");
-        WriteText(Path.Combine(resDir, "assets/"+modId+"/models/item/"+blockId+".json"),
-            "{\n  \"parent\": \""+modId+":block/"+blockId+"\"\n}\n");
-        WriteText(Path.Combine(resDir, "assets/"+modId+"/models/item/"+itemId+".json"),
-            "{\n  \"parent\": \"minecraft:item/generated\",\n  \"textures\": { \"layer0\": \""+modId+":item/"+itemId+"\" }\n}\n");
+        var cur = Composite();
+        var langBlocks = new List<string>(); var langItems = new List<string>();
+        if(blocks.Count == 0){ WriteBlockAssets("example_block", cur, modId, resDir); langBlocks.Add("example_block"); }
+        else foreach(var b in blocks){ WriteBlockAssets(b.id, b.tex ?? cur, modId, resDir); langBlocks.Add(b.id); }
+        if(items.Count == 0){ WriteItemAssets("example_item", cur, modId, resDir); langItems.Add("example_item"); }
+        else foreach(var it in items){ WriteItemAssets(it.id, it.tex ?? cur, modId, resDir); langItems.Add(it.id); }
 
-        // --- data files from open editors ---
-        if(_recCode != null){
-            string rn = (_result >= 0 && _result < INGS.Length) ? INGS[_result].id : "result";
-            rn = rn.Substring(rn.IndexOf(':') + 1);
-            WriteText(Path.Combine(resDir, "data/"+modId+"/recipe/"+rn+".json"), NS(_recCode.text));
+        // --- data files & reference snippets per element ---
+        foreach(var e in _project){
+            switch(e.kind){
+                case "recipe":      WriteText(Path.Combine(resDir, "data/"+modId+"/recipe/"+e.id+".json"), NS(e.code)); break;
+                case "loot":        WriteText(Path.Combine(resDir, "data/"+modId+"/loot_table/"+e.id+".json"), NS(e.code)); break;
+                case "advancement": WriteText(Path.Combine(resDir, "data/"+modId+"/advancement/"+e.id+".json"), NS(e.code)); break;
+                case "structure":   WriteText(Path.Combine(resDir, "data/"+modId+"/worldgen/structure_set/"+e.id+".json"), StripComments(NS(e.code))); break;
+                case "biome":       WriteText(Path.Combine(baseDir, "generated_reference/biome/"+e.id+".txt"), NS(e.code)); break;
+                case "entity":      WriteText(Path.Combine(baseDir, "generated_reference/entity/"+e.id+".txt"), e.code); break;
+                case "enchant":     WriteText(Path.Combine(baseDir, "generated_reference/enchant/"+e.id+".txt"), e.code); break;
+            }
         }
-        if(_ltCode != null){
-            string ln = (_ltId != null && !string.IsNullOrEmpty(_ltId.value)) ? _ltId.value : "blocks/example";
-            WriteText(Path.Combine(resDir, "data/"+modId+"/loot_table/"+ln+".json"), NS(_ltCode.text));
-        }
-        if(_adCode != null){
-            string an = (_adId != null && !string.IsNullOrEmpty(_adId.value)) ? _adId.value : "example";
-            WriteText(Path.Combine(resDir, "data/"+modId+"/advancement/"+an+".json"), NS(_adCode.text));
-        }
-        if(_soCode != null)
-            WriteText(Path.Combine(resDir, "assets/"+modId+"/sounds.json"), NS(_soCode.text));
+        var sounds = _project.FindAll(e => e.kind == "sound");
+        if(sounds.Count > 0) WriteText(Path.Combine(resDir, "assets/"+modId+"/sounds.json"), MergeSounds(sounds, NS));
 
-        // --- lang ---
-        WriteText(Path.Combine(resDir, "assets/"+modId+"/lang/en_us.json"),
-            "{\n  \"itemGroup."+modId+"\": \""+main+"\",\n"
-            + "  \"block."+modId+"."+blockId+"\": \""+Titleize(blockId)+"\",\n"
-            + "  \"item."+modId+"."+itemId+"\": \""+Titleize(itemId)+"\"\n}\n");
+        // --- lang (all blocks + items) ---
+        var lang = new System.Text.StringBuilder();
+        lang.Append("{\n  \"itemGroup."+modId+"\": \""+main+"\"");
+        foreach(var b in langBlocks) lang.Append(",\n  \"block."+modId+"."+b+"\": \""+Titleize(b)+"\"");
+        foreach(var it in langItems) lang.Append(",\n  \"item."+modId+"."+it+"\": \""+Titleize(it)+"\"");
+        lang.Append("\n}\n");
+        WriteText(Path.Combine(resDir, "assets/"+modId+"/lang/en_us.json"), lang.ToString());
         return baseDir;
+    }
+
+    private void WriteBlockAssets(string id, Color[] tex, string modId, string resDir)
+    {
+        WritePng(tex, Path.Combine(resDir, "assets/"+modId+"/textures/block/"+id+".png"));
+        WriteText(Path.Combine(resDir, "assets/"+modId+"/blockstates/"+id+".json"),
+            "{\n  \"variants\": {\n    \"\": { \"model\": \""+modId+":block/"+id+"\" }\n  }\n}\n");
+        WriteText(Path.Combine(resDir, "assets/"+modId+"/models/block/"+id+".json"),
+            "{\n  \"parent\": \"minecraft:block/cube_all\",\n  \"textures\": { \"all\": \""+modId+":block/"+id+"\" }\n}\n");
+        WriteText(Path.Combine(resDir, "assets/"+modId+"/models/item/"+id+".json"),
+            "{\n  \"parent\": \""+modId+":block/"+id+"\"\n}\n");
+    }
+    private void WriteItemAssets(string id, Color[] tex, string modId, string resDir)
+    {
+        WritePng(tex, Path.Combine(resDir, "assets/"+modId+"/textures/item/"+id+".png"));
+        WriteText(Path.Combine(resDir, "assets/"+modId+"/models/item/"+id+".json"),
+            "{\n  \"parent\": \"minecraft:item/generated\",\n  \"textures\": { \"layer0\": \""+modId+":item/"+id+"\" }\n}\n");
+    }
+    private static string StripComments(string s)
+    {
+        if(s == null) return "";
+        var sb = new System.Text.StringBuilder();
+        foreach(var ln in s.Split('\n')){ if(ln.TrimStart().StartsWith("//")) continue; sb.Append(ln).Append('\n'); }
+        return sb.ToString().Trim() + "\n";
+    }
+    private string MergeSounds(List<ModElement> snds, Func<string,string> ns)
+    {
+        var inner = new List<string>();
+        foreach(var s in snds){
+            string c = ns(s.code); if(c == null) continue; c = c.Trim();
+            int a = c.IndexOf('{'), b = c.LastIndexOf('}');
+            if(a >= 0 && b > a){ string mid = c.Substring(a+1, b-a-1).Trim(); if(mid.Length > 0) inner.Add(mid); }
+        }
+        return "{\n" + string.Join(",\n", inner) + "\n}\n";
     }
 
     private void WritePng(Color[] comp, string path)
