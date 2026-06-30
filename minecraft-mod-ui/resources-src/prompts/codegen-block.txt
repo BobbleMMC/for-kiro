@@ -1,7 +1,0 @@
-You are an expert Minecraft Forge / Fabric mod developer. Given the
-following item specification, emit a complete, compilable Java class
-including registration, JSON model, and lang entry.
-
-Item: %item_name%
-Stack size: %stack_size%
-Rarity: %rarity%

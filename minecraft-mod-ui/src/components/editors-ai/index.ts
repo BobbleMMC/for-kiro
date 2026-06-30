@@ -1,1 +1,0 @@
-export { BehaviorTreeEditor } from './BehaviorTreeEditor';

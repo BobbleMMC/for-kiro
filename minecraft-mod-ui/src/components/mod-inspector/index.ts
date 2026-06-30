@@ -1,1 +1,0 @@
-export { ModInspector } from './ModInspector';
