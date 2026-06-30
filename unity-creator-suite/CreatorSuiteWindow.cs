@@ -115,10 +115,10 @@ public class CreatorSuiteWindow : EditorWindow
         lbl.style.color = FAINT; lbl.style.fontSize = 9; lbl.style.letterSpacing = 1.5f;
         lbl.style.marginTop = 14; lbl.style.marginBottom = 4; lbl.style.marginLeft = 8;
         side.Add(lbl);
-        NavButton(side, "⚔  Items", ShowDashboard, false);
-        NavButton(side, "🐺  Entities", ShowDashboard, false);
+        NavButton(side, "⚔  Items", ShowItem, false);
+        NavButton(side, "🐺  Entities", ShowEntity, false);
         NavButton(side, "🌲  World", ShowDashboard, false);
-        NavButton(side, "✦  Effects & FX", ShowDashboard, false);
+        NavButton(side, "✦  Effects & FX", ShowParticle, false);
 
         var spacer = new VisualElement(); spacer.style.flexGrow = 1; side.Add(spacer);
 
@@ -220,12 +220,12 @@ public class CreatorSuiteWindow : EditorWindow
         grid.style.marginBottom = 24;
         var eds = new List<Ed>{
             new Ed("🧊","Block","Full blocks, stairs, slabs, ores", GREEN, ShowBlock),
-            new Ed("⚔","Item","Tools, weapons, food, materials", AMBER, ()=>ShowBlock()),
-            new Ed("🐺","Entity","Mobs, bosses, animals & AI", VIOLET, ()=>ShowBlock()),
+            new Ed("⚔","Item","Tools, weapons, food, materials", AMBER, ShowItem),
+            new Ed("🐺","Entity","Mobs, bosses, animals & AI", VIOLET, ShowEntity),
             new Ed("🖌","Texture","Pixel-perfect painter", CYAN, ShowTexture),
             new Ed("📜","Recipe","Crafting, smelting, smithing", C("#d68a4e"), ()=>ShowBlock()),
             new Ed("✨","Enchantment","Custom enchants with effects", C("#7c8cff"), ()=>ShowBlock()),
-            new Ed("✦","Particle","Sparks, glows & ambient FX", CYAN, ()=>ShowBlock()),
+            new Ed("✦","Particle","Sparks, glows & ambient FX", CYAN, ShowParticle),
             new Ed("🌲","Biome","Climate, colors & generation", GREEN, ()=>ShowBlock()),
             new Ed("🏰","Structure","Dungeons, towers & ruins", C("#b0895e"), ()=>ShowBlock()),
             new Ed("🏆","Advancement","Goals, triggers & rewards", C("#f5c542"), ()=>ShowBlock()),
@@ -302,6 +302,7 @@ public class CreatorSuiteWindow : EditorWindow
     private Color _brush = C("#7d7d7d");
     private string _tool = "pencil";
     private int _cell = 22;
+    private Color[] _dragSnap; private Vector2Int _dragStart = new Vector2Int(-1,-1); private bool _dragging;
     private VisualElement _swatchActive; private Label _hexLabel;
     private readonly List<Button> _toolButtons = new List<Button>();
 
@@ -323,6 +324,7 @@ public class CreatorSuiteWindow : EditorWindow
         SetPaddingV(rail, 8); _toolButtons.Clear();
         ToolButton(rail, "✏", "pencil"); ToolButton(rail, "⌫", "eraser");
         ToolButton(rail, "🪣", "fill"); ToolButton(rail, "⊙", "picker");
+        ToolButton(rail, "╱", "line"); ToolButton(rail, "▭", "rect");
         var sep = new VisualElement(); sep.style.height = 1; sep.style.width = 26; sep.style.backgroundColor = LINE; sep.style.marginTop = 6; sep.style.marginBottom = 6; rail.Add(sep);
         RailAction(rail, "↶", Undo); RailAction(rail, "↷", Redo); RailAction(rail, "🗑", ClearCanvas);
         shell.Add(rail);
@@ -332,7 +334,11 @@ public class CreatorSuiteWindow : EditorWindow
         var sbar = Row(); sbar.style.alignItems = Align.Center; SetPadding(sbar, 12); sbar.style.borderBottomWidth = 1; sbar.style.borderBottomColor = LINE;
         sbar.Add(Chip("🖼 stone.png", PANEL2, TEXT)); var c2 = Chip("16 × 16", PANEL2, MUTED); c2.style.marginLeft = 8; sbar.Add(c2);
         var sp = new VisualElement(); sp.style.flexGrow = 1; sbar.Add(sp);
-        var exp = PillButton("⭳ Export PNG", GREEN, Color.white, ExportPng); sbar.Add(exp);
+        var zoom = new Slider(10, 34){ value = _cell }; zoom.style.width = 130;
+        var zlbl = new Label("Zoom"); zlbl.style.color = MUTED; zlbl.style.fontSize = 12; zlbl.style.marginRight = 6; zlbl.style.unityTextAlign = TextAnchor.MiddleCenter;
+        zoom.RegisterValueChangedCallback(ev=>{ _cell = Mathf.RoundToInt(ev.newValue); _canvasImg.style.width = TEX*_cell; _canvasImg.style.height = TEX*_cell; });
+        sbar.Add(zlbl); sbar.Add(zoom);
+        var exp = PillButton("⭳ Export PNG", GREEN, Color.white, ExportPng); exp.style.marginLeft = 8; sbar.Add(exp);
         stage.Add(sbar);
 
         var wrap = new VisualElement(); wrap.style.flexGrow = 1; wrap.style.alignItems = Align.Center; wrap.style.justifyContent = Justify.Center;
@@ -341,6 +347,7 @@ public class CreatorSuiteWindow : EditorWindow
         _canvasImg.style.width = TEX*_cell; _canvasImg.style.height = TEX*_cell;
         _canvasImg.RegisterCallback<MouseDownEvent>(OnCanvasDown);
         _canvasImg.RegisterCallback<MouseMoveEvent>(OnCanvasMove);
+        _canvasImg.RegisterCallback<MouseUpEvent>(OnCanvasUp);
         wrap.Add(_canvasImg); stage.Add(wrap);
         shell.Add(stage);
 
@@ -428,16 +435,35 @@ public class CreatorSuiteWindow : EditorWindow
         if(_previewImg != null) _previewImg.image = _texPreview;
     }
 
-    private void OnCanvasDown(MouseDownEvent e){ PushUndo(); PaintAt(e.localMousePosition); }
-    private void OnCanvasMove(MouseMoveEvent e){ if((e.pressedButtons & 1) != 0) PaintAt(e.localMousePosition); }
+    private void OnCanvasDown(MouseDownEvent e){
+        var p = LocalToPixel(e.localMousePosition); if(p.x < 0) return;
+        PushUndo(); _dragging = true; _dragStart = p; _dragSnap = (Color[])_pixels.Clone();
+        if(_tool=="pencil"||_tool=="eraser"||_tool=="fill"||_tool=="picker") ApplyTool(p.x, p.y);
+        RebuildTextures();
+    }
+    private void OnCanvasMove(MouseMoveEvent e){
+        if((e.pressedButtons & 1) == 0) return;
+        var p = LocalToPixel(e.localMousePosition); if(p.x < 0) return;
+        if(_tool=="pencil"||_tool=="eraser"){ ApplyTool(p.x, p.y); }
+        else if((_tool=="line"||_tool=="rect") && _dragSnap != null){
+            _pixels = (Color[])_dragSnap.Clone();
+            if(_tool=="line") DrawLine(_dragStart.x,_dragStart.y,p.x,p.y);
+            else DrawRect(_dragStart.x,_dragStart.y,p.x,p.y);
+        }
+        RebuildTextures();
+    }
+    private void OnCanvasUp(MouseUpEvent e){ _dragging = false; }
 
-    private void PaintAt(Vector2 local)
-    {
+    private Vector2Int LocalToPixel(Vector2 local){
         float w = _canvasImg.resolvedStyle.width, h = _canvasImg.resolvedStyle.height;
         if(w <= 0) w = TEX*_cell; if(h <= 0) h = TEX*_cell;
         int px = Mathf.FloorToInt(local.x / (w/TEX));
         int py = Mathf.FloorToInt(local.y / (h/TEX));
-        if(px < 0 || py < 0 || px >= TEX || py >= TEX) return;
+        if(px < 0 || py < 0 || px >= TEX || py >= TEX) return new Vector2Int(-1,-1);
+        return new Vector2Int(px, py);
+    }
+
+    private void ApplyTool(int px, int py){
         int idx = py*TEX + px;
         switch(_tool){
             case "pencil": _pixels[idx] = _brush; break;
@@ -445,7 +471,21 @@ public class CreatorSuiteWindow : EditorWindow
             case "picker": SetBrush(_pixels[idx]); _tool = "pencil"; HighlightTool(); break;
             case "fill": Flood(px, py, _pixels[idx]); break;
         }
-        RebuildTextures();
+    }
+
+    private void DrawLine(int x0,int y0,int x1,int y1){
+        int dx = Mathf.Abs(x1-x0), dy = Mathf.Abs(y1-y0), sx = x0<x1?1:-1, sy = y0<y1?1:-1, err = dx-dy;
+        int x = x0, y = y0;
+        while(true){
+            if(x>=0&&y>=0&&x<TEX&&y<TEX) _pixels[y*TEX+x] = _brush;
+            if(x==x1 && y==y1) break;
+            int e2 = 2*err; if(e2>-dy){ err-=dy; x+=sx; } if(e2<dx){ err+=dx; y+=sy; }
+        }
+    }
+    private void DrawRect(int x0,int y0,int x1,int y1){
+        int xa=Mathf.Min(x0,x1), xb=Mathf.Max(x0,x1), ya=Mathf.Min(y0,y1), yb=Mathf.Max(y0,y1);
+        for(int x=xa;x<=xb;x++){ if(ya>=0&&ya<TEX)_pixels[ya*TEX+x]=_brush; if(yb>=0&&yb<TEX)_pixels[yb*TEX+x]=_brush; }
+        for(int y=ya;y<=yb;y++){ if(xa>=0&&xa<TEX)_pixels[y*TEX+xa]=_brush; if(xb>=0&&xb<TEX)_pixels[y*TEX+xb]=_brush; }
     }
 
     private void Flood(int x, int y, Color target)
@@ -597,6 +637,221 @@ $@"public static final DeferredBlock<Block> {ID} =
         + (emis ? "\n            .emissiveRendering((s,l,p) -> true)" : "")
         + "\n            .requiresCorrectToolForDrops()\n    ));";
         _codeLabel.text = code;
+    }
+
+    // =========================================================================
+    // ITEM EDITOR VIEW
+    // =========================================================================
+    private TextField _iId, _iName; private Slider _iStack, _iDur; private DropdownField _iRarity;
+    private Toggle _iFood, _iFire; private Slider _iNut, _iSat; private Label _iCode; private VisualElement _iFoodBox;
+
+    private void ShowItem()
+    {
+        SetActiveNav("Items"); SetHeader("Item Editor", "Create tools, weapons, food & materials");
+        _content.Clear();
+        var shell = Row(); shell.style.flexGrow = 1;
+
+        var form = new VisualElement(); form.style.flexGrow = 1; form.style.marginRight = 14;
+        var idP = Panel(); idP.style.marginBottom = 14; idP.Add(PanelHeader("Identity"));
+        _iId = FormText(idP, "Item ID", "ruby");
+        _iName = FormText(idP, "Display Name", "Ruby");
+        _iRarity = FormDropdown(idP, "Rarity", new List<string>{"Common","Uncommon","Rare","Epic"});
+        form.Add(idP);
+
+        var pP = Panel(); pP.style.marginBottom = 14; pP.Add(PanelHeader("Properties"));
+        _iStack = FormSlider(pP, "Max Stack Size", 1, 64, 64);
+        _iDur = FormSlider(pP, "Durability (0 = none)", 0, 2031, 0);
+        _iFire = FormToggle(pP, "Fire Resistant", false);
+        form.Add(pP);
+
+        var fP = Panel(); fP.Add(PanelHeader("Food"));
+        _iFood = FormToggle(fP, "Is Edible", false);
+        _iFoodBox = new VisualElement();
+        _iNut = FormSlider(_iFoodBox, "Nutrition", 0, 20, 4);
+        _iSat = FormSlider(_iFoodBox, "Saturation", 0, 2, 0.3f);
+        fP.Add(_iFoodBox);
+        form.Add(fP);
+        shell.Add(form);
+
+        var col = new VisualElement(); col.style.width = 420; col.style.flexShrink = 0;
+        var prevP = Panel(); prevP.style.marginBottom = 14; prevP.Add(PanelHeader("Preview"));
+        var stg = new VisualElement(); stg.style.height = 200; stg.style.alignItems = Align.Center; stg.style.justifyContent = Justify.Center; stg.style.backgroundColor = C("#0d1219"); Round(stg, 10);
+        var ic = new Label("⚔"); ic.style.fontSize = 72; ic.style.color = AMBER; stg.Add(ic); prevP.Add(stg); col.Add(prevP);
+        var codeP = Panel(); codeP.Add(PanelHeader("Generated Code · Java"));
+        _iCode = CodeLabel(); codeP.Add(_iCode); col.Add(codeP);
+        shell.Add(col);
+        _content.Add(shell);
+
+        _iId.RegisterValueChangedCallback(_=>RegenItem()); _iName.RegisterValueChangedCallback(_=>RegenItem());
+        _iRarity.RegisterValueChangedCallback(_=>RegenItem());
+        _iStack.RegisterValueChangedCallback(_=>RegenItem()); _iDur.RegisterValueChangedCallback(_=>RegenItem());
+        _iFire.RegisterValueChangedCallback(_=>RegenItem());
+        _iFood.RegisterValueChangedCallback(_=>{ _iFoodBox.style.display = _iFood.value ? DisplayStyle.Flex : DisplayStyle.None; RegenItem(); });
+        _iNut.RegisterValueChangedCallback(_=>RegenItem()); _iSat.RegisterValueChangedCallback(_=>RegenItem());
+        _iFoodBox.style.display = DisplayStyle.None;
+        RegenItem();
+    }
+
+    private void RegenItem()
+    {
+        string id = string.IsNullOrEmpty(_iId.value) ? "my_item" : _iId.value;
+        string ID = id.ToUpper();
+        int stack = Mathf.RoundToInt(_iStack.value), dur = Mathf.RoundToInt(_iDur.value);
+        string props = "new Item.Properties()";
+        if(stack != 64 && dur == 0) props += $".stacksTo({stack})";
+        if(dur > 0) props += $".durability({dur})";
+        if(_iFire.value) props += ".fireResistant()";
+        if(_iRarity.value != "Common") props += $".rarity(Rarity.{_iRarity.value.ToUpper()})";
+        if(_iFood.value){
+            props += $"\n        .food(new FoodProperties.Builder()" +
+                     $".nutrition({Mathf.RoundToInt(_iNut.value)}).saturationModifier({_iSat.value:0.0}F).build())";
+        }
+        _iCode.text =
+$@"public static final DeferredItem<Item> {ID} =
+    ITEMS.register(""{id}"", () -> new Item(
+        {props}
+    ));";
+    }
+
+    // =========================================================================
+    // ENTITY EDITOR VIEW
+    // =========================================================================
+    private TextField _eId; private DropdownField _eCat; private Slider _eW,_eH,_eHp,_eSpd,_eDmg,_eRange;
+    private Toggle _eFire; private Label _eCode;
+
+    private void ShowEntity()
+    {
+        SetActiveNav("Entities"); SetHeader("Entity Editor", "Design mobs, bosses & animals with attributes");
+        _content.Clear();
+        var shell = Row(); shell.style.flexGrow = 1;
+
+        var form = new VisualElement(); form.style.flexGrow = 1; form.style.marginRight = 14;
+        var idP = Panel(); idP.style.marginBottom = 14; idP.Add(PanelHeader("Identity"));
+        _eId = FormText(idP, "Entity ID", "frost_wolf");
+        _eCat = FormDropdown(idP, "Category", new List<string>{"MONSTER","CREATURE","AMBIENT","WATER_CREATURE","MISC"});
+        form.Add(idP);
+        var szP = Panel(); szP.style.marginBottom = 14; szP.Add(PanelHeader("Hitbox"));
+        _eW = FormSlider(szP, "Width", 0.2f, 16, 0.6f);
+        _eH = FormSlider(szP, "Height", 0.2f, 18, 0.85f);
+        form.Add(szP);
+        var atP = Panel(); atP.Add(PanelHeader("Attributes"));
+        _eHp = FormSlider(atP, "Max Health", 1, 300, 20);
+        _eSpd = FormSlider(atP, "Movement Speed", 0, 1, 0.3f);
+        _eDmg = FormSlider(atP, "Attack Damage", 0, 50, 4);
+        _eRange = FormSlider(atP, "Follow Range", 4, 100, 16);
+        _eFire = FormToggle(atP, "Fire Immune", false);
+        form.Add(atP);
+        shell.Add(form);
+
+        var col = new VisualElement(); col.style.width = 420; col.style.flexShrink = 0;
+        var prevP = Panel(); prevP.style.marginBottom = 14; prevP.Add(PanelHeader("Preview"));
+        var stg = new VisualElement(); stg.style.height = 200; stg.style.alignItems = Align.Center; stg.style.justifyContent = Justify.Center; stg.style.backgroundColor = C("#0d1219"); Round(stg, 10);
+        var ic = new Label("🐺"); ic.style.fontSize = 72; stg.Add(ic); prevP.Add(stg); col.Add(prevP);
+        var codeP = Panel(); codeP.Add(PanelHeader("Generated Code · Java"));
+        _eCode = CodeLabel(); codeP.Add(_eCode); col.Add(codeP);
+        shell.Add(col);
+        _content.Add(shell);
+
+        foreach(var s in new Slider[]{_eW,_eH,_eHp,_eSpd,_eDmg,_eRange}) s.RegisterValueChangedCallback(_=>RegenEntity());
+        _eId.RegisterValueChangedCallback(_=>RegenEntity()); _eCat.RegisterValueChangedCallback(_=>RegenEntity());
+        _eFire.RegisterValueChangedCallback(_=>RegenEntity());
+        RegenEntity();
+    }
+
+    private void RegenEntity()
+    {
+        string id = string.IsNullOrEmpty(_eId.value) ? "my_mob" : _eId.value;
+        string ID = id.ToUpper();
+        string fire = _eFire.value ? "true" : "false";
+        _eCode.text =
+$@"public static final DeferredHolder<EntityType<?>, EntityType<{Pascal(id)}>> {ID} =
+    make(""{id}"", {Pascal(id)}::new, MobCategory.{_eCat.value},
+        {_eW.value:0.0}F, {_eH.value:0.0}F, {fire});
+
+public static AttributeSupplier.Builder registerAttributes() {{
+    return Monster.createMonsterAttributes()
+        .add(Attributes.MAX_HEALTH, {_eHp.value:0})
+        .add(Attributes.MOVEMENT_SPEED, {_eSpd.value:0.00})
+        .add(Attributes.ATTACK_DAMAGE, {_eDmg.value:0.0})
+        .add(Attributes.FOLLOW_RANGE, {_eRange.value:0});
+}}";
+    }
+    private static string Pascal(string s){
+        if(string.IsNullOrEmpty(s)) return "MyMob";
+        var parts = s.Split('_'); var sb = new System.Text.StringBuilder();
+        foreach(var p in parts){ if(p.Length>0) sb.Append(char.ToUpper(p[0])).Append(p.Substring(1)); }
+        return sb.ToString();
+    }
+
+    // =========================================================================
+    // PARTICLE EDITOR VIEW
+    // =========================================================================
+    private TextField _pId; private Toggle _pAlways; private Slider _pAge,_pGrav,_pSize; private Color _pColor = C("#46c7d8");
+    private Label _pCode; private VisualElement _pSwatch, _pDot;
+
+    private void ShowParticle()
+    {
+        SetActiveNav("Effects"); SetHeader("Particle Editor", "Sparks, glows & ambient effects");
+        _content.Clear();
+        var shell = Row(); shell.style.flexGrow = 1;
+
+        var form = new VisualElement(); form.style.flexGrow = 1; form.style.marginRight = 14;
+        var idP = Panel(); idP.style.marginBottom = 14; idP.Add(PanelHeader("Identity"));
+        _pId = FormText(idP, "Particle ID", "magic_spark");
+        _pAlways = FormToggle(idP, "Always Show (override limiter)", false);
+        form.Add(idP);
+        var beP = Panel(); beP.style.marginBottom = 14; beP.Add(PanelHeader("Behavior"));
+        _pAge = FormSlider(beP, "Max Age (ticks)", 1, 200, 40);
+        _pGrav = FormSlider(beP, "Gravity", 0, 1, 0);
+        _pSize = FormSlider(beP, "Base Size", 0.1f, 2, 0.5f);
+        form.Add(beP);
+        var coP = Panel(); coP.Add(PanelHeader("Color"));
+        var crow = Row(); crow.style.alignItems = Align.Center;
+        _pSwatch = new VisualElement(); _pSwatch.style.width = 40; _pSwatch.style.height = 40; Round(_pSwatch,9); _pSwatch.style.backgroundColor = _pColor; _pSwatch.style.marginRight = 10; crow.Add(_pSwatch);
+        var palRow = new VisualElement(); palRow.style.flexDirection = FlexDirection.Row; palRow.style.flexWrap = Wrap.Wrap;
+        foreach(var hex in new[]{"#f5c542","#e0a93b","#5fbf4f","#46c7d8","#9b6cff","#e0564b","#ffffff","#7c8cff"}){
+            var sw = new VisualElement(); sw.style.width=24; sw.style.height=24; sw.style.marginRight=4; sw.style.marginBottom=4; Round(sw,6); sw.style.backgroundColor=C(hex);
+            var cc = C(hex); sw.RegisterCallback<MouseDownEvent>(_=>{ _pColor=cc; _pSwatch.style.backgroundColor=cc; if(_pDot!=null)_pDot.style.backgroundColor=cc; RegenParticle(); });
+            palRow.Add(sw);
+        }
+        crow.Add(palRow); coP.Add(crow); form.Add(coP);
+        shell.Add(form);
+
+        var col = new VisualElement(); col.style.width = 420; col.style.flexShrink = 0;
+        var prevP = Panel(); prevP.style.marginBottom = 14; prevP.Add(PanelHeader("Preview"));
+        var stg = new VisualElement(); stg.style.height = 200; stg.style.alignItems = Align.Center; stg.style.justifyContent = Justify.Center; stg.style.backgroundColor = C("#0d1219"); Round(stg, 10);
+        _pDot = new VisualElement(); _pDot.style.width = 26; _pDot.style.height = 26; Round(_pDot, 13); _pDot.style.backgroundColor = _pColor; stg.Add(_pDot); prevP.Add(stg); col.Add(prevP);
+        var codeP = Panel(); codeP.Add(PanelHeader("Generated Code · Java"));
+        _pCode = CodeLabel(); codeP.Add(_pCode); col.Add(codeP);
+        shell.Add(col);
+        _content.Add(shell);
+
+        _pId.RegisterValueChangedCallback(_=>RegenParticle()); _pAlways.RegisterValueChangedCallback(_=>RegenParticle());
+        foreach(var s in new Slider[]{_pAge,_pGrav,_pSize}) s.RegisterValueChangedCallback(_=>RegenParticle());
+        RegenParticle();
+    }
+
+    private void RegenParticle()
+    {
+        string id = string.IsNullOrEmpty(_pId.value) ? "my_particle" : _pId.value;
+        string ID = id.ToUpper();
+        string always = _pAlways.value ? "true" : "false";
+        _pCode.text =
+$@"public static final DeferredHolder<ParticleType<?>, SimpleParticleType> {ID} =
+    PARTICLE_TYPES.register(""{id}"",
+        () -> new SimpleParticleType({always}));
+
+// client factory hints:
+//   maxAge   = {Mathf.RoundToInt(_pAge.value)} ticks
+//   gravity  = {_pGrav.value:0.00}
+//   size     = {_pSize.value:0.00}
+//   tint     = #{ColorUtility.ToHtmlStringRGB(_pColor)}";
+    }
+
+    private Label CodeLabel(){
+        var l = new Label(); l.style.whiteSpace = WhiteSpace.Normal; l.style.color = C("#cdd6e0");
+        l.style.fontSize = 12; l.style.backgroundColor = BG; SetPadding(l, 12); Round(l, 9);
+        return l;
     }
 
     // =========================================================================
