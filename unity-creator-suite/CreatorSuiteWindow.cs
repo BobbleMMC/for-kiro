@@ -117,7 +117,7 @@ public class CreatorSuiteWindow : EditorWindow
         side.Add(lbl);
         NavButton(side, "⚔  Items", ShowItem, false);
         NavButton(side, "🐺  Entities", ShowEntity, false);
-        NavButton(side, "🌲  World", ShowDashboard, false);
+        NavButton(side, "🌲  World", ShowBiome, false);
         NavButton(side, "✦  Effects & FX", ShowParticle, false);
 
         var spacer = new VisualElement(); spacer.style.flexGrow = 1; side.Add(spacer);
@@ -224,9 +224,9 @@ public class CreatorSuiteWindow : EditorWindow
             new Ed("🐺","Entity","Mobs, bosses, animals & AI", VIOLET, ShowEntity),
             new Ed("🖌","Texture","Pixel-perfect painter", CYAN, ShowTexture),
             new Ed("📜","Recipe","Crafting, smelting, smithing", C("#d68a4e"), ShowRecipe),
-            new Ed("✨","Enchantment","Custom enchants with effects", C("#7c8cff"), ()=>ShowBlock()),
+            new Ed("✨","Enchantment","Custom enchants with effects", C("#7c8cff"), ShowEnchant),
             new Ed("✦","Particle","Sparks, glows & ambient FX", CYAN, ShowParticle),
-            new Ed("🌲","Biome","Climate, colors & generation", GREEN, ()=>ShowBlock()),
+            new Ed("🌲","Biome","Climate, colors & generation", GREEN, ShowBiome),
             new Ed("🏰","Structure","Dungeons, towers & ruins", C("#b0895e"), ()=>ShowBlock()),
             new Ed("🏆","Advancement","Goals, triggers & rewards", C("#f5c542"), ()=>ShowBlock()),
             new Ed("🎁","Loot Table","Drops, chances & conditions", RED, ()=>ShowBlock()),
@@ -618,12 +618,14 @@ public class CreatorSuiteWindow : EditorWindow
     // =========================================================================
     private TextField _bId, _bName; private Slider _bHard, _bRes, _bLight;
     private DropdownField _bSound, _bMap; private Toggle _bEmissive;
-    private Label _codeLabel; private VisualElement _blockPreview;
+    private Label _codeLabel; private Image _blockPreview;
 
     private void ShowBlock()
     {
         SetActiveNav("Block"); SetHeader("Block Editor", "Design blocks with live preview & code generation");
         _content.Clear();
+        if(_layers == null) SeedTexture();
+        if(_texCanvas == null) RebuildTextures();
 
         var shell = Row(); shell.style.flexGrow = 1;
 
@@ -674,17 +676,21 @@ public class CreatorSuiteWindow : EditorWindow
         prevP.Add(PanelHeader("Block Preview"));
         var pstage = new VisualElement(); pstage.style.height = 220; pstage.style.alignItems = Align.Center; pstage.style.justifyContent = Justify.Center;
         pstage.style.backgroundColor = C("#0d1219"); Round(pstage, 10);
-        _blockPreview = new VisualElement(); _blockPreview.style.width = 110; _blockPreview.style.height = 110; Round(_blockPreview, 6);
-        _blockPreview.style.backgroundColor = C("#c0392b");
-        _blockPreview.style.borderTopWidth = 6; _blockPreview.style.borderTopColor = C("#e0564b");
-        _blockPreview.style.borderLeftWidth = 6; _blockPreview.style.borderLeftColor = C("#7a3b1d");
-        _blockPreview.style.borderRightWidth = 6; _blockPreview.style.borderRightColor = C("#9a2c20");
-        _blockPreview.style.borderBottomWidth = 6; _blockPreview.style.borderBottomColor = C("#5e2018");
+        _blockPreview = new Image(); _blockPreview.scaleMode = ScaleMode.ScaleToFit; _blockPreview.image = _texCanvas;
+        _blockPreview.style.width = 120; _blockPreview.style.height = 120; Round(_blockPreview, 4);
+        _blockPreview.style.borderTopWidth = 5; _blockPreview.style.borderTopColor = new Color(1,1,1,0.18f);
+        _blockPreview.style.borderLeftWidth = 5; _blockPreview.style.borderLeftColor = new Color(0,0,0,0.35f);
+        _blockPreview.style.borderRightWidth = 5; _blockPreview.style.borderRightColor = new Color(0,0,0,0.2f);
+        _blockPreview.style.borderBottomWidth = 5; _blockPreview.style.borderBottomColor = new Color(0,0,0,0.45f);
         pstage.Add(_blockPreview); prevP.Add(pstage);
+        var phint = new Label("Live texture from the Texture Editor"); phint.style.color = FAINT; phint.style.fontSize = 11; phint.style.unityTextAlign = TextAnchor.MiddleCenter; phint.style.marginTop = 8; prevP.Add(phint);
         col.Add(prevP);
 
         var codeP = Panel();
-        codeP.Add(PanelHeader("Generated Code · Java"));
+        var ch = Row(); ch.style.justifyContent = Justify.SpaceBetween; ch.style.alignItems = Align.Center; ch.style.marginBottom = 12;
+        var chl = new Label("GENERATED CODE · JAVA"); chl.style.color = MUTED; chl.style.fontSize = 11; chl.style.letterSpacing = 1; chl.style.unityFontStyleAndWeight = FontStyle.Bold;
+        var bExp = PillButton("⭳ Export .java", GREEN, Color.white, ()=> ExportCode(Pascal(_bId.value), "java", _codeLabel.text)); bExp.style.height = 28;
+        ch.Add(chl); ch.Add(bExp); codeP.Add(ch);
         _codeLabel = new Label(); _codeLabel.style.whiteSpace = WhiteSpace.Normal; _codeLabel.style.color = C("#cdd6e0");
         _codeLabel.style.fontSize = 12; _codeLabel.style.backgroundColor = BG; SetPadding(_codeLabel, 12); Round(_codeLabel, 9);
         codeP.Add(_codeLabel); col.Add(codeP);
@@ -710,7 +716,7 @@ public class CreatorSuiteWindow : EditorWindow
 
         // light glow on preview
         float g = light/15f;
-        _blockPreview.style.borderTopColor = Color.Lerp(C("#e0564b"), C("#fff1a8"), g);
+        _blockPreview.style.borderTopColor = Color.Lerp(new Color(1,1,1,0.18f), C("#fff1a8"), g);
 
         string ID = id.ToUpper();
         string code =
@@ -804,7 +810,7 @@ $@"public static final DeferredBlock<Block> {ID} =
 
         // code column
         var col = new VisualElement(); col.style.width = 420; col.style.flexShrink = 0;
-        var codeP = Panel(); codeP.Add(PanelHeader("Generated Recipe · JSON"));
+        var codeP = Panel(); codeP.Add(CodeHeader("JSON", "recipe", "json", ()=> _recCode.text));
         _recCode = CodeLabel(); codeP.Add(_recCode); col.Add(codeP);
         shell.Add(col);
         _content.Add(shell);
@@ -1036,7 +1042,7 @@ $@"{{
         var prevP = Panel(); prevP.style.marginBottom = 14; prevP.Add(PanelHeader("Preview"));
         var stg = new VisualElement(); stg.style.height = 200; stg.style.alignItems = Align.Center; stg.style.justifyContent = Justify.Center; stg.style.backgroundColor = C("#0d1219"); Round(stg, 10);
         var ic = new Label("⚔"); ic.style.fontSize = 72; ic.style.color = AMBER; stg.Add(ic); prevP.Add(stg); col.Add(prevP);
-        var codeP = Panel(); codeP.Add(PanelHeader("Generated Code · Java"));
+        var codeP = Panel(); codeP.Add(CodeHeader("Java", Pascal(_iId.value), "java", ()=> _iCode.text));
         _iCode = CodeLabel(); codeP.Add(_iCode); col.Add(codeP);
         shell.Add(col);
         _content.Add(shell);
@@ -1106,7 +1112,7 @@ $@"public static final DeferredItem<Item> {ID} =
         var prevP = Panel(); prevP.style.marginBottom = 14; prevP.Add(PanelHeader("Preview"));
         var stg = new VisualElement(); stg.style.height = 200; stg.style.alignItems = Align.Center; stg.style.justifyContent = Justify.Center; stg.style.backgroundColor = C("#0d1219"); Round(stg, 10);
         var ic = new Label("🐺"); ic.style.fontSize = 72; stg.Add(ic); prevP.Add(stg); col.Add(prevP);
-        var codeP = Panel(); codeP.Add(PanelHeader("Generated Code · Java"));
+        var codeP = Panel(); codeP.Add(CodeHeader("Java", Pascal(_eId.value), "java", ()=> _eCode.text));
         _eCode = CodeLabel(); codeP.Add(_eCode); col.Add(codeP);
         shell.Add(col);
         _content.Add(shell);
@@ -1180,7 +1186,7 @@ public static AttributeSupplier.Builder registerAttributes() {{
         var prevP = Panel(); prevP.style.marginBottom = 14; prevP.Add(PanelHeader("Preview"));
         var stg = new VisualElement(); stg.style.height = 200; stg.style.alignItems = Align.Center; stg.style.justifyContent = Justify.Center; stg.style.backgroundColor = C("#0d1219"); Round(stg, 10);
         _pDot = new VisualElement(); _pDot.style.width = 26; _pDot.style.height = 26; Round(_pDot, 13); _pDot.style.backgroundColor = _pColor; stg.Add(_pDot); prevP.Add(stg); col.Add(prevP);
-        var codeP = Panel(); codeP.Add(PanelHeader("Generated Code · Java"));
+        var codeP = Panel(); codeP.Add(CodeHeader("Java", Pascal(_pId.value), "java", ()=> _pCode.text));
         _pCode = CodeLabel(); codeP.Add(_pCode); col.Add(codeP);
         shell.Add(col);
         _content.Add(shell);
@@ -1207,10 +1213,170 @@ $@"public static final DeferredHolder<ParticleType<?>, SimpleParticleType> {ID} 
 //   tint     = #{ColorUtility.ToHtmlStringRGB(_pColor)}";
     }
 
+    // =========================================================================
+    // ENCHANTMENT EDITOR VIEW
+    // =========================================================================
+    private TextField _enId; private Slider _enMax; private DropdownField _enRarity, _enCat;
+    private Toggle _enTreasure, _enCurse; private Label _enCode;
+
+    private void ShowEnchant()
+    {
+        SetActiveNav("Effects"); SetHeader("Enchantment Editor", "Custom enchantments with effects");
+        _content.Clear();
+        var shell = Row(); shell.style.flexGrow = 1;
+
+        var form = new VisualElement(); form.style.flexGrow = 1; form.style.marginRight = 14;
+        var idP = Panel(); idP.style.marginBottom = 14; idP.Add(PanelHeader("Identity"));
+        _enId = FormText(idP, "Enchantment ID", "frost_aspect");
+        _enCat = FormDropdown(idP, "Supported Items", new List<string>{"WEAPON","ARMOR","DIGGER","BOW","TRIDENT","WEARABLE","BREAKABLE"});
+        form.Add(idP);
+        var pP = Panel(); pP.style.marginBottom = 14; pP.Add(PanelHeader("Properties"));
+        _enMax = FormSlider(pP, "Max Level", 1, 5, 3);
+        _enRarity = FormDropdown(pP, "Rarity (weight)", new List<string>{"COMMON","UNCOMMON","RARE","VERY_RARE"});
+        form.Add(pP);
+        var fP = Panel(); fP.Add(PanelHeader("Flags"));
+        _enTreasure = FormToggle(fP, "Treasure (not from enchant table)", false);
+        _enCurse = FormToggle(fP, "Is Curse", false);
+        form.Add(fP);
+        shell.Add(form);
+
+        var col = new VisualElement(); col.style.width = 420; col.style.flexShrink = 0;
+        var prevP = Panel(); prevP.style.marginBottom = 14; prevP.Add(PanelHeader("Preview"));
+        var stg = new VisualElement(); stg.style.height = 160; stg.style.alignItems = Align.Center; stg.style.justifyContent = Justify.Center; stg.style.backgroundColor = C("#0d1219"); Round(stg, 10);
+        var ic = new Label("✨"); ic.style.fontSize = 64; ic.style.color = C("#7c8cff"); stg.Add(ic); prevP.Add(stg); col.Add(prevP);
+        var codeP = Panel(); codeP.Add(CodeHeader("Java", Pascal(_enId.value), "java", ()=> _enCode.text));
+        _enCode = CodeLabel(); codeP.Add(_enCode); col.Add(codeP);
+        shell.Add(col);
+        _content.Add(shell);
+
+        _enId.RegisterValueChangedCallback(_=>RegenEnchant()); _enCat.RegisterValueChangedCallback(_=>RegenEnchant());
+        _enRarity.RegisterValueChangedCallback(_=>RegenEnchant()); _enMax.RegisterValueChangedCallback(_=>RegenEnchant());
+        _enTreasure.RegisterValueChangedCallback(_=>RegenEnchant()); _enCurse.RegisterValueChangedCallback(_=>RegenEnchant());
+        RegenEnchant();
+    }
+
+    private void RegenEnchant()
+    {
+        string id = string.IsNullOrEmpty(_enId.value) ? "my_enchant" : _enId.value;
+        string ID = id.ToUpper(); int max = Mathf.RoundToInt(_enMax.value);
+        _enCode.text =
+$@"public static final DeferredHolder<Enchantment, Enchantment> {ID} =
+    ENCHANTMENTS.register(""{id}"",
+        () -> new {Pascal(id)}Enchantment({max}));
+
+// rarity    = {_enRarity.value}
+// category  = {_enCat.value}
+// treasure  = {(_enTreasure.value ? "true" : "false")}
+// curse     = {(_enCurse.value ? "true" : "false")}";
+    }
+
+    // =========================================================================
+    // BIOME EDITOR VIEW
+    // =========================================================================
+    private TextField _biId; private Slider _biTemp, _biDown; private Toggle _biPrecip;
+    private Color _biSky = C("#80A0FF"), _biFog = C("#C0D8FF"), _biWater = C("#3F76E4"), _biGrass = C("#6FBF4F");
+    private Label _biCode;
+
+    private void ShowBiome()
+    {
+        SetActiveNav("World"); SetHeader("Biome Editor", "Climate, colors & ambience");
+        _content.Clear();
+        var shell = Row(); shell.style.flexGrow = 1;
+
+        var form = new VisualElement(); form.style.flexGrow = 1; form.style.marginRight = 14;
+        var idP = Panel(); idP.style.marginBottom = 14; idP.Add(PanelHeader("Identity & Climate"));
+        _biId = FormText(idP, "Biome ID", "frost_forest");
+        _biTemp = FormSlider(idP, "Temperature", -1, 2, 0.3f);
+        _biDown = FormSlider(idP, "Downfall", 0, 1, 0.8f);
+        _biPrecip = FormToggle(idP, "Has Precipitation", true);
+        form.Add(idP);
+        var cP = Panel(); cP.Add(PanelHeader("Colors"));
+        ColorPicker(cP, "Sky", _biSky, c=>{ _biSky=c; RegenBiome(); });
+        ColorPicker(cP, "Fog", _biFog, c=>{ _biFog=c; RegenBiome(); });
+        ColorPicker(cP, "Water", _biWater, c=>{ _biWater=c; RegenBiome(); });
+        ColorPicker(cP, "Grass", _biGrass, c=>{ _biGrass=c; RegenBiome(); });
+        form.Add(cP);
+        shell.Add(form);
+
+        var col = new VisualElement(); col.style.width = 420; col.style.flexShrink = 0;
+        var prevP = Panel(); prevP.style.marginBottom = 14; prevP.Add(PanelHeader("Preview"));
+        var stg = new VisualElement(); stg.style.height = 160; Round(stg, 10); stg.style.overflow = Overflow.Hidden;
+        var sky = new VisualElement(); sky.style.height = Length.Percent(60); sky.style.backgroundColor = _biSky; stg.Add(sky);
+        var grass = new VisualElement(); grass.style.height = Length.Percent(40); grass.style.backgroundColor = _biGrass; stg.Add(grass);
+        _biSkyBox = sky; _biGrassBox = grass;
+        prevP.Add(stg); col.Add(prevP);
+        var codeP = Panel(); codeP.Add(CodeHeader("Java", Pascal(_biId.value), "java", ()=> _biCode.text));
+        _biCode = CodeLabel(); codeP.Add(_biCode); col.Add(codeP);
+        shell.Add(col);
+        _content.Add(shell);
+
+        _biId.RegisterValueChangedCallback(_=>RegenBiome());
+        _biTemp.RegisterValueChangedCallback(_=>RegenBiome()); _biDown.RegisterValueChangedCallback(_=>RegenBiome());
+        _biPrecip.RegisterValueChangedCallback(_=>RegenBiome());
+        RegenBiome();
+    }
+    private VisualElement _biSkyBox, _biGrassBox;
+
+    private void RegenBiome()
+    {
+        if(_biSkyBox != null) _biSkyBox.style.backgroundColor = _biSky;
+        if(_biGrassBox != null) _biGrassBox.style.backgroundColor = _biGrass;
+        string id = string.IsNullOrEmpty(_biId.value) ? "my_biome" : _biId.value;
+        string ID = id.ToUpper();
+        string sky = ColorUtility.ToHtmlStringRGB(_biSky), fog = ColorUtility.ToHtmlStringRGB(_biFog);
+        string water = ColorUtility.ToHtmlStringRGB(_biWater), grass = ColorUtility.ToHtmlStringRGB(_biGrass);
+        _biCode.text =
+$@"context.register({ID}, biomeWithDefaults(
+    defaultAmbientBuilder()
+        .skyColor(0x{sky})
+        .fogColor(0x{fog})
+        .waterColor(0x{water})
+        .grassColorOverride(0x{grass}),
+    defaultMobSpawning(),
+    {Pascal(id)}Gen(featureGetter, carverGetter))
+    .temperature({_biTemp.value:0.00}F).downfall({_biDown.value:0.00}F)
+    .hasPrecipitation({(_biPrecip.value ? "true" : "false")}).build());";
+    }
+
+    private void ColorPicker(VisualElement parent, string label, Color init, Action<Color> onChange)
+    {
+        var wrap = new VisualElement(); wrap.style.marginBottom = 10;
+        var l = new Label(label); l.style.color = MUTED; l.style.fontSize = 12; l.style.marginBottom = 5; wrap.Add(l);
+        var row = Row(); row.style.alignItems = Align.Center;
+        var sw = new VisualElement(); sw.style.width = 32; sw.style.height = 32; Round(sw, 7); sw.style.backgroundColor = init; sw.style.marginRight = 10; row.Add(sw);
+        string[] presets = {"#80A0FF","#C0D8FF","#3F76E4","#6FBF4F","#A0D060","#5C694E","#FF8501","#46C7D8","#FFFFFF","#1B380B"};
+        foreach(var hex in presets){
+            var s = new VisualElement(); s.style.width = 22; s.style.height = 22; s.style.marginRight = 3; Round(s, 5); s.style.backgroundColor = C(hex);
+            var cc = C(hex); s.RegisterCallback<MouseDownEvent>(_=>{ sw.style.backgroundColor = cc; onChange(cc); });
+            row.Add(s);
+        }
+        wrap.Add(row); parent.Add(wrap);
+    }
+
     private Label CodeLabel(){
         var l = new Label(); l.style.whiteSpace = WhiteSpace.Normal; l.style.color = C("#cdd6e0");
         l.style.fontSize = 12; l.style.backgroundColor = BG; SetPadding(l, 12); Round(l, 9);
         return l;
+    }
+
+    // code panel header with an Export button on the right
+    private VisualElement CodeHeader(string lang, string defaultName, string ext, Func<string> getContent)
+    {
+        var ch = Row(); ch.style.justifyContent = Justify.SpaceBetween; ch.style.alignItems = Align.Center; ch.style.marginBottom = 12;
+        var chl = new Label("GENERATED CODE · " + lang.ToUpper()); chl.style.color = MUTED; chl.style.fontSize = 11; chl.style.letterSpacing = 1; chl.style.unityFontStyleAndWeight = FontStyle.Bold;
+        var btn = PillButton("⭳ Export ." + ext, GREEN, Color.white, ()=> ExportCode(defaultName, ext, getContent())); btn.style.height = 28;
+        ch.Add(chl); ch.Add(btn);
+        return ch;
+    }
+
+    private void ExportCode(string defaultName, string ext, string content)
+    {
+        if(string.IsNullOrEmpty(defaultName)) defaultName = "Generated";
+        string path = EditorUtility.SaveFilePanel("Export " + ext.ToUpper(), Application.dataPath, defaultName, ext);
+        if(string.IsNullOrEmpty(path)) return;
+        File.WriteAllText(path, content);
+        AssetDatabase.Refresh();
+        Debug.Log("[Creator Suite] Exported → " + path);
     }
 
     // =========================================================================
