@@ -1,9 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<ui:UXML xmlns:ui="UnityEngine.UIElements" xmlns:uie="UnityEditor.UIElements" noNamespaceSchemaLocation="../../../UIElementsSchema/UIElementsSchema.xsd">
-    <ui:TextField label="Mob ID:" name="input-mob-id" value="custom_ruby_golem" />
-    <ui:TextField label="Ko'rinadigan Nomi:" name="input-mob-name" value="Ruby Golem" />
-    <ui:DropdownField label="Mob Guruhi (Category):" name="input-mob-category" choices="Monster,Creature,Ambient,WaterCreature" value="Monster" />
-    <ui:Slider label="Sog'lig'i (Max Health):" start-value="1" end-value="500" name="slider-mob-health" show-input-value="true" />
-    <ui:Slider label="Harakat Tezligi (Speed):" start-value="0.05" end-value="2" name="slider-mob-speed" show-input-value="true" />
-    <ui:Slider label="Hujum Kuchi (Damage):" start-value="0" end-value="100" name="slider-mob-damage" show-input-value="true" />
-</ui:UXML>

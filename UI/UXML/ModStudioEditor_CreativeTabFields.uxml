@@ -1,6 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<ui:UXML xmlns:ui="UnityEngine.UIElements" xmlns:uie="UnityEditor.UIElements" noNamespaceSchemaLocation="../../../UIElementsSchema/UIElementsSchema.xsd">
-    <ui:TextField label="Tab ID:" name="input-tab-id" value="ruby_tab" />
-    <ui:TextField label="Ko'rinadigan Nomi:" name="input-tab-name" value="Ruby Mod Elements" />
-    <ui:TextField label="Tab Ikonasi (Item ID):" name="input-tab-icon" value="custom_ruby_block" />
-</ui:UXML>
