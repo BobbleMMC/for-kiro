@@ -1711,26 +1711,87 @@ $@"context.register({ID}, biomeWithDefaults(
         foreach(var d in new[]{
             "assets/"+modId+"/textures/block", "assets/"+modId+"/textures/item",
             "assets/"+modId+"/models/block", "assets/"+modId+"/models/item",
-            "assets/"+modId+"/lang", "assets/"+modId+"/particles",
+            "assets/"+modId+"/blockstates", "assets/"+modId+"/lang", "assets/"+modId+"/particles",
             "data/"+modId+"/recipe", "data/"+modId+"/loot_table",
             "data/"+modId+"/advancement", "data/"+modId+"/tags" })
             Directory.CreateDirectory(Path.Combine(resDir, d));
 
         Func<string,string> T = s => s.Replace("%MODID%",modId).Replace("%PKG%",pkg).Replace("%MAIN%",main).Replace("%NAME%",main);
+        Func<string,string> NS = s => s == null ? null : s.Replace("mymod:", modId + ":");
 
+        // resolve current elements from open editors (fallback to examples)
+        string blockId = (_bId != null && !string.IsNullOrEmpty(_bId.value)) ? _bId.value : "example_block";
+        string itemId  = (_iId != null && !string.IsNullOrEmpty(_iId.value)) ? _iId.value : "example_item";
+
+        // --- registration classes (inject the real elements where they compile cleanly) ---
         File.WriteAllText(Path.Combine(javaDir, main + ".java"), T(TPL_MAIN));
-        File.WriteAllText(Path.Combine(initDir, "ModBlocks.java"),       T(TPL_BLOCKS));
-        File.WriteAllText(Path.Combine(initDir, "ModItems.java"),        T(TPL_ITEMS));
+        File.WriteAllText(Path.Combine(initDir, "ModBlocks.java"),
+            T(TPL_BLOCKS).Replace("%EXTRA%", _codeLabel != null ? Indent(NS(_codeLabel.text)) : ""));
+        File.WriteAllText(Path.Combine(initDir, "ModItems.java"),
+            T(TPL_ITEMS).Replace("%EXTRA%", _iCode != null ? Indent(NS(_iCode.text)) : ""));
         File.WriteAllText(Path.Combine(initDir, "ModEntities.java"),     T(TPL_ENTITIES));
-        File.WriteAllText(Path.Combine(initDir, "ModParticles.java"),    T(TPL_PARTICLES));
+        File.WriteAllText(Path.Combine(initDir, "ModParticles.java"),
+            T(TPL_PARTICLES).Replace("%EXTRA%", _pCode != null ? Indent(_pCode.text.Replace("PARTICLE_TYPES","PARTICLES")) : ""));
         File.WriteAllText(Path.Combine(initDir, "ModEnchantments.java"), T(TPL_ENCHANTS));
         File.WriteAllText(Path.Combine(initDir, "ModCreativeTabs.java"), T(TPL_TABS));
         File.WriteAllText(Path.Combine(resDir, "META-INF/neoforge.mods.toml"), T(TPL_TOML));
         File.WriteAllText(Path.Combine(resDir, "pack.mcmeta"), T(TPL_PACK));
         File.WriteAllText(Path.Combine(baseDir, "gradle.properties"), T(TPL_GRADLE));
-        File.WriteAllText(Path.Combine(resDir, "assets/"+modId+"/lang/en_us.json"),
-            "{\n  \"itemGroup."+modId+"\": \""+main+"\",\n  \"block."+modId+".example_block\": \"Example Block\",\n  \"item."+modId+".example_item\": \"Example Item\"\n}\n");
+
+        // --- painted texture + blockstate/models ---
+        if(_layers == null) SeedTexture();
+        var comp = Composite();
+        WritePng(comp, Path.Combine(resDir, "assets/"+modId+"/textures/block/"+blockId+".png"));
+        WritePng(comp, Path.Combine(resDir, "assets/"+modId+"/textures/item/"+itemId+".png"));
+        WriteText(Path.Combine(resDir, "assets/"+modId+"/blockstates/"+blockId+".json"),
+            "{\n  \"variants\": {\n    \"\": { \"model\": \""+modId+":block/"+blockId+"\" }\n  }\n}\n");
+        WriteText(Path.Combine(resDir, "assets/"+modId+"/models/block/"+blockId+".json"),
+            "{\n  \"parent\": \"minecraft:block/cube_all\",\n  \"textures\": { \"all\": \""+modId+":block/"+blockId+"\" }\n}\n");
+        WriteText(Path.Combine(resDir, "assets/"+modId+"/models/item/"+blockId+".json"),
+            "{\n  \"parent\": \""+modId+":block/"+blockId+"\"\n}\n");
+        WriteText(Path.Combine(resDir, "assets/"+modId+"/models/item/"+itemId+".json"),
+            "{\n  \"parent\": \"minecraft:item/generated\",\n  \"textures\": { \"layer0\": \""+modId+":item/"+itemId+"\" }\n}\n");
+
+        // --- data files from open editors ---
+        if(_recCode != null){
+            string rn = (_result >= 0 && _result < INGS.Length) ? INGS[_result].id : "result";
+            rn = rn.Substring(rn.IndexOf(':') + 1);
+            WriteText(Path.Combine(resDir, "data/"+modId+"/recipe/"+rn+".json"), NS(_recCode.text));
+        }
+        if(_ltCode != null){
+            string ln = (_ltId != null && !string.IsNullOrEmpty(_ltId.value)) ? _ltId.value : "blocks/example";
+            WriteText(Path.Combine(resDir, "data/"+modId+"/loot_table/"+ln+".json"), NS(_ltCode.text));
+        }
+        if(_adCode != null){
+            string an = (_adId != null && !string.IsNullOrEmpty(_adId.value)) ? _adId.value : "example";
+            WriteText(Path.Combine(resDir, "data/"+modId+"/advancement/"+an+".json"), NS(_adCode.text));
+        }
+        if(_soCode != null)
+            WriteText(Path.Combine(resDir, "assets/"+modId+"/sounds.json"), NS(_soCode.text));
+
+        // --- lang ---
+        WriteText(Path.Combine(resDir, "assets/"+modId+"/lang/en_us.json"),
+            "{\n  \"itemGroup."+modId+"\": \""+main+"\",\n"
+            + "  \"block."+modId+"."+blockId+"\": \""+Titleize(blockId)+"\",\n"
+            + "  \"item."+modId+"."+itemId+"\": \""+Titleize(itemId)+"\"\n}\n");
         return baseDir;
+    }
+
+    private void WritePng(Color[] comp, string path)
+    {
+        Directory.CreateDirectory(Path.GetDirectoryName(path));
+        var t = new Texture2D(TEX, TEX);
+        for(int y=0;y<TEX;y++) for(int x=0;x<TEX;x++) t.SetPixel(x, TEX-1-y, comp[y*TEX+x]);
+        t.Apply();
+        File.WriteAllBytes(path, t.EncodeToPNG());
+        DestroyImmediate(t);
+    }
+    private void WriteText(string path, string content){ Directory.CreateDirectory(Path.GetDirectoryName(path)); File.WriteAllText(path, content); }
+    private static string Indent(string code){ return "    " + code.Replace("\n", "\n    "); }
+    private static string Titleize(string s){
+        var parts = s.Replace('/','_').Split('_'); var sb = new System.Text.StringBuilder();
+        foreach(var w in parts){ if(w.Length>0){ sb.Append(char.ToUpper(w[0])).Append(w.Substring(1)).Append(' '); } }
+        return sb.ToString().Trim();
     }
 
     private const string TPL_MAIN = @"package %PKG%;
@@ -1757,7 +1818,9 @@ public class %MAIN% {
     private const string TPL_BLOCKS = @"package %PKG%.init;
 
 import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.SoundType;
 import net.minecraft.world.level.block.state.BlockBehaviour;
+import net.minecraft.world.level.material.MapColor;
 import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.Item;
 import net.neoforged.neoforge.registries.DeferredBlock;
@@ -1771,7 +1834,7 @@ public class ModBlocks {
 
     public static final DeferredBlock<Block> EXAMPLE_BLOCK = register(""example_block"",
         () -> new Block(BlockBehaviour.Properties.of().strength(3.0F, 6.0F)));
-
+%EXTRA%
     public static <T extends Block> DeferredBlock<T> register(String name, Supplier<T> block) {
         DeferredBlock<T> ret = BLOCKS.register(name, block);
         ModItems.ITEMS.register(name, () -> new BlockItem(ret.get(), new Item.Properties()));
@@ -1783,6 +1846,8 @@ public class ModBlocks {
     private const string TPL_ITEMS = @"package %PKG%.init;
 
 import net.minecraft.world.item.Item;
+import net.minecraft.world.item.Rarity;
+import net.minecraft.world.food.FoodProperties;
 import net.neoforged.neoforge.registries.DeferredItem;
 import net.neoforged.neoforge.registries.DeferredRegister;
 import %PKG%.%MAIN%;
@@ -1792,6 +1857,7 @@ public class ModItems {
 
     public static final DeferredItem<Item> EXAMPLE_ITEM = ITEMS.register(""example_item"",
         () -> new Item(new Item.Properties()));
+%EXTRA%
 }
 ";
 
@@ -1811,13 +1877,16 @@ public class ModEntities {
     private const string TPL_PARTICLES = @"package %PKG%.init;
 
 import net.minecraft.core.particles.ParticleType;
+import net.minecraft.core.particles.SimpleParticleType;
 import net.minecraft.core.registries.Registries;
+import net.neoforged.neoforge.registries.DeferredHolder;
 import net.neoforged.neoforge.registries.DeferredRegister;
 import %PKG%.%MAIN%;
 
 public class ModParticles {
     public static final DeferredRegister<ParticleType<?>> PARTICLES =
         DeferredRegister.create(Registries.PARTICLE_TYPE, %MAIN%.MOD_ID);
+%EXTRA%
 }
 ";
 
