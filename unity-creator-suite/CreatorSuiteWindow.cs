@@ -200,6 +200,8 @@ public class CreatorSuiteWindow : EditorWindow
     private struct Ed { public string icon, name, desc; public Color accent; public Action go;
         public Ed(string i,string n,string d,Color a,Action g){icon=i;name=n;desc=d;accent=a;go=g;} }
 
+    private TextField _expModId, _expPkg;
+
     private void ShowDashboard()
     {
         SetActiveNav("Dashboard"); SetHeader("Dashboard", "Manage every element of your mod");
@@ -212,6 +214,26 @@ public class CreatorSuiteWindow : EditorWindow
         stats.Add(StatCard("🐺", "63", "Entities", VIOLET));
         stats.Add(StatCard("🖼", "207", "Textures", CYAN));
         _content.Add(stats);
+
+        // ---- Mod skeleton export ----
+        var exP = Panel(); exP.style.marginBottom = 22;
+        exP.Add(PanelHeader("Export Full Mod Project"));
+        var exRow = Row(); exRow.style.alignItems = Align.FlexEnd; exRow.style.flexWrap = Wrap.Wrap;
+        var f1 = new VisualElement(); f1.style.marginRight = 14; f1.style.minWidth = 200;
+        var l1 = new Label("Mod ID"); l1.style.color = MUTED; l1.style.fontSize = 12; l1.style.marginBottom = 5;
+        _expModId = new TextField(){ value = "frostmod" }; _expModId.style.minWidth = 200;
+        f1.Add(l1); f1.Add(_expModId);
+        var f2 = new VisualElement(); f2.style.marginRight = 14; f2.style.minWidth = 240;
+        var l2 = new Label("Java Package"); l2.style.color = MUTED; l2.style.fontSize = 12; l2.style.marginBottom = 5;
+        _expPkg = new TextField(){ value = "com.example.frostmod" }; _expPkg.style.minWidth = 240;
+        f2.Add(l2); f2.Add(_expPkg);
+        var exBtn = PillButton("📦 Export Mod Skeleton", GREEN, Color.white, ExportSkeletonPrompt); exBtn.style.height = 36;
+        exRow.Add(f1); exRow.Add(f2); exRow.Add(exBtn);
+        exP.Add(exRow);
+        var exHint = new Label("Generates a complete NeoForge folder structure with registration classes, mods.toml, pack.mcmeta, assets & data folders.");
+        exHint.style.color = FAINT; exHint.style.fontSize = 11; exHint.style.marginTop = 10; exHint.style.whiteSpace = WhiteSpace.Normal;
+        exP.Add(exHint);
+        _content.Add(exP);
 
         _content.Add(SectionLabel("CREATE NEW ELEMENT"));
 
@@ -227,9 +249,9 @@ public class CreatorSuiteWindow : EditorWindow
             new Ed("✨","Enchantment","Custom enchants with effects", C("#7c8cff"), ShowEnchant),
             new Ed("✦","Particle","Sparks, glows & ambient FX", CYAN, ShowParticle),
             new Ed("🌲","Biome","Climate, colors & generation", GREEN, ShowBiome),
-            new Ed("🏰","Structure","Dungeons, towers & ruins", C("#b0895e"), ()=>ShowBlock()),
-            new Ed("🏆","Advancement","Goals, triggers & rewards", C("#f5c542"), ()=>ShowBlock()),
-            new Ed("🎁","Loot Table","Drops, chances & conditions", RED, ()=>ShowBlock()),
+            new Ed("🏰","Structure","Dungeons, towers & ruins", C("#b0895e"), ShowStructure),
+            new Ed("🏆","Advancement","Goals, triggers & rewards", C("#f5c542"), ShowAdvance),
+            new Ed("🎁","Loot Table","Drops, chances & conditions", RED, ShowLoot),
             new Ed("🔊","Sound","SFX, music discs & ambience", CYAN, ()=>ShowBlock()),
         };
         foreach(var e in eds) grid.Add(EditorCard(e));
@@ -1353,6 +1375,208 @@ $@"context.register({ID}, biomeWithDefaults(
         wrap.Add(row); parent.Add(wrap);
     }
 
+    // =========================================================================
+    // STRUCTURE EDITOR VIEW
+    // =========================================================================
+    private TextField _stId, _stBiome; private DropdownField _stStep, _stTerrain;
+    private Slider _stSize, _stSpacing, _stSep, _stSalt; private Label _stCode;
+
+    private void ShowStructure()
+    {
+        SetActiveNav("World"); SetHeader("Structure Editor", "Dungeons, towers & ruins · placement");
+        _content.Clear();
+        var shell = Row(); shell.style.flexGrow = 1;
+        var form = new VisualElement(); form.style.flexGrow = 1; form.style.marginRight = 14;
+
+        var idP = Panel(); idP.style.marginBottom = 14; idP.Add(PanelHeader("Definition"));
+        _stId = FormText(idP, "Structure ID", "frost_tower");
+        _stBiome = FormText(idP, "Biome Tag", "mymod:has_structure/frost_tower");
+        _stStep = FormDropdown(idP, "Generation Step", new List<string>{"surface_structures","underground_structures","strongholds"});
+        _stTerrain = FormDropdown(idP, "Terrain Adaptation", new List<string>{"none","beard_thin","beard_box","bury","encapsulate"});
+        _stSize = FormSlider(idP, "Jigsaw Size (depth)", 1, 7, 4);
+        form.Add(idP);
+        var plP = Panel(); plP.Add(PanelHeader("Placement (Structure Set)"));
+        _stSpacing = FormSlider(plP, "Spacing (chunks)", 4, 64, 32);
+        _stSep = FormSlider(plP, "Separation", 1, 16, 8);
+        _stSalt = FormSlider(plP, "Salt (seed)", 0, 999999, 165745);
+        form.Add(plP);
+        shell.Add(form);
+
+        var col = new VisualElement(); col.style.width = 420; col.style.flexShrink = 0;
+        var prevP = Panel(); prevP.style.marginBottom = 14; prevP.Add(PanelHeader("Preview"));
+        var stg = new VisualElement(); stg.style.height = 150; stg.style.alignItems = Align.Center; stg.style.justifyContent = Justify.Center; stg.style.backgroundColor = C("#0d1219"); Round(stg, 10);
+        var ic = new Label("🏰"); ic.style.fontSize = 64; stg.Add(ic); prevP.Add(stg); col.Add(prevP);
+        var codeP = Panel(); codeP.Add(CodeHeader("JSON", "structure_set", "json", ()=> _stCode.text));
+        _stCode = CodeLabel(); codeP.Add(_stCode); col.Add(codeP);
+        shell.Add(col); _content.Add(shell);
+
+        _stId.RegisterValueChangedCallback(_=>RegenStructure()); _stBiome.RegisterValueChangedCallback(_=>RegenStructure());
+        _stStep.RegisterValueChangedCallback(_=>RegenStructure()); _stTerrain.RegisterValueChangedCallback(_=>RegenStructure());
+        foreach(var s in new Slider[]{_stSize,_stSpacing,_stSep,_stSalt}) s.RegisterValueChangedCallback(_=>RegenStructure());
+        RegenStructure();
+    }
+
+    private void RegenStructure()
+    {
+        string id = string.IsNullOrEmpty(_stId.value) ? "my_structure" : _stId.value;
+        var sb = new System.Text.StringBuilder();
+        sb.AppendLine("{");
+        sb.AppendLine("  \"structures\": [");
+        sb.AppendLine("    { \"structure\": \"mymod:" + id + "\", \"weight\": 1 }");
+        sb.AppendLine("  ],");
+        sb.AppendLine("  \"placement\": {");
+        sb.AppendLine("    \"type\": \"minecraft:random_spread\",");
+        sb.AppendLine("    \"salt\": " + Mathf.RoundToInt(_stSalt.value) + ",");
+        sb.AppendLine("    \"spacing\": " + Mathf.RoundToInt(_stSpacing.value) + ",");
+        sb.AppendLine("    \"separation\": " + Mathf.RoundToInt(_stSep.value));
+        sb.AppendLine("  }");
+        sb.AppendLine("}");
+        sb.AppendLine("");
+        sb.AppendLine("// structure def -> step=" + _stStep.value + ", terrainAdaptation=" + _stTerrain.value);
+        sb.AppendLine("//   size=" + Mathf.RoundToInt(_stSize.value) + ", biomes=#" + _stBiome.value);
+        _stCode.text = sb.ToString();
+    }
+
+    // =========================================================================
+    // LOOT TABLE EDITOR VIEW
+    // =========================================================================
+    private TextField _ltId; private DropdownField _ltType, _ltItem; private Slider _ltRolls, _ltMin, _ltMax;
+    private Toggle _ltExplosion, _ltPlayer; private Label _ltCode;
+
+    private void ShowLoot()
+    {
+        SetActiveNav("Items"); SetHeader("Loot Table Editor", "Drops, chances & conditions");
+        _content.Clear();
+        var shell = Row(); shell.style.flexGrow = 1;
+        var form = new VisualElement(); form.style.flexGrow = 1; form.style.marginRight = 14;
+
+        var idP = Panel(); idP.style.marginBottom = 14; idP.Add(PanelHeader("Table"));
+        _ltId = FormText(idP, "Loot Table ID", "blocks/ruby_ore");
+        _ltType = FormDropdown(idP, "Type", new List<string>{"block","entity","chest"});
+        form.Add(idP);
+        var poolP = Panel(); poolP.style.marginBottom = 14; poolP.Add(PanelHeader("Pool · Entry"));
+        var items = new List<string>(); foreach(var ing in INGS) items.Add(ing.id);
+        _ltItem = FormDropdown(poolP, "Item", items);
+        _ltRolls = FormSlider(poolP, "Rolls", 1, 5, 1);
+        _ltMin = FormSlider(poolP, "Count Min", 1, 16, 1);
+        _ltMax = FormSlider(poolP, "Count Max", 1, 16, 1);
+        form.Add(poolP);
+        var cP = Panel(); cP.Add(PanelHeader("Conditions"));
+        _ltExplosion = FormToggle(cP, "Survives Explosion (block)", true);
+        _ltPlayer = FormToggle(cP, "Killed by Player (entity)", false);
+        form.Add(cP);
+        shell.Add(form);
+
+        var col = new VisualElement(); col.style.width = 420; col.style.flexShrink = 0;
+        var codeP = Panel(); codeP.Add(CodeHeader("JSON", "loot_table", "json", ()=> _ltCode.text));
+        _ltCode = CodeLabel(); codeP.Add(_ltCode); col.Add(codeP);
+        shell.Add(col); _content.Add(shell);
+
+        _ltId.RegisterValueChangedCallback(_=>RegenLoot()); _ltType.RegisterValueChangedCallback(_=>RegenLoot());
+        _ltItem.RegisterValueChangedCallback(_=>RegenLoot());
+        foreach(var s in new Slider[]{_ltRolls,_ltMin,_ltMax}) s.RegisterValueChangedCallback(_=>RegenLoot());
+        _ltExplosion.RegisterValueChangedCallback(_=>RegenLoot()); _ltPlayer.RegisterValueChangedCallback(_=>RegenLoot());
+        RegenLoot();
+    }
+
+    private void RegenLoot()
+    {
+        string t = _ltType.value;
+        int rolls = Mathf.RoundToInt(_ltRolls.value), mn = Mathf.RoundToInt(_ltMin.value), mx = Mathf.Max(mn, Mathf.RoundToInt(_ltMax.value));
+        var sb = new System.Text.StringBuilder();
+        sb.AppendLine("{");
+        sb.AppendLine("  \"type\": \"minecraft:" + t + "\",");
+        sb.AppendLine("  \"pools\": [");
+        sb.AppendLine("    {");
+        sb.AppendLine("      \"rolls\": " + rolls + ",");
+        sb.AppendLine("      \"entries\": [");
+        sb.AppendLine("        {");
+        sb.AppendLine("          \"type\": \"minecraft:item\",");
+        sb.AppendLine("          \"name\": \"" + _ltItem.value + "\",");
+        sb.AppendLine("          \"functions\": [");
+        sb.AppendLine("            { \"function\": \"minecraft:set_count\", \"count\": { \"type\": \"minecraft:uniform\", \"min\": " + mn + ", \"max\": " + mx + " } }");
+        sb.AppendLine("          ]");
+        sb.AppendLine("        }");
+        sb.AppendLine("      ],");
+        sb.AppendLine("      \"conditions\": [");
+        var conds = new List<string>();
+        if(t == "block" && _ltExplosion.value) conds.Add("        { \"condition\": \"minecraft:survives_explosion\" }");
+        if(t == "entity" && _ltPlayer.value) conds.Add("        { \"condition\": \"minecraft:killed_by_player\" }");
+        for(int i=0;i<conds.Count;i++) sb.AppendLine(conds[i] + (i<conds.Count-1?",":""));
+        sb.AppendLine("      ]");
+        sb.AppendLine("    }");
+        sb.AppendLine("  ]");
+        sb.AppendLine("}");
+        _ltCode.text = sb.ToString();
+    }
+
+    // =========================================================================
+    // ADVANCEMENT EDITOR VIEW
+    // =========================================================================
+    private TextField _adId, _adParent, _adTitle; private DropdownField _adIcon, _adFrame, _adTrigger;
+    private Toggle _adToast, _adChat, _adHidden; private Slider _adExp; private Label _adCode;
+
+    private void ShowAdvance()
+    {
+        SetActiveNav("Effects"); SetHeader("Advancement Editor", "Goals, triggers & rewards");
+        _content.Clear();
+        var shell = Row(); shell.style.flexGrow = 1;
+        var form = new VisualElement(); form.style.flexGrow = 1; form.style.marginRight = 14;
+
+        var idP = Panel(); idP.style.marginBottom = 14; idP.Add(PanelHeader("Display"));
+        _adId = FormText(idP, "Advancement ID", "enter_frost_realm");
+        _adTitle = FormText(idP, "Title", "Frosty Beginnings");
+        _adParent = FormText(idP, "Parent", "minecraft:story/root");
+        _adIcon = FormDropdown(idP, "Icon Item", new List<string>{"minecraft:diamond","minecraft:iron_ingot","minecraft:nether_star","mymod:ruby","minecraft:emerald"});
+        _adFrame = FormDropdown(idP, "Frame", new List<string>{"task","goal","challenge"});
+        form.Add(idP);
+        var trP = Panel(); trP.style.marginBottom = 14; trP.Add(PanelHeader("Trigger & Rewards"));
+        _adTrigger = FormDropdown(trP, "Trigger", new List<string>{"minecraft:inventory_changed","minecraft:player_killed_entity","minecraft:location","minecraft:enter_block","minecraft:consume_item"});
+        _adExp = FormSlider(trP, "Experience Reward", 0, 1000, 100);
+        form.Add(trP);
+        var fP = Panel(); fP.Add(PanelHeader("Flags"));
+        _adToast = FormToggle(fP, "Show Toast", true);
+        _adChat = FormToggle(fP, "Announce to Chat", true);
+        _adHidden = FormToggle(fP, "Hidden", false);
+        form.Add(fP);
+        shell.Add(form);
+
+        var col = new VisualElement(); col.style.width = 420; col.style.flexShrink = 0;
+        var codeP = Panel(); codeP.Add(CodeHeader("JSON", "advancement", "json", ()=> _adCode.text));
+        _adCode = CodeLabel(); codeP.Add(_adCode); col.Add(codeP);
+        shell.Add(col); _content.Add(shell);
+
+        _adId.RegisterValueChangedCallback(_=>RegenAdvance()); _adTitle.RegisterValueChangedCallback(_=>RegenAdvance());
+        _adParent.RegisterValueChangedCallback(_=>RegenAdvance()); _adIcon.RegisterValueChangedCallback(_=>RegenAdvance());
+        _adFrame.RegisterValueChangedCallback(_=>RegenAdvance()); _adTrigger.RegisterValueChangedCallback(_=>RegenAdvance());
+        _adExp.RegisterValueChangedCallback(_=>RegenAdvance());
+        _adToast.RegisterValueChangedCallback(_=>RegenAdvance()); _adChat.RegisterValueChangedCallback(_=>RegenAdvance()); _adHidden.RegisterValueChangedCallback(_=>RegenAdvance());
+        RegenAdvance();
+    }
+
+    private void RegenAdvance()
+    {
+        string title = string.IsNullOrEmpty(_adTitle.value) ? "My Advancement" : _adTitle.value;
+        var sb = new System.Text.StringBuilder();
+        sb.AppendLine("{");
+        sb.AppendLine("  \"parent\": \"" + _adParent.value + "\",");
+        sb.AppendLine("  \"display\": {");
+        sb.AppendLine("    \"icon\": { \"id\": \"" + _adIcon.value + "\" },");
+        sb.AppendLine("    \"title\": { \"text\": \"" + title + "\" },");
+        sb.AppendLine("    \"description\": { \"text\": \"\" },");
+        sb.AppendLine("    \"frame\": \"" + _adFrame.value + "\",");
+        sb.AppendLine("    \"show_toast\": " + (_adToast.value?"true":"false") + ",");
+        sb.AppendLine("    \"announce_to_chat\": " + (_adChat.value?"true":"false") + ",");
+        sb.AppendLine("    \"hidden\": " + (_adHidden.value?"true":"false"));
+        sb.AppendLine("  },");
+        sb.AppendLine("  \"criteria\": {");
+        sb.AppendLine("    \"requirement_0\": { \"trigger\": \"" + _adTrigger.value + "\" }");
+        sb.AppendLine("  },");
+        sb.AppendLine("  \"rewards\": { \"experience\": " + Mathf.RoundToInt(_adExp.value) + " }");
+        sb.AppendLine("}");
+        _adCode.text = sb.ToString();
+    }
+
     private Label CodeLabel(){
         var l = new Label(); l.style.whiteSpace = WhiteSpace.Normal; l.style.color = C("#cdd6e0");
         l.style.fontSize = 12; l.style.backgroundColor = BG; SetPadding(l, 12); Round(l, 9);
@@ -1378,6 +1602,229 @@ $@"context.register({ID}, biomeWithDefaults(
         AssetDatabase.Refresh();
         Debug.Log("[Creator Suite] Exported → " + path);
     }
+
+    // =========================================================================
+    // FULL MOD SKELETON EXPORT
+    // =========================================================================
+    private void ExportSkeletonPrompt()
+    {
+        string modId = string.IsNullOrEmpty(_expModId.value) ? "examplemod" : _expModId.value.Trim().ToLower().Replace(' ','_');
+        string pkg = string.IsNullOrEmpty(_expPkg.value) ? "com.example." + modId : _expPkg.value.Trim();
+        string root = EditorUtility.SaveFolderPanel("Choose output folder for the mod project", Application.dataPath, "");
+        if(string.IsNullOrEmpty(root)) return;
+        try {
+            string dir = ExportSkeleton(modId, pkg, root);
+            AssetDatabase.Refresh();
+            EditorUtility.DisplayDialog("Mod Studio", "Mod skeleton generated:\n\n" + dir, "Great!");
+            Debug.Log("[Creator Suite] Mod skeleton → " + dir);
+        } catch(Exception e){
+            Debug.LogError("[Creator Suite] Skeleton export failed: " + e);
+            EditorUtility.DisplayDialog("Mod Studio", "Export failed: " + e.Message, "OK");
+        }
+    }
+
+    private string ExportSkeleton(string modId, string pkg, string root)
+    {
+        string main = Pascal(modId);
+        string pkgPath = pkg.Replace('.', '/');
+        string baseDir = Path.Combine(root, modId);
+        string javaDir = Path.Combine(baseDir, "src/main/java/" + pkgPath);
+        string initDir = Path.Combine(javaDir, "init");
+        string resDir  = Path.Combine(baseDir, "src/main/resources");
+
+        Directory.CreateDirectory(initDir);
+        Directory.CreateDirectory(Path.Combine(resDir, "META-INF"));
+        foreach(var d in new[]{
+            "assets/"+modId+"/textures/block", "assets/"+modId+"/textures/item",
+            "assets/"+modId+"/models/block", "assets/"+modId+"/models/item",
+            "assets/"+modId+"/lang", "assets/"+modId+"/particles",
+            "data/"+modId+"/recipe", "data/"+modId+"/loot_table",
+            "data/"+modId+"/advancement", "data/"+modId+"/tags" })
+            Directory.CreateDirectory(Path.Combine(resDir, d));
+
+        Func<string,string> T = s => s.Replace("%MODID%",modId).Replace("%PKG%",pkg).Replace("%MAIN%",main).Replace("%NAME%",main);
+
+        File.WriteAllText(Path.Combine(javaDir, main + ".java"), T(TPL_MAIN));
+        File.WriteAllText(Path.Combine(initDir, "ModBlocks.java"),       T(TPL_BLOCKS));
+        File.WriteAllText(Path.Combine(initDir, "ModItems.java"),        T(TPL_ITEMS));
+        File.WriteAllText(Path.Combine(initDir, "ModEntities.java"),     T(TPL_ENTITIES));
+        File.WriteAllText(Path.Combine(initDir, "ModParticles.java"),    T(TPL_PARTICLES));
+        File.WriteAllText(Path.Combine(initDir, "ModEnchantments.java"), T(TPL_ENCHANTS));
+        File.WriteAllText(Path.Combine(initDir, "ModCreativeTabs.java"), T(TPL_TABS));
+        File.WriteAllText(Path.Combine(resDir, "META-INF/neoforge.mods.toml"), T(TPL_TOML));
+        File.WriteAllText(Path.Combine(resDir, "pack.mcmeta"), T(TPL_PACK));
+        File.WriteAllText(Path.Combine(baseDir, "gradle.properties"), T(TPL_GRADLE));
+        File.WriteAllText(Path.Combine(resDir, "assets/"+modId+"/lang/en_us.json"),
+            "{\n  \"itemGroup."+modId+"\": \""+main+"\",\n  \"block."+modId+".example_block\": \"Example Block\",\n  \"item."+modId+".example_item\": \"Example Item\"\n}\n");
+        return baseDir;
+    }
+
+    private const string TPL_MAIN = @"package %PKG%;
+
+import net.neoforged.bus.api.IEventBus;
+import net.neoforged.fml.common.Mod;
+import %PKG%.init.*;
+
+@Mod(%MAIN%.MOD_ID)
+public class %MAIN% {
+    public static final String MOD_ID = ""%MODID%"";
+
+    public %MAIN%(IEventBus bus) {
+        ModBlocks.BLOCKS.register(bus);
+        ModItems.ITEMS.register(bus);
+        ModEntities.ENTITIES.register(bus);
+        ModParticles.PARTICLES.register(bus);
+        ModEnchantments.ENCHANTMENTS.register(bus);
+        ModCreativeTabs.TABS.register(bus);
+    }
+}
+";
+
+    private const string TPL_BLOCKS = @"package %PKG%.init;
+
+import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.state.BlockBehaviour;
+import net.minecraft.world.item.BlockItem;
+import net.minecraft.world.item.Item;
+import net.neoforged.neoforge.registries.DeferredBlock;
+import net.neoforged.neoforge.registries.DeferredRegister;
+import %PKG%.%MAIN%;
+
+import java.util.function.Supplier;
+
+public class ModBlocks {
+    public static final DeferredRegister.Blocks BLOCKS = DeferredRegister.createBlocks(%MAIN%.MOD_ID);
+
+    public static final DeferredBlock<Block> EXAMPLE_BLOCK = register(""example_block"",
+        () -> new Block(BlockBehaviour.Properties.of().strength(3.0F, 6.0F)));
+
+    public static <T extends Block> DeferredBlock<T> register(String name, Supplier<T> block) {
+        DeferredBlock<T> ret = BLOCKS.register(name, block);
+        ModItems.ITEMS.register(name, () -> new BlockItem(ret.get(), new Item.Properties()));
+        return ret;
+    }
+}
+";
+
+    private const string TPL_ITEMS = @"package %PKG%.init;
+
+import net.minecraft.world.item.Item;
+import net.neoforged.neoforge.registries.DeferredItem;
+import net.neoforged.neoforge.registries.DeferredRegister;
+import %PKG%.%MAIN%;
+
+public class ModItems {
+    public static final DeferredRegister.Items ITEMS = DeferredRegister.createItems(%MAIN%.MOD_ID);
+
+    public static final DeferredItem<Item> EXAMPLE_ITEM = ITEMS.register(""example_item"",
+        () -> new Item(new Item.Properties()));
+}
+";
+
+    private const string TPL_ENTITIES = @"package %PKG%.init;
+
+import net.minecraft.core.registries.Registries;
+import net.minecraft.world.entity.EntityType;
+import net.neoforged.neoforge.registries.DeferredRegister;
+import %PKG%.%MAIN%;
+
+public class ModEntities {
+    public static final DeferredRegister<EntityType<?>> ENTITIES =
+        DeferredRegister.create(Registries.ENTITY_TYPE, %MAIN%.MOD_ID);
+}
+";
+
+    private const string TPL_PARTICLES = @"package %PKG%.init;
+
+import net.minecraft.core.particles.ParticleType;
+import net.minecraft.core.registries.Registries;
+import net.neoforged.neoforge.registries.DeferredRegister;
+import %PKG%.%MAIN%;
+
+public class ModParticles {
+    public static final DeferredRegister<ParticleType<?>> PARTICLES =
+        DeferredRegister.create(Registries.PARTICLE_TYPE, %MAIN%.MOD_ID);
+}
+";
+
+    private const string TPL_ENCHANTS = @"package %PKG%.init;
+
+import net.minecraft.core.registries.Registries;
+import net.minecraft.world.item.enchantment.Enchantment;
+import net.neoforged.neoforge.registries.DeferredRegister;
+import %PKG%.%MAIN%;
+
+public class ModEnchantments {
+    public static final DeferredRegister<Enchantment> ENCHANTMENTS =
+        DeferredRegister.create(Registries.ENCHANTMENT, %MAIN%.MOD_ID);
+}
+";
+
+    private const string TPL_TABS = @"package %PKG%.init;
+
+import net.minecraft.core.registries.Registries;
+import net.minecraft.network.chat.Component;
+import net.minecraft.world.item.CreativeModeTab;
+import net.minecraft.world.item.ItemStack;
+import net.neoforged.neoforge.registries.DeferredHolder;
+import net.neoforged.neoforge.registries.DeferredRegister;
+import %PKG%.%MAIN%;
+
+public class ModCreativeTabs {
+    public static final DeferredRegister<CreativeModeTab> TABS =
+        DeferredRegister.create(Registries.CREATIVE_MODE_TAB, %MAIN%.MOD_ID);
+
+    public static final DeferredHolder<CreativeModeTab, CreativeModeTab> MAIN_TAB =
+        TABS.register(""main"", () -> CreativeModeTab.builder()
+            .title(Component.translatable(""itemGroup.%MODID%""))
+            .icon(() -> new ItemStack(ModItems.EXAMPLE_ITEM.get()))
+            .displayItems((params, output) -> {
+                output.accept(ModItems.EXAMPLE_ITEM.get());
+                output.accept(ModBlocks.EXAMPLE_BLOCK.get());
+            }).build());
+}
+";
+
+    private const string TPL_TOML = @"modLoader=""javafml""
+loaderVersion=""[1,)""
+license=""MIT""
+
+[[mods]]
+modId=""%MODID%""
+version=""1.0.0""
+displayName=""%NAME%""
+description=""Generated by Mod Studio Creator Suite.""
+
+[[dependencies.%MODID%]]
+modId=""neoforge""
+type=""required""
+versionRange=""[20,)""
+ordering=""NONE""
+side=""BOTH""
+
+[[dependencies.%MODID%]]
+modId=""minecraft""
+type=""required""
+versionRange=""[1.20,)""
+ordering=""NONE""
+side=""BOTH""
+";
+
+    private const string TPL_PACK = @"{
+  ""pack"": {
+    ""pack_format"": 15,
+    ""description"": ""%NAME% resources""
+  }
+}
+";
+
+    private const string TPL_GRADLE = @"# Generated by Mod Studio Creator Suite
+mod_id=%MODID%
+mod_name=%NAME%
+mod_version=1.0.0
+minecraft_version=1.20.1
+neoforge_version=47.1.0
+";
 
     // =========================================================================
     // SMALL UI HELPERS
