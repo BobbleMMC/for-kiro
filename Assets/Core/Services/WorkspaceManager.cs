@@ -107,9 +107,13 @@ public static class WorkspaceManager
             File.WriteAllText(Path.Combine(mainJavaPath, "item/ModItems.java"), itemsCode);
 
             // MyMod.java — Fabric vs NeoForge entrypoint
-            string mainModCode = loader == "NeoForge"
-                ? GenerateNeoForgeMainMod(modId)
-                : GenerateFabricMainMod(modId);
+            string mainModCode;
+            if (loader == "NeoForge")
+                mainModCode = GenerateNeoForgeMainMod(modId);
+            else if (loader == "Quilt")
+                mainModCode = GenerateQuiltMainMod(modId);
+            else
+                mainModCode = GenerateFabricMainMod(modId);
             File.WriteAllText(Path.Combine(mainJavaPath, "MyMod.java"), mainModCode);
 
             // 3. Blok modellari va holat JSON fayllarini eksport qilish
@@ -170,6 +174,22 @@ public static class WorkspaceManager
             langJson.AppendLine("}");
             File.WriteAllText(Path.Combine(assetsPath, "lang/en_us.json"), langJson.ToString());
 
+            // 7. DataGen Java fayllarini eksport qilish (Fabric DataProvider pattern)
+            if (loader != "NeoForge") // DataGen asosan Fabric/Quilt uchun
+            {
+                var dataGenFiles = DataGenGenerator.GenerateAllDataGenFiles(workspace);
+                string datagenJavaPath = Path.Combine(folderPath, "src/main/java/net", modId);
+
+                foreach (var entry in dataGenFiles)
+                {
+                    string filePath = Path.Combine(datagenJavaPath, entry.Key);
+                    Directory.CreateDirectory(Path.GetDirectoryName(filePath));
+                    File.WriteAllText(filePath, entry.Value);
+                }
+
+                StudioLogger.Log($"[DataGen] {dataGenFiles.Count} ta DataProvider Java fayli yaratildi.");
+            }
+
             StudioLogger.Log($"[Workspace ✓] Barcha mod elementlari muvaffaqiyatli eksport qilindi: {folderPath}");
         }
         catch (Exception ex)
@@ -225,6 +245,31 @@ public class MyMod {{
         ModBlocks.register(modEventBus);
         ModItems.register(modEventBus);
         LOGGER.info(""{modId} NeoForge muvaffaqiyatli yuklandi!"");
+    }}
+}}";
+    }
+
+    private static string GenerateQuiltMainMod(string modId)
+    {
+        return
+$@"package net.{modId};
+
+import org.quiltmc.loader.api.ModContainer;
+import org.quiltmc.qsl.base.api.entrypoint.ModInitializer;
+import net.{modId}.block.ModBlocks;
+import net.{modId}.item.ModItems;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+public class MyMod implements ModInitializer {{
+    public static final String MOD_ID = ""{modId}"";
+    public static final Logger LOGGER = LoggerFactory.getLogger(MOD_ID);
+
+    @Override
+    public void onInitialize(ModContainer mod) {{
+        ModBlocks.initialize();
+        ModItems.initialize();
+        LOGGER.info(""{modId} Quilt modloader orqali muvaffaqiyatli yuklandi!"");
     }}
 }}";
     }

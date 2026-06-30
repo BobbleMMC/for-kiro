@@ -160,18 +160,37 @@ public static class JavaCodeGenerator
         string modId, string mcVersion)
     {
         bool useResourceKey = IsVersionAtLeast(mcVersion, 1, 21);
+        bool useComponents  = IsVersionAtLeast(mcVersion, 1, 21); // 1.20.5+ Item Components
         StringBuilder sb    = new StringBuilder();
 
         sb.AppendLine($"package net.{modId}.item;");
         sb.AppendLine();
-        sb.AppendLine("import net.fabricmc.fabric.api.item.v1.FabricItemSettings;");
-        sb.AppendLine("import net.minecraft.item.*;");
-        sb.AppendLine("import net.minecraft.registry.Registries;");
-        sb.AppendLine("import net.minecraft.registry.Registry;");
-        sb.AppendLine("import net.minecraft.sound.SoundEvents;");
-        sb.AppendLine("import net.minecraft.sound.SoundEvent;");
-        sb.AppendLine("import net.minecraft.recipe.Ingredient;");
-        sb.AppendLine("import net.minecraft.util.Identifier;");
+
+        // Versiya-farqli import lar
+        if (useComponents)
+        {
+            sb.AppendLine("import net.minecraft.component.DataComponentTypes;");
+            sb.AppendLine("import net.minecraft.component.type.FoodComponent;");
+            sb.AppendLine("import net.minecraft.item.*;");
+            sb.AppendLine("import net.minecraft.registry.Registries;");
+            sb.AppendLine("import net.minecraft.registry.Registry;");
+            sb.AppendLine("import net.minecraft.registry.tag.BlockTags;");
+            sb.AppendLine("import net.minecraft.sound.SoundEvents;");
+            sb.AppendLine("import net.minecraft.sound.SoundEvent;");
+            sb.AppendLine("import net.minecraft.recipe.Ingredient;");
+            sb.AppendLine("import net.minecraft.util.Identifier;");
+        }
+        else
+        {
+            sb.AppendLine("import net.fabricmc.fabric.api.item.v1.FabricItemSettings;");
+            sb.AppendLine("import net.minecraft.item.*;");
+            sb.AppendLine("import net.minecraft.registry.Registries;");
+            sb.AppendLine("import net.minecraft.registry.Registry;");
+            sb.AppendLine("import net.minecraft.sound.SoundEvents;");
+            sb.AppendLine("import net.minecraft.sound.SoundEvent;");
+            sb.AppendLine("import net.minecraft.recipe.Ingredient;");
+            sb.AppendLine("import net.minecraft.util.Identifier;");
+        }
         sb.AppendLine();
         sb.AppendLine($"public class ModItems {{");
         sb.AppendLine();
@@ -182,12 +201,29 @@ public static class JavaCodeGenerator
             sb.AppendLine("    // ── Basic Items ──────────────────────────────────────────");
             foreach (var item in items)
             {
-                string uid  = item.itemId.ToUpper();
-                string food = item.isFood
-                    ? "\n            .food(new FoodComponent.Builder().hunger(4).saturationModifier(0.3f).build())"
-                    : "";
-                sb.AppendLine($"    public static final Item {uid} =");
-                sb.AppendLine($"        register(\"{item.itemId}\", new Item(new Item.Settings().maxCount({item.stackSize}){food}));");
+                string uid = item.itemId.ToUpper();
+
+                if (useComponents)
+                {
+                    // 1.21+ Item Components pattern
+                    string settings = $"new Item.Settings().maxCount({item.stackSize})";
+                    if (item.isFood)
+                    {
+                        settings += "\n            .component(DataComponentTypes.FOOD, new FoodComponent.Builder()" +
+                                    "\n                .nutrition(4).saturationModifier(0.3f).build())";
+                    }
+                    sb.AppendLine($"    public static final Item {uid} =");
+                    sb.AppendLine($"        register(\"{item.itemId}\", new Item({settings}));");
+                }
+                else
+                {
+                    // 1.20.x legacy pattern
+                    string food = item.isFood
+                        ? "\n            .food(new FoodComponent.Builder().hunger(4).saturationModifier(0.3f).build())"
+                        : "";
+                    sb.AppendLine($"    public static final Item {uid} =");
+                    sb.AppendLine($"        register(\"{item.itemId}\", new Item(new Item.Settings().maxCount({item.stackSize}){food}));");
+                }
                 sb.AppendLine();
             }
         }
@@ -196,23 +232,52 @@ public static class JavaCodeGenerator
         if (tools != null && tools.Count > 0)
         {
             sb.AppendLine("    // ── Tools ────────────────────────────────────────────────");
+
+            if (useComponents)
+            {
+                // 1.21+ ToolMaterial — static factory method pattern
+                sb.AppendLine("    // 1.21+ ToolMaterial: ToolMaterial.of() factory yoki anonymous class");
+                sb.AppendLine();
+            }
+
             foreach (var tool in tools)
             {
-                string uid  = tool.toolId.ToUpper();
-                string mat  = $"MATERIAL_{uid}";
-                string cls  = tool.toolType.ToString() + "Item";
+                string uid = tool.toolId.ToUpper();
+                string mat = $"MATERIAL_{uid}";
+                string cls = tool.toolType.ToString() + "Item";
 
-                sb.AppendLine($"    public static final ToolMaterial {mat} = new ToolMaterial() {{");
-                sb.AppendLine($"        @Override public int getDurability()               {{ return {tool.durability}; }}");
-                sb.AppendLine($"        @Override public float getMiningSpeedMultiplier()  {{ return 8.0f; }}");
-                sb.AppendLine($"        @Override public float getAttackDamage()           {{ return {F(tool.attackDamage)}f; }}");
-                sb.AppendLine($"        @Override public int getMiningLevel()              {{ return {tool.miningLevel}; }}");
-                sb.AppendLine($"        @Override public int getEnchantability()           {{ return 15; }}");
-                sb.AppendLine($"        @Override public Ingredient getRepairIngredient()  {{ return null; }}");
-                sb.AppendLine("    };");
-                sb.AppendLine();
-                sb.AppendLine($"    public static final ToolItem {uid} =");
-                sb.AppendLine($"        registerTool(\"{tool.toolId}\", new {cls}({mat}, {(int)tool.attackDamage}, {F(tool.attackSpeed)}f, new Item.Settings()));");
+                if (useComponents)
+                {
+                    // 1.21+ pattern: ToolMaterial record-style
+                    sb.AppendLine($"    public static final ToolMaterial {mat} = new ToolMaterial(");
+                    sb.AppendLine($"        BlockTags.INCORRECT_FOR_DIAMOND_TOOL, // Qazish darajasi");
+                    sb.AppendLine($"        {tool.durability},   // Chidamlilik");
+                    sb.AppendLine($"        8.0f,                // Qazish tezligi");
+                    sb.AppendLine($"        {F(tool.attackDamage)}f,  // Hujum kuchi");
+                    sb.AppendLine($"        15,                  // Sehrlanish qobiliyati");
+                    sb.AppendLine($"        () -> Ingredient.EMPTY");
+                    sb.AppendLine($"    );");
+                    sb.AppendLine();
+                    sb.AppendLine($"    public static final ToolItem {uid} =");
+                    sb.AppendLine($"        registerTool(\"{tool.toolId}\", new {cls}({mat},");
+                    sb.AppendLine($"            new Item.Settings().attributeModifiers({cls}.createAttributeModifiers(");
+                    sb.AppendLine($"                {mat}, {(int)tool.attackDamage}, {F(tool.attackSpeed)}f))));");
+                }
+                else
+                {
+                    // 1.20.x legacy anonymous class pattern
+                    sb.AppendLine($"    public static final ToolMaterial {mat} = new ToolMaterial() {{");
+                    sb.AppendLine($"        @Override public int getDurability()               {{ return {tool.durability}; }}");
+                    sb.AppendLine($"        @Override public float getMiningSpeedMultiplier()  {{ return 8.0f; }}");
+                    sb.AppendLine($"        @Override public float getAttackDamage()           {{ return {F(tool.attackDamage)}f; }}");
+                    sb.AppendLine($"        @Override public int getMiningLevel()              {{ return {tool.miningLevel}; }}");
+                    sb.AppendLine($"        @Override public int getEnchantability()           {{ return 15; }}");
+                    sb.AppendLine($"        @Override public Ingredient getRepairIngredient()  {{ return null; }}");
+                    sb.AppendLine("    };");
+                    sb.AppendLine();
+                    sb.AppendLine($"    public static final ToolItem {uid} =");
+                    sb.AppendLine($"        registerTool(\"{tool.toolId}\", new {cls}({mat}, {(int)tool.attackDamage}, {F(tool.attackSpeed)}f, new Item.Settings()));");
+                }
                 sb.AppendLine();
             }
         }
@@ -221,25 +286,49 @@ public static class JavaCodeGenerator
         if (armors != null && armors.Count > 0)
         {
             sb.AppendLine("    // ── Armors ───────────────────────────────────────────────");
+
+            if (useComponents)
+            {
+                // 1.21+ ArmorMaterial — registry-based (Holder<ArmorMaterial>)
+                sb.AppendLine("    // 1.21+: ArmorMaterial registratsiya orqali Holder sifatida olinadi");
+                sb.AppendLine("    // Haqiqiy loyihada ArmorMaterials registry ga qo'shiladi");
+                sb.AppendLine();
+            }
+
             foreach (var armor in armors)
             {
-                string uid   = armor.armorId.ToUpper();
-                string mat   = $"ARMOR_MATERIAL_{uid}";
-                string slot  = NeoForgeArmorSlot(armor.armorSlot); // same constants on Fabric too
+                string uid  = armor.armorId.ToUpper();
+                string mat  = $"ARMOR_MATERIAL_{uid}";
+                string slot = armor.armorSlot.ToString().ToUpper();
 
-                sb.AppendLine($"    public static final ArmorMaterial {mat} = new ArmorMaterial() {{");
-                sb.AppendLine($"        @Override public int getDurability(ArmorItem.Type t)  {{ return 500; }}");
-                sb.AppendLine($"        @Override public int getProtection(ArmorItem.Type t)  {{ return t == ArmorItem.Type.{armor.armorSlot.ToString().ToUpper()} ? {armor.defense} : 1; }}");
-                sb.AppendLine($"        @Override public int getEnchantability()              {{ return 15; }}");
-                sb.AppendLine($"        @Override public SoundEvent getEquipSound()           {{ return SoundEvents.ITEM_ARMOR_EQUIP_DIAMOND; }}");
-                sb.AppendLine($"        @Override public Ingredient getRepairIngredient()     {{ return null; }}");
-                sb.AppendLine($"        @Override public String getName()                     {{ return \"{armor.armorId}\"; }}");
-                sb.AppendLine($"        @Override public float getToughness()                 {{ return {F(armor.toughness)}f; }}");
-                sb.AppendLine($"        @Override public float getKnockbackResistance()       {{ return {F(armor.knockbackResistance)}f; }}");
-                sb.AppendLine("    };");
-                sb.AppendLine();
-                sb.AppendLine($"    public static final ArmorItem {uid} =");
-                sb.AppendLine($"        registerArmor(\"{armor.armorId}\", new ArmorItem({mat}, ArmorItem.Type.{armor.armorSlot.ToString().ToUpper()}, new Item.Settings()));");
+                if (useComponents)
+                {
+                    // 1.21+ pattern: simplified ArmorItem with component settings
+                    sb.AppendLine($"    // {armor.displayName} ({armor.armorSlot})");
+                    sb.AppendLine($"    public static final ArmorItem {uid} =");
+                    sb.AppendLine($"        registerArmor(\"{armor.armorId}\", new ArmorItem(");
+                    sb.AppendLine($"            ArmorMaterials.DIAMOND, // TODO: Custom material registratsiya qiling");
+                    sb.AppendLine($"            ArmorItem.Type.{slot},");
+                    sb.AppendLine($"            new Item.Settings().maxDamage(ArmorItem.Type.{slot}.getMaxDamage(37))");
+                    sb.AppendLine($"        ));");
+                }
+                else
+                {
+                    // 1.20.x legacy anonymous ArmorMaterial pattern
+                    sb.AppendLine($"    public static final ArmorMaterial {mat} = new ArmorMaterial() {{");
+                    sb.AppendLine($"        @Override public int getDurability(ArmorItem.Type t)  {{ return 500; }}");
+                    sb.AppendLine($"        @Override public int getProtection(ArmorItem.Type t)  {{ return t == ArmorItem.Type.{slot} ? {armor.defense} : 1; }}");
+                    sb.AppendLine($"        @Override public int getEnchantability()              {{ return 15; }}");
+                    sb.AppendLine($"        @Override public SoundEvent getEquipSound()           {{ return SoundEvents.ITEM_ARMOR_EQUIP_DIAMOND; }}");
+                    sb.AppendLine($"        @Override public Ingredient getRepairIngredient()     {{ return null; }}");
+                    sb.AppendLine($"        @Override public String getName()                     {{ return \"{armor.armorId}\"; }}");
+                    sb.AppendLine($"        @Override public float getToughness()                 {{ return {F(armor.toughness)}f; }}");
+                    sb.AppendLine($"        @Override public float getKnockbackResistance()       {{ return {F(armor.knockbackResistance)}f; }}");
+                    sb.AppendLine("    };");
+                    sb.AppendLine();
+                    sb.AppendLine($"    public static final ArmorItem {uid} =");
+                    sb.AppendLine($"        registerArmor(\"{armor.armorId}\", new ArmorItem({mat}, ArmorItem.Type.{slot}, new Item.Settings()));");
+                }
                 sb.AppendLine();
             }
         }
@@ -274,10 +363,18 @@ public static class JavaCodeGenerator
         sb.AppendLine($"package net.{modId}.item;");
         sb.AppendLine();
         sb.AppendLine("import net.minecraft.world.item.*;");
+        sb.AppendLine("import net.minecraft.world.item.crafting.Ingredient;");
+        sb.AppendLine("import net.minecraft.sounds.SoundEvents;");
+        sb.AppendLine("import net.minecraft.sounds.SoundEvent;");
+        sb.AppendLine("import net.minecraft.core.Holder;");
+        sb.AppendLine("import net.minecraft.tags.BlockTags;");
         sb.AppendLine("import net.neoforged.bus.api.IEventBus;");
         sb.AppendLine("import net.neoforged.neoforge.registries.DeferredItem;");
         sb.AppendLine("import net.neoforged.neoforge.registries.DeferredRegister;");
         sb.AppendLine($"import net.{modId}.MyMod;");
+        sb.AppendLine();
+        sb.AppendLine("import java.util.EnumMap;");
+        sb.AppendLine("import java.util.List;");
         sb.AppendLine();
         sb.AppendLine($"public class ModItems {{");
         sb.AppendLine();
@@ -285,34 +382,144 @@ public static class JavaCodeGenerator
         sb.AppendLine($"        DeferredRegister.createItems(MyMod.MOD_ID);");
         sb.AppendLine();
 
-        if (items != null)
+        // ── Basic Items ──
+        if (items != null && items.Count > 0)
         {
+            sb.AppendLine("    // ═══════════════════════════════════════════════════════════");
+            sb.AppendLine("    // BASIC ITEMS");
+            sb.AppendLine("    // ═══════════════════════════════════════════════════════════");
+            sb.AppendLine();
             foreach (var item in items)
             {
+                string uid = item.itemId.ToUpper();
+                string food = item.isFood ? ".food(new FoodProperties.Builder().nutrition(4).saturationModifier(0.3f).build())" : "";
                 sb.AppendLine($"    // {item.displayName}");
-                sb.AppendLine($"    public static final DeferredItem<Item> {item.itemId.ToUpper()} =");
-                sb.AppendLine($"        ITEMS.registerSimpleItem(\"{item.itemId}\", new Item.Properties().stacksTo({item.stackSize}));");
+                sb.AppendLine($"    public static final DeferredItem<Item> {uid} =");
+                sb.AppendLine($"        ITEMS.registerSimpleItem(\"{item.itemId}\", new Item.Properties().stacksTo({item.stackSize}){food});");
                 sb.AppendLine();
             }
         }
 
-        if (tools != null)
+        // ── Tool Tier ──
+        if (tools != null && tools.Count > 0)
         {
+            sb.AppendLine("    // ═══════════════════════════════════════════════════════════");
+            sb.AppendLine("    // CUSTOM TOOL TIER");
+            sb.AppendLine("    // ═══════════════════════════════════════════════════════════");
+            sb.AppendLine();
+            sb.AppendLine($"    public static final Tier CUSTOM_TIER = new Tier(");
+            sb.AppendLine($"        BlockTags.INCORRECT_FOR_DIAMOND_TOOL, // Qazish darajasi (Diamond = 3)");
+            sb.AppendLine($"        {tools[0].durability},                // Chidamlilik");
+            sb.AppendLine($"        8.0f,                                 // Qazish tezligi");
+            sb.AppendLine($"        {F(tools[0].attackDamage)}f,          // Hujum kuchi bonusi");
+            sb.AppendLine($"        15,                                   // Sehrlanish qobiliyati");
+            sb.AppendLine($"        () -> Ingredient.EMPTY               // Ta'mirlash materiali");
+            sb.AppendLine($"    );");
+            sb.AppendLine();
+
+            sb.AppendLine("    // ── Tool Items ───────────────────────────────────────────");
+            sb.AppendLine();
             foreach (var tool in tools)
             {
-                sb.AppendLine($"    // {tool.displayName}");
-                sb.AppendLine($"    public static final DeferredItem<Item> {tool.toolId.ToUpper()} =");
-                sb.AppendLine($"        ITEMS.registerSimpleItem(\"{tool.toolId}\");");
+                string uid = tool.toolId.ToUpper();
+                string toolClass = GetNeoForgeToolClass(tool.toolType);
+                float baseDamage = tool.attackDamage;
+                float baseSpeed = tool.attackSpeed;
+
+                sb.AppendLine($"    // {tool.displayName} ({tool.toolType})");
+                sb.AppendLine($"    public static final DeferredItem<Item> {uid} =");
+                sb.AppendLine($"        ITEMS.registerItem(\"{tool.toolId}\", props -> new {toolClass}(");
+                sb.AppendLine($"            CUSTOM_TIER, {F(baseDamage)}f, {F(baseSpeed)}f,");
+                sb.AppendLine($"            props.durability({tool.durability})");
+                sb.AppendLine($"        ));");
                 sb.AppendLine();
             }
         }
 
+        // ── Armor Material ──
+        if (armors != null && armors.Count > 0)
+        {
+            sb.AppendLine("    // ═══════════════════════════════════════════════════════════");
+            sb.AppendLine("    // CUSTOM ARMOR MATERIAL");
+            sb.AppendLine("    // ═══════════════════════════════════════════════════════════");
+            sb.AppendLine();
+
+            // NeoForge ArmorMaterial (1.21+ style)
+            sb.AppendLine("    public static final ArmorMaterial CUSTOM_ARMOR_MATERIAL = new ArmorMaterial(");
+            sb.AppendLine("        // Himoya qiymatlari (slot bo'yicha)");
+            sb.AppendLine("        new EnumMap<>(ArmorItem.Type.class) {{");
+
+            // Har bir armor slot uchun defense qiymati
+            int helmetDef = 3, chestDef = 8, legsDef = 6, bootsDef = 3;
+            foreach (var armor in armors)
+            {
+                switch (armor.armorSlot)
+                {
+                    case ArmorSlot.Helmet:     helmetDef = armor.defense; break;
+                    case ArmorSlot.Chestplate: chestDef  = armor.defense; break;
+                    case ArmorSlot.Leggings:   legsDef   = armor.defense; break;
+                    case ArmorSlot.Boots:      bootsDef  = armor.defense; break;
+                }
+            }
+            sb.AppendLine($"            put(ArmorItem.Type.HELMET, {helmetDef});");
+            sb.AppendLine($"            put(ArmorItem.Type.CHESTPLATE, {chestDef});");
+            sb.AppendLine($"            put(ArmorItem.Type.LEGGINGS, {legsDef});");
+            sb.AppendLine($"            put(ArmorItem.Type.BOOTS, {bootsDef});");
+            sb.AppendLine("        }},");
+            sb.AppendLine("        15,                                    // Sehrlanish qobiliyati");
+            sb.AppendLine("        SoundEvents.ARMOR_EQUIP_DIAMOND,       // Kiyish ovozi");
+            sb.AppendLine("        () -> Ingredient.EMPTY,                // Ta'mirlash materiali");
+            sb.AppendLine($"        List.of(new ArmorMaterial.Layer(MyMod.MOD_ID + \"_custom\")),");
+
+            float toughness = armors.Count > 0 ? armors[0].toughness : 2.0f;
+            float knockback = armors.Count > 0 ? armors[0].knockbackResistance : 0.0f;
+            sb.AppendLine($"        {F(toughness)}f,                      // Qattiqlik (Toughness)");
+            sb.AppendLine($"        {F(knockback)}f                       // Turtki qarshiligi");
+            sb.AppendLine("    );");
+            sb.AppendLine();
+
+            sb.AppendLine("    // ── Armor Items ──────────────────────────────────────────");
+            sb.AppendLine();
+            foreach (var armor in armors)
+            {
+                string uid = armor.armorId.ToUpper();
+                string slotEnum = armor.armorSlot.ToString().ToUpper();
+
+                sb.AppendLine($"    // {armor.displayName} ({armor.armorSlot})");
+                sb.AppendLine($"    public static final DeferredItem<Item> {uid} =");
+                sb.AppendLine($"        ITEMS.registerItem(\"{armor.armorId}\", props -> new ArmorItem(");
+                sb.AppendLine($"            CUSTOM_ARMOR_MATERIAL, ArmorItem.Type.{slotEnum},");
+                sb.AppendLine($"            props.durability(ArmorItem.Type.{slotEnum}.getDurability(37))");
+                sb.AppendLine($"        ));");
+                sb.AppendLine();
+            }
+        }
+
+        // ── Register method ──
+        sb.AppendLine("    // ═══════════════════════════════════════════════════════════");
+        sb.AppendLine("    // REGISTRATSIYA");
+        sb.AppendLine("    // ═══════════════════════════════════════════════════════════");
+        sb.AppendLine();
         sb.AppendLine("    public static void register(IEventBus eventBus) {");
         sb.AppendLine("        ITEMS.register(eventBus);");
         sb.AppendLine("    }");
         sb.AppendLine("}");
 
         return sb.ToString();
+    }
+
+    /// <summary>NeoForge tool class nomi: SwordItem, PickaxeItem, etc.</summary>
+    private static string GetNeoForgeToolClass(ToolType type)
+    {
+        switch (type)
+        {
+            case ToolType.Sword:   return "SwordItem";
+            case ToolType.Pickaxe: return "PickaxeItem";
+            case ToolType.Axe:     return "AxeItem";
+            case ToolType.Shovel:  return "ShovelItem";
+            case ToolType.Hoe:     return "HoeItem";
+            default:               return "SwordItem";
+        }
     }
 
     // ─── Utilities ───────────────────────────────────────────────────────────
