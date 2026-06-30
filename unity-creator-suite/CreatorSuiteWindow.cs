@@ -252,7 +252,7 @@ public class CreatorSuiteWindow : EditorWindow
             new Ed("🏰","Structure","Dungeons, towers & ruins", C("#b0895e"), ShowStructure),
             new Ed("🏆","Advancement","Goals, triggers & rewards", C("#f5c542"), ShowAdvance),
             new Ed("🎁","Loot Table","Drops, chances & conditions", RED, ShowLoot),
-            new Ed("🔊","Sound","SFX, music discs & ambience", CYAN, ()=>ShowBlock()),
+            new Ed("🔊","Sound","SFX, music discs & ambience", CYAN, ShowSound),
         };
         foreach(var e in eds) grid.Add(EditorCard(e));
         _content.Add(grid);
@@ -1575,6 +1575,80 @@ $@"context.register({ID}, biomeWithDefaults(
         sb.AppendLine("  \"rewards\": { \"experience\": " + Mathf.RoundToInt(_adExp.value) + " }");
         sb.AppendLine("}");
         _adCode.text = sb.ToString();
+    }
+
+    // =========================================================================
+    // SOUND EVENT EDITOR VIEW
+    // =========================================================================
+    private TextField _soId, _soSubtitle, _soPath; private DropdownField _soCat;
+    private Slider _soVariants, _soVolume, _soPitch, _soWeight; private Toggle _soStream; private Label _soCode;
+
+    private void ShowSound()
+    {
+        SetActiveNav("Effects"); SetHeader("Sound Editor", "SFX, music discs & ambience · sounds.json");
+        _content.Clear();
+        var shell = Row(); shell.style.flexGrow = 1;
+        var form = new VisualElement(); form.style.flexGrow = 1; form.style.marginRight = 14;
+
+        var idP = Panel(); idP.style.marginBottom = 14; idP.Add(PanelHeader("Event"));
+        _soCat = FormDropdown(idP, "Category", new List<string>{"entity","block","item","ambient","music","weather","player","hostile","neutral"});
+        _soId = FormText(idP, "Sound Event ID", "entity.frost_wolf.howl");
+        _soSubtitle = FormText(idP, "Subtitle Key", "subtitles.frost_wolf.howl");
+        form.Add(idP);
+        var fP = Panel(); fP.style.marginBottom = 14; fP.Add(PanelHeader("Sound Files"));
+        _soPath = FormText(fP, "Base File Path", "frost_wolf/howl");
+        _soVariants = FormSlider(fP, "Variants (file count)", 1, 5, 2);
+        form.Add(fP);
+        var pP = Panel(); pP.Add(PanelHeader("Playback"));
+        _soVolume = FormSlider(pP, "Volume", 0, 1, 1);
+        _soPitch = FormSlider(pP, "Pitch", 0.5f, 2, 1);
+        _soWeight = FormSlider(pP, "Weight", 1, 10, 1);
+        _soStream = FormToggle(pP, "Stream (long music)", false);
+        form.Add(pP);
+        shell.Add(form);
+
+        var col = new VisualElement(); col.style.width = 420; col.style.flexShrink = 0;
+        var prevP = Panel(); prevP.style.marginBottom = 14; prevP.Add(PanelHeader("Preview"));
+        var stg = new VisualElement(); stg.style.height = 130; stg.style.alignItems = Align.Center; stg.style.justifyContent = Justify.Center; stg.style.backgroundColor = C("#0d1219"); Round(stg, 10);
+        var wave = Row(); wave.style.alignItems = Align.Center; wave.style.height = 60;
+        var rng = new System.Random(3);
+        for(int i=0;i<22;i++){ var bar = new VisualElement(); bar.style.width = 5; bar.style.marginLeft = 2; bar.style.marginRight = 2;
+            float h = 8 + rng.Next(48); bar.style.height = h; Round(bar, 3); bar.style.backgroundColor = CYAN; wave.Add(bar); }
+        stg.Add(wave); prevP.Add(stg);
+        var sIco = new Label("🔊"); sIco.style.fontSize = 22; sIco.style.unityTextAlign = TextAnchor.MiddleCenter; sIco.style.marginTop = 8; prevP.Add(sIco);
+        col.Add(prevP);
+        var codeP = Panel(); codeP.Add(CodeHeader("JSON", "sounds", "json", ()=> _soCode.text));
+        _soCode = CodeLabel(); codeP.Add(_soCode); col.Add(codeP);
+        shell.Add(col); _content.Add(shell);
+
+        _soCat.RegisterValueChangedCallback(_=>RegenSound()); _soId.RegisterValueChangedCallback(_=>RegenSound());
+        _soSubtitle.RegisterValueChangedCallback(_=>RegenSound()); _soPath.RegisterValueChangedCallback(_=>RegenSound());
+        foreach(var s in new Slider[]{_soVariants,_soVolume,_soPitch,_soWeight}) s.RegisterValueChangedCallback(_=>RegenSound());
+        _soStream.RegisterValueChangedCallback(_=>RegenSound());
+        RegenSound();
+    }
+
+    private void RegenSound()
+    {
+        string id = string.IsNullOrEmpty(_soId.value) ? "entity.my_mob.sound" : _soId.value;
+        string path = string.IsNullOrEmpty(_soPath.value) ? "my_mob/sound" : _soPath.value;
+        int variants = Mathf.RoundToInt(_soVariants.value);
+        float vol = _soVolume.value, pit = _soPitch.value; int weight = Mathf.RoundToInt(_soWeight.value);
+        string stream = _soStream.value ? "true" : "false";
+        var sb = new System.Text.StringBuilder();
+        sb.AppendLine("{");
+        sb.AppendLine("  \"" + id + "\": {");
+        sb.AppendLine("    \"subtitle\": \"" + _soSubtitle.value + "\",");
+        sb.AppendLine("    \"sounds\": [");
+        for(int i=1;i<=variants;i++){
+            string entry = "      { \"name\": \"mymod:" + path + i + "\", \"volume\": " + vol.ToString("0.0")
+                + ", \"pitch\": " + pit.ToString("0.0") + ", \"weight\": " + weight + ", \"stream\": " + stream + " }";
+            sb.AppendLine(entry + (i<variants?",":""));
+        }
+        sb.AppendLine("    ]");
+        sb.AppendLine("  }");
+        sb.AppendLine("}");
+        _soCode.text = sb.ToString();
     }
 
     private Label CodeLabel(){
