@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Mod Studio — Creator Suite</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=VT323&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+<div id="app">
+
+  <!-- ============ SIDEBAR ============ -->
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="brand-cube">
+        <span class="face top"></span><span class="face left"></span><span class="face right"></span>
+      </div>
+      <div class="brand-text">
+        <strong>MOD STUDIO</strong>
+        <small>Creator Suite</small>
+      </div>
+    </div>
+
+    <nav class="nav">
+      <button class="nav-item active" data-view="dashboard"><span class="ni-ico">▦</span> Dashboard</button>
+      <button class="nav-item" data-view="texture"><span class="ni-ico">🖌</span> Texture Editor</button>
+      <button class="nav-item" data-view="block"><span class="ni-ico">🧊</span> Block Editor</button>
+      <p class="nav-label">Elements</p>
+      <button class="nav-item" data-view="dashboard" data-filter="item"><span class="ni-ico">⚔</span> Items</button>
+      <button class="nav-item" data-view="dashboard" data-filter="entity"><span class="ni-ico">🐺</span> Entities</button>
+      <button class="nav-item" data-view="dashboard" data-filter="world"><span class="ni-ico">🌲</span> World</button>
+      <button class="nav-item" data-view="dashboard" data-filter="fx"><span class="ni-ico">✦</span> Effects & FX</button>
+    </nav>
+
+    <div class="project-card">
+      <div class="proj-top">
+        <span class="proj-dot"></span> Active Project
+      </div>
+      <strong>Twilight Realm</strong>
+      <div class="proj-meta">NeoForge · 1.20.1</div>
+      <div class="proj-bar"><span style="width:62%"></span></div>
+      <small>62% complete · 148 elements</small>
+    </div>
+  </aside>
+
+  <!-- ============ MAIN ============ -->
+  <main class="main">
+
+    <!-- Top bar -->
+    <header class="topbar">
+      <div class="tb-left">
+        <h1 id="view-title">Dashboard</h1>
+        <span class="tb-sub" id="view-sub">Manage every element of your mod</span>
+      </div>
+      <div class="tb-right">
+        <div class="search"><span>⌕</span><input placeholder="Search elements, textures, recipes…" /></div>
+        <button class="btn ghost">⌁ Build</button>
+        <button class="btn primary">▶ Run</button>
+        <div class="avatar">B</div>
+      </div>
+    </header>
+
+    <!-- ===== DASHBOARD VIEW ===== -->
+    <section class="view active" id="view-dashboard">
+      <div class="stat-row">
+        <div class="stat"><div class="stat-ico c-green">🧊</div><div><b>312</b><span>Blocks</span></div></div>
+        <div class="stat"><div class="stat-ico c-amber">⚔</div><div><b>148</b><span>Items</span></div></div>
+        <div class="stat"><div class="stat-ico c-violet">🐺</div><div><b>63</b><span>Entities</span></div></div>
+        <div class="stat"><div class="stat-ico c-cyan">🖼</div><div><b>207</b><span>Textures</span></div></div>
+      </div>
+
+      <h2 class="section-h">Create New Element</h2>
+      <div class="card-grid" id="editor-cards"><!-- injected by JS --></div>
+
+      <h2 class="section-h">Recent Work</h2>
+      <div class="recent-list" id="recent-list"><!-- injected by JS --></div>
+    </section>
+
+    <!-- ===== TEXTURE EDITOR VIEW ===== -->
+    <section class="view" id="view-texture">
+      <div class="editor-shell">
+        <!-- Left tools -->
+        <div class="tool-rail">
+          <button class="tool active" data-tool="pencil" title="Pencil (B)">✏</button>
+          <button class="tool" data-tool="eraser" title="Eraser (E)">⌫</button>
+          <button class="tool" data-tool="fill" title="Fill (G)">🪣</button>
+          <button class="tool" data-tool="picker" title="Eyedropper (I)">⊙</button>
+          <button class="tool" data-tool="line" title="Line (L)">╱</button>
+          <button class="tool" data-tool="rect" title="Rectangle (R)">▭</button>
+          <div class="rail-sep"></div>
+          <button class="tool" id="undoBtn" title="Undo (Ctrl+Z)">↶</button>
+          <button class="tool" id="redoBtn" title="Redo (Ctrl+Y)">↷</button>
+          <button class="tool" id="clearBtn" title="Clear">🗑</button>
+        </div>
+
+        <!-- Canvas -->
+        <div class="canvas-stage">
+          <div class="stage-bar">
+            <span class="chip">🖼 stone.png</span>
+            <span class="chip muted">16 × 16</span>
+            <div class="spacer"></div>
+            <label class="zoom">Zoom <input type="range" id="zoom" min="8" max="40" value="24" /></label>
+            <button class="btn small" id="gridToggle">▦ Grid</button>
+            <button class="btn small primary" id="exportBtn">⭳ Export PNG</button>
+          </div>
+          <div class="canvas-wrap">
+            <canvas id="pixelCanvas" width="384" height="384"></canvas>
+          </div>
+        </div>
+
+        <!-- Right panels -->
+        <div class="side-panels">
+          <div class="panel">
+            <div class="panel-h">Palette</div>
+            <div class="palette" id="palette"></div>
+            <div class="color-row">
+              <input type="color" id="colorInput" value="#7d7d7d" />
+              <div class="swatch-active" id="activeSwatch"></div>
+              <div class="color-hex" id="colorHex">#7D7D7D</div>
+            </div>
+          </div>
+
+          <div class="panel">
+            <div class="panel-h">Layers</div>
+            <div class="layers" id="layers">
+              <div class="layer active"><span>👁</span> Layer 1 <em>100%</em></div>
+              <div class="layer"><span>👁</span> Base <em>100%</em></div>
+            </div>
+            <button class="btn small full">＋ Add Layer</button>
+          </div>
+
+          <div class="panel">
+            <div class="panel-h">Live Preview</div>
+            <div class="tex-preview">
+              <div class="prev-cube">
+                <span class="pc-face pc-top" id="pc-top"></span>
+                <span class="pc-face pc-left" id="pc-left"></span>
+                <span class="pc-face pc-right" id="pc-right"></span>
+              </div>
+            </div>
+            <small class="hint">Texture maps live onto the block faces</small>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== BLOCK EDITOR VIEW ===== -->
+    <section class="view" id="view-block">
+      <div class="block-shell">
+        <!-- Form -->
+        <div class="form-col">
+          <div class="panel">
+            <div class="panel-h">Identity</div>
+            <div class="field"><label>Block ID</label><input id="b_id" value="ruby_block" /></div>
+            <div class="field"><label>Display Name</label><input id="b_name" value="Block of Ruby" /></div>
+            <div class="field-row">
+              <div class="field"><label>Creative Tab</label>
+                <select><option>Building Blocks</option><option>Natural</option><option>Decorations</option></select>
+              </div>
+              <div class="field"><label>Rarity</label>
+                <select><option>Common</option><option>Uncommon</option><option selected>Rare</option><option>Epic</option></select>
+              </div>
+            </div>
+          </div>
+
+          <div class="panel">
+            <div class="panel-h">Physical Properties</div>
+            <div class="field-row">
+              <div class="field"><label>Hardness <b id="hv">3.0</b></label><input type="range" id="b_hard" min="0" max="50" step="0.5" value="3" /></div>
+              <div class="field"><label>Resistance <b id="rv">6.0</b></label><input type="range" id="b_res" min="0" max="1200" step="1" value="6" /></div>
+            </div>
+            <div class="field"><label>Light Level <b id="lv">0</b></label><input type="range" id="b_light" min="0" max="15" value="0" /></div>
+            <div class="field-row">
+              <div class="field"><label>Sound</label><select id="b_sound"><option>Stone</option><option>Wood</option><option>Metal</option><option>Glass</option><option>Wool</option></select></div>
+              <div class="field"><label>Map Color</label><select id="b_map"><option>Stone</option><option>Plant</option><option>Metal</option><option>Ice</option><option>Sand</option></select></div>
+            </div>
+          </div>
+
+          <div class="panel">
+            <div class="panel-h">Behavior Flags</div>
+            <div class="toggles">
+              <label class="toggle"><input type="checkbox" checked /><span></span>Requires Tool</label>
+              <label class="toggle"><input type="checkbox" /><span></span>No Occlusion</label>
+              <label class="toggle"><input type="checkbox" /><span></span>Ignited by Lava</label>
+              <label class="toggle"><input type="checkbox" /><span></span>Random Ticks</label>
+              <label class="toggle"><input type="checkbox" id="b_emis" /><span></span>Emissive Glow</label>
+              <label class="toggle"><input type="checkbox" /><span></span>No Collision</label>
+            </div>
+          </div>
+
+          <div class="panel">
+            <div class="panel-h">Block Type</div>
+            <div class="seg" id="b_type">
+              <button class="active">Full</button><button>Stairs</button><button>Slab</button>
+              <button>Fence</button><button>Wall</button><button>Pillar</button>
+            </div>
+            <small class="hint">Generates all related blocks + recipes automatically</small>
+          </div>
+        </div>
+
+        <!-- Preview + code -->
+        <div class="preview-col">
+          <div class="panel grow">
+            <div class="panel-h">3D Preview</div>
+            <div class="block-stage" id="blockStage">
+              <div class="big-cube" id="bigCube">
+                <span class="bc-face bc-top"></span>
+                <span class="bc-face bc-bottom"></span>
+                <span class="bc-face bc-front"></span>
+                <span class="bc-face bc-back"></span>
+                <span class="bc-face bc-left"></span>
+                <span class="bc-face bc-right"></span>
+              </div>
+            </div>
+            <div class="stage-foot">
+              <span class="chip" id="lightChip">☀ Light 0</span>
+              <span class="chip muted">Drag to rotate</span>
+            </div>
+          </div>
+          <div class="panel code-panel">
+            <div class="panel-h">Generated Code <span class="lang-tag">Java</span></div>
+            <pre id="codeOut"></pre>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+</div>
+<script src="app.js"></script>
+</body>
+</html>
