@@ -698,6 +698,26 @@ if (transformController != null && pivotX != null && rotX != null)
 
             case EditorMode.Recipe:
                 {
+                    // Recipe Type Dropdown
+                    var typeF = root.Q<DropdownField>("input-recipe-type");
+                    if (typeF != null)
+                    {
+                        typeF.value = _currentRecipe.recipeType.ToString();
+                        typeF.RegisterValueChangedCallback(evt => {
+                            if (!_isUpdating)
+                            {
+                                if (Enum.TryParse<RecipeType>(evt.newValue, out RecipeType rt))
+                                    _currentRecipe.recipeType = rt;
+                                UpdateRecipeSectionVisibility(root, _currentRecipe.recipeType);
+                                OnModelChanged();
+                            }
+                        });
+                    }
+
+                    // Seksiya ko'rinishini yangilash
+                    UpdateRecipeSectionVisibility(root, _currentRecipe.recipeType);
+
+                    // ── Shaped/Shapeless: 3x3 Grid ──
                     for (int i = 0; i < 9; i++)
                     {
                         int index = i;
@@ -740,6 +760,28 @@ if (transformController != null && pivotX != null && rotX != null)
                             }
                         });
                     }
+
+                    // ── Smelting/Blasting/Smoking/Campfire fieldlari ──
+                    var smeltInputF = root.Q<TextField>("input-smelting-input");
+                    var smeltResultF = root.Q<TextField>("input-smelting-result");
+                    var smeltCountF = root.Q<IntegerField>("input-smelting-count");
+                    var smeltXpS = root.Q<Slider>("slider-smelting-xp");
+                    var smeltTimeF = root.Q<IntegerField>("input-smelting-time");
+
+                    if (smeltInputF != null) { smeltInputF.value = _currentRecipe.smeltingInput; smeltInputF.RegisterValueChangedCallback(evt => { if (!_isUpdating) { _currentRecipe.smeltingInput = evt.newValue; OnModelChanged(); } }); }
+                    if (smeltResultF != null) { smeltResultF.value = _currentRecipe.resultItem; smeltResultF.RegisterValueChangedCallback(evt => { if (!_isUpdating) { _currentRecipe.resultItem = evt.newValue; OnModelChanged(); } }); }
+                    if (smeltCountF != null) { smeltCountF.value = _currentRecipe.resultCount; smeltCountF.RegisterValueChangedCallback(evt => { if (!_isUpdating) { _currentRecipe.resultCount = evt.newValue; OnModelChanged(); } }); }
+                    if (smeltXpS != null) { smeltXpS.value = _currentRecipe.experience; smeltXpS.RegisterValueChangedCallback(evt => { if (!_isUpdating) { _currentRecipe.experience = evt.newValue; OnModelChanged(); } }); }
+                    if (smeltTimeF != null) { smeltTimeF.value = _currentRecipe.cookingTime; smeltTimeF.RegisterValueChangedCallback(evt => { if (!_isUpdating) { _currentRecipe.cookingTime = evt.newValue; OnModelChanged(); } }); }
+
+                    // ── Stonecutting fieldlari ──
+                    var stoneInputF = root.Q<TextField>("input-stonecutting-input");
+                    var stoneResultF = root.Q<TextField>("input-stonecutting-result");
+                    var stoneCountF = root.Q<IntegerField>("input-stonecutting-count");
+
+                    if (stoneInputF != null) { stoneInputF.value = _currentRecipe.stonecuttingInput; stoneInputF.RegisterValueChangedCallback(evt => { if (!_isUpdating) { _currentRecipe.stonecuttingInput = evt.newValue; OnModelChanged(); } }); }
+                    if (stoneResultF != null) { stoneResultF.value = _currentRecipe.resultItem; stoneResultF.RegisterValueChangedCallback(evt => { if (!_isUpdating) { _currentRecipe.resultItem = evt.newValue; OnModelChanged(); } }); }
+                    if (stoneCountF != null) { stoneCountF.value = _currentRecipe.resultCount; stoneCountF.RegisterValueChangedCallback(evt => { if (!_isUpdating) { _currentRecipe.resultCount = evt.newValue; OnModelChanged(); } }); }
                 }
                 break;
 
@@ -1003,6 +1045,24 @@ if (transformController != null && pivotX != null && rotX != null)
         WorkspaceManager.CompileAndExportAll(ProjectPath);
         LogToTerminal($"[Workspace] Loyiha muvaffaqiyatli saqlandi: {ProjectPath}");
         EditorUtility.DisplayDialog("Workspace Saqlandi ✓", $"Workspace JSON saqlandi va loyiha eksport qilindi!\n\nYo'l: {ProjectPath}", "OK");
+    }
+
+    /// <summary>
+    /// Retsept turiga qarab tegishli seksiyani ko'rsatadi/yashiradi.
+    /// </summary>
+    private void UpdateRecipeSectionVisibility(VisualElement root, RecipeType type)
+    {
+        var craftingSection = root.Q<VisualElement>("crafting-section");
+        var smeltingSection = root.Q<VisualElement>("smelting-section");
+        var stonecuttingSection = root.Q<VisualElement>("stonecutting-section");
+
+        bool showCrafting = type == RecipeType.CraftingShaped || type == RecipeType.CraftingShapeless;
+        bool showSmelting = type == RecipeType.Smelting || type == RecipeType.Blasting || type == RecipeType.Smoking || type == RecipeType.CampfireCooking;
+        bool showStonecutting = type == RecipeType.Stonecutting;
+
+        if (craftingSection != null) craftingSection.style.display = showCrafting ? DisplayStyle.Flex : DisplayStyle.None;
+        if (smeltingSection != null) smeltingSection.style.display = showSmelting ? DisplayStyle.Flex : DisplayStyle.None;
+        if (stonecuttingSection != null) stonecuttingSection.style.display = showStonecutting ? DisplayStyle.Flex : DisplayStyle.None;
     }
 
     // ═══════════════════════════════════════════════════════════════════════

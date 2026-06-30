@@ -190,6 +190,39 @@ public static class WorkspaceManager
                 StudioLogger.Log($"[DataGen] {dataGenFiles.Count} ta DataProvider Java fayli yaratildi.");
             }
 
+            // 8. Loot Table JSON fayllarini eksport qilish
+            string lootBlockPath = Path.Combine(dataPath, "loot_tables", "blocks");
+            string lootEntityPath = Path.Combine(dataPath, "loot_tables", "entities");
+            Directory.CreateDirectory(lootBlockPath);
+            Directory.CreateDirectory(lootEntityPath);
+
+            var blockLootTables = LootTableGenerator.GenerateAllBlockLootTables(workspace.blocks, modId);
+            foreach (var entry in blockLootTables)
+            {
+                File.WriteAllText(Path.Combine(lootBlockPath, entry.Key), entry.Value);
+            }
+
+            var entityLootTables = LootTableGenerator.GenerateAllEntityLootTables(workspace.entities, modId);
+            foreach (var entry in entityLootTables)
+            {
+                File.WriteAllText(Path.Combine(lootEntityPath, entry.Key), entry.Value);
+            }
+
+            StudioLogger.Log($"[LootTable] {blockLootTables.Count + entityLootTables.Count} ta loot table yaratildi.");
+
+            // 9. Tag JSON fayllarini eksport qilish
+            var tagFiles = TagGenerator.GenerateAllTags(workspace);
+            string dataRootPath = Path.Combine(folderPath, "src/main/resources/data");
+
+            foreach (var entry in tagFiles)
+            {
+                string tagFilePath = Path.Combine(dataRootPath, entry.Key);
+                Directory.CreateDirectory(Path.GetDirectoryName(tagFilePath));
+                File.WriteAllText(tagFilePath, entry.Value);
+            }
+
+            StudioLogger.Log($"[Tags] {tagFiles.Count} ta tag fayli yaratildi.");
+
             StudioLogger.Log($"[Workspace ✓] Barcha mod elementlari muvaffaqiyatli eksport qilindi: {folderPath}");
         }
         catch (Exception ex)
