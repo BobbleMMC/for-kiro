@@ -47,35 +47,88 @@ public class UIViewportBridge : MonoBehaviour
 
     // ── Unity tsikli ──────────────────────────────────────────
 
+    private bool _initialized = false;
+    private int _initRetryFrames = 0;
+    private const int MAX_INIT_RETRY_FRAMES = 120; // 2 soniyagacha kutish (60fps da)
+
     private void Awake()
     {
         _uiDocument = GetComponent<UIDocument>();
+        if (_uiDocument == null)
+        {
+            Debug.LogError("[UIViewportBridge] UIDocument komponenti topilmadi! " +
+                           "Bu skript UIDocument bor GameObject ga biriktirilishi kerak.");
+            enabled = false;
+        }
     }
 
     private void OnEnable()
     {
-        // Root tayyor bo'lgunga qadar kuting
-        if (_uiDocument.rootVisualElement == null)
+        _initialized = false;
+        _initRetryFrames = 0;
+        TryInitialize();
+    }
+
+    private void Update()
+    {
+        // Agar hali initialized bo'lmasa, har kadr qayta urinib ko'ramiz
+        if (!_initialized)
         {
-            _uiDocument.rootVisualElement.RegisterCallback<GeometryChangedEvent>(OnRootReady);
+            _initRetryFrames++;
+            if (_initRetryFrames > MAX_INIT_RETRY_FRAMES)
+            {
+                Debug.LogWarning("[UIViewportBridge] rootVisualElement 2 soniya ichida tayyor bo'lmadi. " +
+                                 "UIDocument va UXML faylini tekshiring.");
+                _initialized = true; // Cheksiz sikldan saqlanish
+                return;
+            }
+            TryInitialize();
         }
-        else
+    }
+
+    private void TryInitialize()
+    {
+        if (_uiDocument == null) return;
+
+        VisualElement root = _uiDocument.rootVisualElement;
+        if (root == null) return; // Hali tayyor emas — keyingi kadrda qayta urinamiz
+
+        // Root tayyor — GeometryChanged orqali boshlash
+        root.RegisterCallback<GeometryChangedEvent>(OnRootReady);
+        
+        // Agar layout allaqachon tayyor bo'lsa, to'g'ridan-to'g'ri ishga tushiramiz
+        if (root.layout.width > 0)
         {
             InitViewport();
+            _initialized = true;
         }
     }
 
     private void OnRootReady(GeometryChangedEvent evt)
     {
-        _uiDocument.rootVisualElement.UnregisterCallback<GeometryChangedEvent>(OnRootReady);
+        if (_initialized) return;
+        
+        if (_uiDocument != null && _uiDocument.rootVisualElement != null)
+        {
+            _uiDocument.rootVisualElement.UnregisterCallback<GeometryChangedEvent>(OnRootReady);
+        }
+        
         InitViewport();
+        _initialized = true;
     }
 
     // ── Ishga tushirish ───────────────────────────────────────
 
     private void InitViewport()
     {
+        if (_uiDocument == null) return;
+        
         VisualElement root = _uiDocument.rootVisualElement;
+        if (root == null)
+        {
+            Debug.LogWarning("[UIViewportBridge] rootVisualElement hali null. Keyingi kadr kutiladi.");
+            return;
+        }
 
         // 1. VisualElement ni top
         _viewportVE = root.Q<VisualElement>(viewportElementName);
@@ -109,7 +162,7 @@ public class UIViewportBridge : MonoBehaviour
 
     private void LateUpdate()
     {
-        if (_viewportVE == null || viewportRenderTexture == null) return;
+        if (!_initialized || _viewportVE == null || viewportRenderTexture == null || _displayTex == null) return;
 
         // RenderTexture ni faol qilib piksellarni o'qi
         RenderTexture prev = RenderTexture.active;

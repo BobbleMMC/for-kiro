@@ -93,9 +93,9 @@ public static class StudioDatabase
             new MinecraftVersionData 
             { 
                 gameVersion = "1.20.1", 
-                supportedModloaders = new List<string> { "Fabric", "NeoForge", "Forge" }, 
+                supportedModloaders = new List<string> { "Fabric", "NeoForge", "Forge", "Quilt" }, 
                 requiredJavaVersion = 17, 
-                versionChangelog = "• Fabric API ro'yxatga olish standartlari barqaror.\n• Java 17 talab qilinadi.\n• NeoForge birinchi eksperimental versiyasi qo'llab-quvvatlanadi.", 
+                versionChangelog = "• Fabric API ro'yxatga olish standartlari barqaror.\n• Java 17 talab qilinadi.\n• NeoForge birinchi eksperimental versiyasi qo'llab-quvvatlanadi.\n• Quilt to'liq mos.", 
                 baseItemStats = new BaseItemStats { maxStackSize = 64, defaultToolDamage = 2.0f, defaultBlockHardness = 1.5f, defaultBlockResistance = 6.0f } 
             },
             new MinecraftVersionData 
@@ -117,10 +117,42 @@ public static class StudioDatabase
             new MinecraftVersionData 
             { 
                 gameVersion = "1.21", 
-                supportedModloaders = new List<string> { "Fabric", "NeoForge" }, 
+                supportedModloaders = new List<string> { "Fabric", "NeoForge", "Quilt" }, 
                 requiredJavaVersion = 21, 
                 versionChangelog = "• DIQQAT: Java 21 talab qilinadi!\n• Trial Chambers bloklari va Trial Spawner tizimi qo'shildi.\n• NeoForge API modloader to'liq barqarorlashdi.\n• Item model JSON tuzilishi yangilandi.", 
                 baseItemStats = new BaseItemStats { maxStackSize = 99, defaultToolDamage = 3.5f, defaultBlockHardness = 3.0f, defaultBlockResistance = 12.0f } 
+            },
+            new MinecraftVersionData 
+            { 
+                gameVersion = "1.21.1", 
+                supportedModloaders = new List<string> { "Fabric", "NeoForge", "Quilt" }, 
+                requiredJavaVersion = 21, 
+                versionChangelog = "• 1.21 ning barqaror xotira tuzatishlari.\n• NeoForge 21.1.x seriyasi.\n• Trial Chamber loot jadvallari yangilandi.\n• Fabric API barqaror.", 
+                baseItemStats = new BaseItemStats { maxStackSize = 99, defaultToolDamage = 3.5f, defaultBlockHardness = 3.0f, defaultBlockResistance = 12.0f } 
+            },
+            new MinecraftVersionData 
+            { 
+                gameVersion = "1.21.3", 
+                supportedModloaders = new List<string> { "Fabric", "NeoForge" }, 
+                requiredJavaVersion = 21, 
+                versionChangelog = "• Pale Garden biomi va Creaking mob qo'shildi.\n• Yangi bloklar: Pale Oak, Eyeblossom.\n• Rendering tizimi optimizatsiya qilindi.\n• Data Pack format yangilandi.", 
+                baseItemStats = new BaseItemStats { maxStackSize = 99, defaultToolDamage = 3.5f, defaultBlockHardness = 3.0f, defaultBlockResistance = 12.0f } 
+            },
+            new MinecraftVersionData 
+            { 
+                gameVersion = "1.21.4", 
+                supportedModloaders = new List<string> { "Fabric", "NeoForge", "Quilt" }, 
+                requiredJavaVersion = 21, 
+                versionChangelog = "• Item model tizimi to'liq qayta yozildi (JSON model format v2).\n• Yangi rendering pipeline.\n• Equipment modeli qo'shildi.\n• Server-side optimizatsiyalar.\n• Pack format 46.", 
+                baseItemStats = new BaseItemStats { maxStackSize = 99, defaultToolDamage = 4.0f, defaultBlockHardness = 3.0f, defaultBlockResistance = 12.0f } 
+            },
+            new MinecraftVersionData 
+            { 
+                gameVersion = "1.22", 
+                supportedModloaders = new List<string> { "Fabric", "NeoForge" }, 
+                requiredJavaVersion = 21, 
+                versionChangelog = "• Yangi dunyolar va biomlar kengaytmasi.\n• Yangi AI va pathfinding tizimi.\n• Data-driven enchantments.\n• Performance yaxshilanishlari.\n• Pack format 48.", 
+                baseItemStats = new BaseItemStats { maxStackSize = 99, defaultToolDamage = 4.0f, defaultBlockHardness = 3.5f, defaultBlockResistance = 14.0f } 
             }
         };
         WriteDefaultJson();

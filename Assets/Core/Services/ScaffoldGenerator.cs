@@ -31,9 +31,39 @@ public static class ScaffoldGenerator
     private const string LOADER_1_21   = "0.16.9";
     private const string FAPI_1_21     = "0.100.4+1.21";
 
+    // Fabric 1.21.1
+    private const string YARN_1_21_1   = "1.21.1+build.3";
+    private const string LOADER_1_21_1 = "0.16.9";
+    private const string FAPI_1_21_1   = "0.105.0+1.21.1";
+
+    // Fabric 1.21.3
+    private const string YARN_1_21_3   = "1.21.3+build.2";
+    private const string LOADER_1_21_3 = "0.16.9";
+    private const string FAPI_1_21_3   = "0.108.0+1.21.3";
+
+    // Fabric 1.21.4
+    private const string YARN_1_21_4   = "1.21.4+build.1";
+    private const string LOADER_1_21_4 = "0.16.10";
+    private const string FAPI_1_21_4   = "0.110.5+1.21.4";
+
+    // Fabric 1.22
+    private const string YARN_1_22     = "1.22+build.1";
+    private const string LOADER_1_22   = "0.16.14";
+    private const string FAPI_1_22     = "0.115.0+1.22";
+
     // NeoForge versiyalari
     private const string NEOFORGE_1_20_4 = "20.4.237";
     private const string NEOFORGE_1_21   = "21.1.77";
+    private const string NEOFORGE_1_21_1 = "21.1.172";
+    private const string NEOFORGE_1_21_3 = "21.3.58";
+    private const string NEOFORGE_1_21_4 = "21.4.108";
+    private const string NEOFORGE_1_22   = "22.0.28";
+
+    // Quilt versiyalari
+    private const string QUILT_LOADER    = "0.26.4";
+    private const string QSL_1_20_1      = "7.1.2+1.20.1";
+    private const string QSL_1_21        = "10.0.0+1.21";
+    private const string QSL_1_21_4      = "10.2.0+1.21.4";
 
     // ─── Asosiy entry point ─────────────────────────────────────────────────
 
@@ -53,6 +83,8 @@ public static class ScaffoldGenerator
 
         if (loader == "NeoForge")
             GenerateNeoForgeScaffold(projectPath, ws, modId, version);
+        else if (loader == "Quilt")
+            GenerateQuiltScaffold(projectPath, ws, modId, version);
         else
             GenerateFabricScaffold(projectPath, ws, modId, version);
 
@@ -79,8 +111,16 @@ public static class ScaffoldGenerator
                 yarn = YARN_1_20_4; fabricLoader = LOADER_1_20_4; fabricApi = FAPI_1_20_4; javaVersion = 17; break;
             case "1.20.6":
                 yarn = YARN_1_20_6; fabricLoader = LOADER_1_20_6; fabricApi = FAPI_1_20_6; javaVersion = 21; break;
-            default: // 1.21+
+            case "1.21":
                 yarn = YARN_1_21;   fabricLoader = LOADER_1_21;   fabricApi = FAPI_1_21;   javaVersion = 21; break;
+            case "1.21.1":
+                yarn = YARN_1_21_1; fabricLoader = LOADER_1_21_1; fabricApi = FAPI_1_21_1; javaVersion = 21; break;
+            case "1.21.3":
+                yarn = YARN_1_21_3; fabricLoader = LOADER_1_21_3; fabricApi = FAPI_1_21_3; javaVersion = 21; break;
+            case "1.21.4":
+                yarn = YARN_1_21_4; fabricLoader = LOADER_1_21_4; fabricApi = FAPI_1_21_4; javaVersion = 21; break;
+            default: // 1.22+
+                yarn = YARN_1_22;   fabricLoader = LOADER_1_22;   fabricApi = FAPI_1_22;   javaVersion = 21; break;
         }
 
         WriteFabricBuildGradle(projectPath, modId);
@@ -93,8 +133,24 @@ public static class ScaffoldGenerator
 
     private static void GenerateNeoForgeScaffold(string projectPath, WorkspaceData ws, string modId, string version)
     {
-        string neoForgeVer = version == "1.20.4" ? NEOFORGE_1_20_4 : NEOFORGE_1_21;
-        int javaVersion    = version == "1.20.4" ? 17 : 21;
+        string neoForgeVer;
+        int javaVersion;
+
+        switch (version)
+        {
+            case "1.20.4":
+                neoForgeVer = NEOFORGE_1_20_4; javaVersion = 17; break;
+            case "1.21":
+                neoForgeVer = NEOFORGE_1_21;   javaVersion = 21; break;
+            case "1.21.1":
+                neoForgeVer = NEOFORGE_1_21_1; javaVersion = 21; break;
+            case "1.21.3":
+                neoForgeVer = NEOFORGE_1_21_3; javaVersion = 21; break;
+            case "1.21.4":
+                neoForgeVer = NEOFORGE_1_21_4; javaVersion = 21; break;
+            default: // 1.22+
+                neoForgeVer = NEOFORGE_1_22;   javaVersion = 21; break;
+        }
 
         WriteNeoForgeBuildGradle(projectPath, modId, neoForgeVer, javaVersion);
         WriteSettingsGradle(projectPath, modId);
@@ -104,6 +160,32 @@ public static class ScaffoldGenerator
 
         // NeoForge: META-INF papkasini yaratamiz
         Directory.CreateDirectory(Path.Combine(projectPath, "src", "main", "resources", "META-INF"));
+    }
+
+    // ─── QUILT ──────────────────────────────────────────────────────────────
+
+    private static void GenerateQuiltScaffold(string projectPath, WorkspaceData ws, string modId, string version)
+    {
+        // Quilt Fabric'ning fork'i — Fabric Yarn mappings va Quilt Loader ishlatadi
+        string yarn, fabricLoader, qsl;
+        int javaVersion;
+
+        switch (version)
+        {
+            case "1.20.1":
+                yarn = YARN_1_20_1; fabricLoader = LOADER_1_20_1; qsl = QSL_1_20_1; javaVersion = 17; break;
+            case "1.21":
+            case "1.21.1":
+                yarn = YARN_1_21_1; fabricLoader = LOADER_1_21_1; qsl = QSL_1_21; javaVersion = 21; break;
+            case "1.21.4":
+            default:
+                yarn = YARN_1_21_4; fabricLoader = LOADER_1_21_4; qsl = QSL_1_21_4; javaVersion = 21; break;
+        }
+
+        WriteQuiltBuildGradle(projectPath, modId);
+        WriteSettingsGradle(projectPath, modId);
+        WriteQuiltGradleProperties(projectPath, version, yarn, qsl, javaVersion);
+        WriteQuiltModJson(projectPath, ws, javaVersion);
     }
 
     // ═════════════════════════════════════════════════════════════════════════
@@ -135,6 +217,27 @@ loom {{
     mods {{
         ""{modId}"" {{
             sourceSet sourceSets.main
+        }}
+    }}
+
+    // DataGen konfiguratsiyasi
+    runs {{
+        datagen {{
+            inherit client
+            name ""Data Generation""
+            vmArg ""-Dfabric-api.datagen""
+            vmArg ""-Dfabric-api.datagen.output-dir=${{file(""src/main/generated"")}}""
+            vmArg ""-Dfabric-api.datagen.modid={modId}""
+            runDir ""build/datagen""
+        }}
+    }}
+}}
+
+// DataGen orqali yaratilgan fayllarni resource sifatida qo'shish
+sourceSets {{
+    main {{
+        resources {{
+            srcDirs += [""src/main/generated""]
         }}
     }}
 }}
@@ -233,6 +336,9 @@ $@"{{
   ""entrypoints"": {{
     ""main"": [
       ""net.{ws.modId}.MyMod""
+    ],
+    ""fabric-datagen"": [
+      ""net.{ws.modId}.datagen.ModDataGenerators""
     ]
   }},
   ""mixins"": [
@@ -462,9 +568,13 @@ rootProject.name = '{modId}'
 
     private static void WriteGradleWrapper(string projectPath, string mcVersion, string loader)
     {
-        // Gradle versiyasi: 8.6 -> 1.20.x, 8.8 -> 1.21+
-        bool isNew = mcVersion.StartsWith("1.21") || mcVersion == "1.20.6";
-        string gradleVer = isNew ? "8.8" : "8.6";
+        // Gradle versiyasi: 8.6 -> 1.20.x, 8.8 -> 1.21, 8.10 -> 1.21.3+, 8.12 -> 1.22+
+        bool isNew = mcVersion.StartsWith("1.21") || mcVersion.StartsWith("1.22") || mcVersion == "1.20.6";
+        string gradleVer;
+        if (mcVersion.StartsWith("1.22")) gradleVer = "8.12";
+        else if (mcVersion == "1.21.3" || mcVersion == "1.21.4") gradleVer = "8.10";
+        else if (isNew) gradleVer = "8.8";
+        else gradleVer = "8.6";
 
         string content =
 $@"distributionBase=GRADLE_USER_HOME
@@ -521,7 +631,7 @@ zipStorePath=wrapper/dists
 
     private static void WritePackMcmeta(string projectPath, WorkspaceData ws)
     {
-        // Pack format: 15 = 1.20.1, 22 = 1.20.4, 32 = 1.20.6, 34 = 1.21
+        // Pack format: 15 = 1.20.1, 22 = 1.20.4, 32 = 1.20.6, 34 = 1.21, 34 = 1.21.1, 35 = 1.21.3, 46 = 1.21.4, 48 = 1.22
         int packFormat;
         switch (ws.mcVersion)
         {
@@ -529,7 +639,11 @@ zipStorePath=wrapper/dists
             case "1.20.4": packFormat = 22; break;
             case "1.20.6": packFormat = 32; break;
             case "1.21":   packFormat = 34; break;
-            default:       packFormat = 34; break;
+            case "1.21.1": packFormat = 34; break;
+            case "1.21.3": packFormat = 35; break;
+            case "1.21.4": packFormat = 46; break;
+            case "1.22":   packFormat = 48; break;
+            default:       packFormat = 48; break;
         }
 
         string resourcesDir = Path.Combine(projectPath, "src", "main", "resources");
@@ -573,6 +687,158 @@ Thumbs.db
 *.mstudio.bak
 ";
         SafeWrite(Path.Combine(projectPath, ".gitignore"), content);
+    }
+
+    // ═════════════════════════════════════════════════════════════════════════
+    // QUILT FILE WRITERS
+    // ═════════════════════════════════════════════════════════════════════════
+
+    private static void WriteQuiltBuildGradle(string projectPath, string modId)
+    {
+        string content =
+$@"plugins {{
+    id 'org.quiltmc.loom' version '1.7-SNAPSHOT'
+    id 'maven-publish'
+}}
+
+version = project.mod_version
+group = project.maven_group
+
+base {{
+    archivesName = project.archives_base_name
+}}
+
+repositories {{
+    maven {{ url = 'https://maven.quiltmc.org/repository/release/' }}
+    maven {{ url = 'https://maven.fabricmc.net/' }}
+}}
+
+loom {{
+    mods {{
+        ""{modId}"" {{
+            sourceSet sourceSets.main
+        }}
+    }}
+}}
+
+dependencies {{
+    minecraft ""com.mojang:minecraft:${{project.minecraft_version}}""
+    mappings ""net.fabricmc:yarn:${{project.yarn_mappings}}:v2""
+    modImplementation ""org.quiltmc:quilt-loader:${{project.quilt_loader_version}}""
+    modImplementation ""org.quiltmc.quilted-fabric-api:quilted-fabric-api:${{project.qsl_version}}""
+}}
+
+processResources {{
+    inputs.property ""version"", project.version
+    filesMatching(""quilt.mod.json"") {{
+        expand project.properties
+    }}
+}}
+
+tasks.withType(JavaCompile).configureEach {{
+    it.options.release = ${{project.java_version}}
+}}
+
+java {{
+    withSourcesJar()
+    sourceCompatibility = JavaVersion.VERSION_${{project.java_version}}
+    targetCompatibility = JavaVersion.VERSION_${{project.java_version}}
+}}
+";
+        SafeWrite(Path.Combine(projectPath, "build.gradle"), content);
+    }
+
+    private static void WriteQuiltGradleProperties(string projectPath, string mcVersion,
+        string yarn, string qsl, int javaVersion)
+    {
+        string content =
+$@"# Done to increase the memory available to gradle.
+org.gradle.jvmargs=-Xmx2G -XX:MaxMetaspaceSize=512m
+
+# Quilt Properties
+minecraft_version={mcVersion}
+yarn_mappings={yarn}
+quilt_loader_version={QUILT_LOADER}
+
+# Mod Properties
+mod_version=1.0.0
+maven_group=net.mymod
+archives_base_name=mymod
+
+# Dependencies
+qsl_version={qsl}
+
+# Java version
+java_version={javaVersion}
+";
+        SafeWrite(Path.Combine(projectPath, "gradle.properties"), content);
+    }
+
+    private static void WriteQuiltModJson(string projectPath, WorkspaceData ws, int javaVersion)
+    {
+        string resourcesDir = Path.Combine(projectPath, "src", "main", "resources");
+        Directory.CreateDirectory(resourcesDir);
+
+        string content =
+$@"{{
+  ""schema_version"": 1,
+  ""quilt_loader"": {{
+    ""group"": ""net.{ws.modId}"",
+    ""id"": ""{ws.modId}"",
+    ""version"": ""${{version}}"",
+    ""metadata"": {{
+      ""name"": ""{ws.modName}"",
+      ""description"": ""A Minecraft mod generated using Mod Studio Desktop."",
+      ""contributors"": {{
+        ""ModStudio User"": ""Owner""
+      }},
+      ""contact"": {{
+        ""homepage"": ""https://example.com"",
+        ""sources"": ""https://github.com/example/{ws.modId}""
+      }},
+      ""icon"": ""assets/{ws.modId}/icon.png""
+    }},
+    ""intermediate_mappings"": ""net.fabricmc:intermediary"",
+    ""entrypoints"": {{
+      ""init"": ""net.{ws.modId}.MyMod""
+    }},
+    ""depends"": [
+      {{
+        ""id"": ""quilt_loader"",
+        ""versions"": "">={QUILT_LOADER}""
+      }},
+      {{
+        ""id"": ""quilted_fabric_api"",
+        ""versions"": ""*""
+      }},
+      {{
+        ""id"": ""minecraft"",
+        ""versions"": ""~{ws.mcVersion}""
+      }},
+      {{
+        ""id"": ""java"",
+        ""versions"": "">={javaVersion}""
+      }}
+    ]
+  }},
+  ""mixin"": ""{ws.modId}.mixins.json""
+}}
+";
+        SafeWrite(Path.Combine(resourcesDir, "quilt.mod.json"), content);
+
+        // Mixins JSON (Quilt Fabric bilan mos)
+        string mixinsContent =
+$@"{{
+  ""required"": true,
+  ""minVersion"": ""0.8"",
+  ""package"": ""net.{ws.modId}.mixin"",
+  ""compatibilityLevel"": ""JAVA_{javaVersion}"",
+  ""mixins"": [],
+  ""client"": [],
+  ""injectors"": {{ ""defaultRequire"": 1 }}
+}}
+";
+        SafeWrite(Path.Combine(resourcesDir, $"{ws.modId}.mixins.json"), mixinsContent);
     }
 
     // ─── Utility ────────────────────────────────────────────────────────────
