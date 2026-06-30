@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ui:UXML xmlns:ui="UnityEngine.UIElements" xmlns:uie="UnityEditor.UIElements" noNamespaceSchemaLocation="../../../UIElementsSchema/UIElementsSchema.xsd">
+    <ui:VisualElement name="texture-painter-container" style="flex-direction: column; padding: 10px;">
+        <ui:Label text="Pixel Art Tekstura Muharriri (16x16)" style="color: #aeaeae; font-size: 13px; font-weight: bold; margin-bottom: 10px;" />
+        
+        <!-- Tools Panel -->
+        <ui:VisualElement style="flex-direction: row; margin-bottom: 15px; background-color: #2b2b2b; padding: 5px; border-radius: 4px;">
+            <ui:Button text="✏️ Qalam" name="btn-tool-pencil" class="painter-tool-btn painter-tool-btn--active" />
+            <ui:Button text="🧹 O'chirgich" name="btn-tool-eraser" class="painter-tool-btn" />
+            <ui:Button text="🪣 Paqir" name="btn-tool-bucket" class="painter-tool-btn" />
+            <ui:Button text="🧪 Pipetka" name="btn-tool-eyedropper" class="painter-tool-btn" />
+        </ui:VisualElement>
+
+        <ui:VisualElement style="flex-direction: row; align-items: flex-start; justify-content: flex-start;">
+            <!-- Grid Canvas (Painted dynamically in C#) -->
+            <ui:VisualElement name="painter-grid" class="painter-grid" />
+
+            <!-- Palette and Settings -->
+            <ui:VisualElement style="flex-direction: column; margin-left: 20px; flex-grow: 1;">
+                <ui:Label text="Rang Tanlash:" style="color: #ffffff; font-size: 11px; font-weight: bold; margin-bottom: 5px;" />
+                <ui:TextField label="Aktiv Rang (Hex):" name="input-paint-color" value="#FF5555" style="width: 200px;" />
+                
+                <!-- Preset Colors Grid -->
+                <ui:VisualElement style="flex-direction: row; flex-wrap: wrap; width: 120px; margin-top: 5px; margin-bottom: 15px;">
+                    <ui:Button name="color-preset-red" class="painter-palette-btn" style="background-color: #FF5555;" />
+                    <ui:Button name="color-preset-green" class="painter-palette-btn" style="background-color: #55FF55;" />
+                    <ui:Button name="color-preset-blue" class="painter-palette-btn" style="background-color: #5555FF;" />
+                    <ui:Button name="color-preset-yellow" class="painter-palette-btn" style="background-color: #FFFF55;" />
+                    <ui:Button name="color-preset-orange" class="painter-palette-btn" style="background-color: #FFaa00;" />
+                    <ui:Button name="color-preset-white" class="painter-palette-btn" style="background-color: #FFFFFF;" />
+                    <ui:Button name="color-preset-black" class="painter-palette-btn" style="background-color: #000000;" />
+                    <ui:Button name="color-preset-gray" class="painter-palette-btn" style="background-color: #888888;" />
+                </ui:VisualElement>
+
+                <ui:Label text="Fayl Sozlamalari:" style="color: #ffffff; font-size: 11px; font-weight: bold; margin-bottom: 5px;" />
+                <ui:TextField label="Fayl Nomi (.png):" name="input-paint-filename" value="custom_block_texture" style="width: 200px;" />
+                
+                <ui:Button text="💾 Teksturani Saqlash" name="btn-paint-save" class="toolbar-btn run-btn" style="margin-top: 15px; width: 160px; padding: 6px 12px; -unity-font-style: bold;" />
+            </ui:VisualElement>
+        </ui:VisualElement>
+
+        <ui:Label text="Sichqonchaning chap tugmasini bosib sudrash orqali chizing. O'ng tomonda chizilgan natija 3D ko'rinishda real vaqtda aks etadi!" style="color: #666666; font-size: 10px; white-space: normal; margin-top: 15px;" />
+    </ui:VisualElement>
+</ui:UXML>

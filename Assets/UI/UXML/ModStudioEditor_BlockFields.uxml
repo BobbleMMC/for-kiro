@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ui:UXML xmlns:ui="UnityEngine.UIElements" xmlns:uie="UnityEditor.UIElements" noNamespaceSchemaLocation="../../../UIElementsSchema/UIElementsSchema.xsd">
+    <ui:TextField label="Blok ID:" name="input-id" value="custom_block" />
+    <ui:TextField label="Ko'rinadigan Nomi:" name="input-name" value="Custom Block" />
+    <ui:Slider label="Qattiqligi:" start-value="0" end-value="50" name="slider-hardness" show-input-value="true" />
+    <ui:Slider label="Portlashga Chidamliligi:" start-value="0" end-value="120" name="slider-resistance" show-input-value="true" />
+</ui:UXML>

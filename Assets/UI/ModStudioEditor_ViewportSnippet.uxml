@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ui:UXML xmlns:ui="UnityEngine.UIElements" xmlns:uie="UnityEditor.UIElements" noNamespaceSchemaLocation="../../../UIElementsSchema/UIElementsSchema.xsd">
+    <ui:VisualElement name="project-settings-container" style="flex-direction: column; padding: 10px;">
+        <ui:Label text="Loyiha Sozlamalari (Project Settings)" style="color: #aeaeae; font-size: 13px; -unity-font-style: bold; margin-bottom: 15px;" />
+        
+        <!-- LOYIHA PAPKASINI TANLASH QISMI (YANGI QO'SHILDI) -->
+        <ui:VisualElement style="flex-direction: column; margin-bottom: 15px; padding: 10px; background-color: #252526; border-radius: 4px; border-width: 1px; border-color: #2d2d2d;">
+            <ui:Label text="Mod Loyihasi Joylashuvi:" style="color: #aeaeae; font-size: 11px; margin-bottom: 5px;" />
+            <ui:VisualElement style="flex-direction: row; align-items: center;">
+                <ui:TextField name="input-project-path" readonly="true" style="flex-grow: 1; margin-right: 5px;" value="Papka tanlanmagan..." />
+                <ui:Button text="Papkani Tanlash" name="btn-browse-folder" style="background-color: #3c3c3c; color: #ffffff; border-width: 0; padding: 4px 12px; border-radius: 3px;" />
+            </ui:VisualElement>
+        </ui:VisualElement>
+
+        <!-- Selection Dropdowns -->
+        <ui:DropdownField label="Minecraft Versiyasi:" name="dropdown-mc-version" />
+        <ui:DropdownField label="Modloader Turi:" name="dropdown-modloader" />
+        
+        <!-- Java Requirement Display -->
+        <ui:VisualElement style="margin-top: 20px; padding: 10px; background-color: #2b2b2b; border-radius: 4px; border-width: 1px; border-color: #3d3d3d;">
+            <ui:Label text="Tizim Talablari" style="color: #ffffff; font-size: 11px; -unity-font-style: bold; margin-bottom: 5px;" />
+            <ui:Label text="Java Versiyasi: Java 17" name="label-required-java" style="color: #00ff00; font-size: 11px;" />
+        </ui:VisualElement>
+        
+        <!-- Changelog Display -->
+        <ui:VisualElement style="margin-top: 15px; padding: 10px; background-color: #2b2b2b; border-radius: 4px; border-width: 1px; border-color: #3d3d3d;">
+            <ui:Label text="Versiya O'zgarishlari (Changelog)" style="color: #ffffff; font-size: 11px; -unity-font-style: bold; margin-bottom: 8px;" />
+            <ui:Label text="O'zgarishlar yuklanmoqda..." name="label-changelog" style="color: #cccccc; font-size: 11px; white-space: normal;" />
+        </ui:VisualElement>
+    </ui:VisualElement>
+</ui:UXML>
