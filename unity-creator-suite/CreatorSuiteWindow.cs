@@ -74,6 +74,7 @@ public class CreatorSuiteWindow : EditorWindow
         SetPadding(_content, 22);
         main.Add(_content);
 
+        LoadProjectFromDisk(true);
         ShowDashboard();
     }
 
@@ -203,6 +204,8 @@ public class CreatorSuiteWindow : EditorWindow
     private TextField _expModId, _expPkg;
 
     private class ModElement { public string kind, id, code; public Color[] tex; }
+    [Serializable] private class SerElement { public string kind, id, code, texPng; }
+    [Serializable] private class SerProject { public List<SerElement> elements = new List<SerElement>(); }
     private readonly List<ModElement> _project = new List<ModElement>();
 
     private void Upsert(string kind, string id, string code, bool withTex)
@@ -252,6 +255,51 @@ public class CreatorSuiteWindow : EditorWindow
         }
     }
 
+    // ---- project persistence (JSON on disk, survives sessions) ----
+    private static string ProjectFilePath(){ return Path.GetFullPath(Path.Combine(Application.dataPath, "..", "CreatorSuiteProject.json")); }
+
+    private string TexToBase64(Color[] arr){
+        var t = new Texture2D(TEX, TEX);
+        for(int y=0;y<TEX;y++) for(int x=0;x<TEX;x++) t.SetPixel(x, TEX-1-y, arr[y*TEX+x]);
+        t.Apply();
+        string b = Convert.ToBase64String(t.EncodeToPNG());
+        DestroyImmediate(t);
+        return b;
+    }
+    private Color[] Base64ToTex(string b64){
+        var t = new Texture2D(2,2); t.LoadImage(Convert.FromBase64String(b64));
+        var arr = new Color[TEX*TEX];
+        for(int y=0;y<TEX;y++) for(int x=0;x<TEX;x++)
+            arr[y*TEX+x] = (t.width >= TEX && t.height >= TEX) ? t.GetPixel(x, TEX-1-y) : new Color(0,0,0,0);
+        DestroyImmediate(t);
+        return arr;
+    }
+    private void SaveProjectToDisk()
+    {
+        CaptureOpenEditors();
+        var sp = new SerProject();
+        foreach(var e in _project)
+            sp.elements.Add(new SerElement{ kind=e.kind, id=e.id, code=e.code, texPng = e.tex != null ? TexToBase64(e.tex) : "" });
+        File.WriteAllText(ProjectFilePath(), JsonUtility.ToJson(sp, true));
+        AssetDatabase.Refresh();
+        this.ShowNotification(new GUIContent("Project saved (" + _project.Count + " elements)"));
+    }
+    private void LoadProjectFromDisk(bool silent)
+    {
+        string p = ProjectFilePath();
+        if(!File.Exists(p)){ if(!silent) this.ShowNotification(new GUIContent("No saved project found")); return; }
+        var sp = JsonUtility.FromJson<SerProject>(File.ReadAllText(p));
+        _project.Clear();
+        if(sp != null && sp.elements != null)
+            foreach(var se in sp.elements){
+                var el = new ModElement{ kind=se.kind, id=se.id, code=se.code };
+                if(!string.IsNullOrEmpty(se.texPng)) el.tex = Base64ToTex(se.texPng);
+                _project.Add(el);
+            }
+        if(_projectList != null) RefreshProjectUI();
+        if(!silent) this.ShowNotification(new GUIContent("Project loaded (" + _project.Count + " elements)"));
+    }
+
     private void ShowDashboard()
     {
         SetActiveNav("Dashboard"); SetHeader("Dashboard", "Manage every element of your mod");
@@ -289,8 +337,12 @@ public class CreatorSuiteWindow : EditorWindow
         var prP = Panel(); prP.style.marginBottom = 22;
         var prh = Row(); prh.style.justifyContent = Justify.SpaceBetween; prh.style.alignItems = Align.Center; prh.style.marginBottom = 12;
         var prhl = new Label("PROJECT ELEMENTS"); prhl.style.color = MUTED; prhl.style.fontSize = 11; prhl.style.letterSpacing = 1; prhl.style.unityFontStyleAndWeight = FontStyle.Bold;
+        var pbtns = Row(); pbtns.style.alignItems = Align.Center;
+        var saveP = PillButton("💾 Save", GREEN, Color.white, SaveProjectToDisk); saveP.style.height = 26; saveP.style.marginRight = 6;
+        var loadP = PillButton("📂 Load", PANEL2, TEXT, ()=> LoadProjectFromDisk(false)); loadP.style.height = 26; loadP.style.marginRight = 6;
         var clearBtn = PillButton("Clear All", PANEL2, MUTED, ()=>{ _project.Clear(); RefreshProjectUI(); }); clearBtn.style.height = 26;
-        prh.Add(prhl); prh.Add(clearBtn); prP.Add(prh);
+        pbtns.Add(saveP); pbtns.Add(loadP); pbtns.Add(clearBtn);
+        prh.Add(prhl); prh.Add(pbtns); prP.Add(prh);
         _projectList = new VisualElement(); prP.Add(_projectList);
         RefreshProjectUI();
         _content.Add(prP);
@@ -425,6 +477,7 @@ public class CreatorSuiteWindow : EditorWindow
         var zlbl = new Label("Zoom"); zlbl.style.color = MUTED; zlbl.style.fontSize = 12; zlbl.style.marginRight = 6; zlbl.style.unityTextAlign = TextAnchor.MiddleCenter;
         zoom.RegisterValueChangedCallback(ev=>{ _cell = Mathf.RoundToInt(ev.newValue); _canvasImg.style.width = TEX*_cell; _canvasImg.style.height = TEX*_cell; });
         sbar.Add(zlbl); sbar.Add(zoom);
+        var imp = PillButton("⭱ Import PNG", PANEL2, TEXT, ImportPng); imp.style.marginLeft = 8; sbar.Add(imp);
         var exp = PillButton("⭳ Export PNG", GREEN, Color.white, ExportPng); exp.style.marginLeft = 8; sbar.Add(exp);
         stage.Add(sbar);
 
@@ -711,6 +764,24 @@ public class CreatorSuiteWindow : EditorWindow
         DestroyImmediate(outTex);
         AssetDatabase.Refresh();
         Debug.Log("[Creator Suite] Exported texture → " + path);
+    }
+
+    private void ImportPng()
+    {
+        string p = EditorUtility.OpenFilePanel("Import texture (downsampled to 16x16)", Application.dataPath, "png,jpg,jpeg");
+        if(string.IsNullOrEmpty(p)) return;
+        var t = new Texture2D(2,2); t.LoadImage(File.ReadAllBytes(p));
+        PushUndo();
+        var px = Px;
+        for(int y=0;y<TEX;y++) for(int x=0;x<TEX;x++){
+            float u = (x + 0.5f)/TEX, v = (y + 0.5f)/TEX;
+            int sx = Mathf.Clamp((int)(u * t.width), 0, t.width-1);
+            int sy = Mathf.Clamp((int)((1f - v) * t.height), 0, t.height-1);
+            px[y*TEX+x] = t.GetPixel(sx, sy);
+        }
+        DestroyImmediate(t);
+        RebuildTextures();
+        this.ShowNotification(new GUIContent("Imported " + Path.GetFileName(p) + " → active layer"));
     }
 
     // =========================================================================
