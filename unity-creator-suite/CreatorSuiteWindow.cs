@@ -741,11 +741,15 @@ $@"public static final DeferredBlock<Block> {ID} =
         new Ing("mymod:ruby","▲", C("#c0392b")),
     };
     private int[] _grid;            // 9 slots, ingredient index or -1
-    private Button[] _slots = new Button[9];
-    private int _sel = 0;          // selected ingredient (-1 = erase)
+    private Label[] _slots = new Label[9];
+    private int _sel = 0;          // last-picked ingredient (palette highlight)
     private int _result = 7;       // result ingredient index
-    private Button _resultBtn; private DropdownField _recType; private Slider _recCount;
+    private Label _resultBtn; private DropdownField _recType; private Slider _recCount;
     private Label _recCode; private VisualElement _ingPalette;
+    // drag-and-drop state
+    private const int SRC_PALETTE = -1;
+    private const int SRC_RESULT = 100;
+    private bool _dragging; private int _dragIng; private int _dragFromSlot; private VisualElement _dragGhost;
 
     private void ShowRecipe()
     {
@@ -762,7 +766,7 @@ $@"public static final DeferredBlock<Block> {ID} =
         _recType = FormDropdown(tP, "Type", new List<string>{"Shaped Crafting","Shapeless Crafting","Smelting","Blasting","Smoking"});
         form.Add(tP);
 
-        var ingP = Panel(); ingP.style.marginBottom = 14; ingP.Add(PanelHeader("Ingredients · click to select, then click grid"));
+        var ingP = Panel(); ingP.style.marginBottom = 14; ingP.Add(PanelHeader("Ingredients · drag onto the grid"));
         _ingPalette = new VisualElement(); _ingPalette.style.flexDirection = FlexDirection.Row; _ingPalette.style.flexWrap = Wrap.Wrap;
         ingP.Add(_ingPalette);
         form.Add(ingP);
@@ -776,7 +780,7 @@ $@"public static final DeferredBlock<Block> {ID} =
             for(int c=0;c<3;c++){
                 int idx = r*3+c;
                 var slot = MakeSlot();
-                slot.RegisterCallback<MouseDownEvent>(_=>{ _grid[idx] = (_grid[idx]==_sel)? -1 : _sel; PaintSlot(_slots[idx], _grid[idx]); RegenRecipe(); });
+                MakeDraggable(slot, () => _grid[idx], idx);
                 _slots[idx] = slot; gr.Add(slot);
             }
             gridBox.Add(gr);
@@ -786,7 +790,7 @@ $@"public static final DeferredBlock<Block> {ID} =
         // result
         var resBox = new VisualElement(); resBox.style.alignItems = Align.Center;
         _resultBtn = MakeSlot(); _resultBtn.style.width = 60; _resultBtn.style.height = 60;
-        _resultBtn.RegisterCallback<MouseDownEvent>(_=>{ _result = _sel; PaintSlot(_resultBtn, _result); RegenRecipe(); });
+        MakeDraggable(_resultBtn, () => _result, SRC_RESULT);
         resBox.Add(_resultBtn);
         var cwrap = Row(); cwrap.style.alignItems = Align.Center; cwrap.style.marginTop = 8;
         var cl = new Label("×"); cl.style.color = MUTED; cl.style.fontSize = 16; cl.style.marginRight = 4;
@@ -812,15 +816,16 @@ $@"public static final DeferredBlock<Block> {ID} =
         RegenRecipe();
     }
 
-    private Button MakeSlot()
+    private Label MakeSlot()
     {
-        var b = new Button(); b.style.width = 46; b.style.height = 46; b.style.marginRight = 4; b.style.marginBottom = 4;
-        ClearBorder(b); Round(b, 8); b.style.backgroundColor = C("#1a2029"); b.style.fontSize = 20;
+        var b = new Label(); b.style.width = 46; b.style.height = 46; b.style.marginRight = 4; b.style.marginBottom = 4;
+        b.style.unityTextAlign = TextAnchor.MiddleCenter; b.style.fontSize = 20;
+        ClearBorder(b); Round(b, 8); b.style.backgroundColor = C("#1a2029");
         b.style.borderTopWidth = b.style.borderBottomWidth = b.style.borderLeftWidth = b.style.borderRightWidth = 1;
         b.style.borderTopColor = b.style.borderBottomColor = b.style.borderLeftColor = b.style.borderRightColor = LINE2;
         return b;
     }
-    private void PaintSlot(Button slot, int ing)
+    private void PaintSlot(Label slot, int ing)
     {
         if(ing < 0){ slot.text = ""; slot.style.backgroundColor = C("#1a2029"); slot.style.color = TEXT; }
         else { slot.text = INGS[ing].icon; var c = INGS[ing].col; slot.style.backgroundColor = new Color(c.r,c.g,c.b,0.22f); slot.style.color = c; }
@@ -828,30 +833,96 @@ $@"public static final DeferredBlock<Block> {ID} =
     private void BuildIngPalette()
     {
         _ingPalette.Clear();
-        // erase option
-        var er = MakeIngSwatch(-1, "✕", FAINT);
-        _ingPalette.Add(er);
+        _ingPalette.Add(MakeIngSwatch(-1, "✕", FAINT));   // erase
         for(int i=0;i<INGS.Length;i++) _ingPalette.Add(MakeIngSwatch(i, INGS[i].icon, INGS[i].col));
         HighlightIng();
     }
     private VisualElement MakeIngSwatch(int idx, string icon, Color col)
     {
-        var b = new Button(()=>{ _sel = idx; HighlightIng(); }){ text = icon };
+        var b = new Label(icon);
         b.style.width = 42; b.style.height = 42; b.style.marginRight = 5; b.style.marginBottom = 5; b.style.fontSize = 18;
+        b.style.unityTextAlign = TextAnchor.MiddleCenter;
         ClearBorder(b); Round(b, 8); b.style.backgroundColor = new Color(col.r,col.g,col.b,0.18f); b.style.color = col;
         b.userData = idx;
+        MakeDraggable(b, () => idx, SRC_PALETTE);
         return b;
     }
     private void HighlightIng()
     {
         foreach(var child in _ingPalette.Children()){
-            if(child is Button b){
+            if(child is Label b && b.userData is int){
                 bool on = (int)b.userData == _sel;
                 b.style.borderTopWidth = b.style.borderBottomWidth = b.style.borderLeftWidth = b.style.borderRightWidth = on ? 2 : 0;
                 b.style.borderTopColor = b.style.borderBottomColor = b.style.borderLeftColor = b.style.borderRightColor = GREEN;
             }
         }
     }
+
+    // ---- drag & drop engine ----
+    private void MakeDraggable(VisualElement el, Func<int> getIng, int sourceKind)
+    {
+        el.RegisterCallback<PointerDownEvent>(evt=>{
+            int ing = getIng();
+            if((sourceKind >= 0 || sourceKind == SRC_RESULT) && ing < 0) return; // empty slot, nothing to grab
+            _dragIng = ing; _dragFromSlot = sourceKind; _dragging = true;
+            if(sourceKind == SRC_PALETTE){ _sel = ing; HighlightIng(); }
+            ShowGhost(ing, evt.position);
+            el.CapturePointer(evt.pointerId);
+            evt.StopPropagation();
+        });
+        el.RegisterCallback<PointerMoveEvent>(evt=>{ if(_dragging && el.HasPointerCapture(evt.pointerId)) MoveGhost(evt.position); });
+        el.RegisterCallback<PointerUpEvent>(evt=>{
+            if(_dragging && el.HasPointerCapture(evt.pointerId)){ el.ReleasePointer(evt.pointerId); ResolveDrop(evt.position); }
+        });
+    }
+
+    private void ResolveDrop(Vector2 pos)
+    {
+        HideGhost(); _dragging = false;
+        int targetGrid = -1;
+        for(int i=0;i<9;i++) if(_slots[i].worldBound.Contains(pos)){ targetGrid = i; break; }
+        bool targetResult = targetGrid < 0 && _resultBtn.worldBound.Contains(pos);
+
+        if(targetGrid >= 0){
+            _grid[targetGrid] = _dragIng; PaintSlot(_slots[targetGrid], _dragIng);
+            if(_dragFromSlot >= 0 && _dragFromSlot < 9 && _dragFromSlot != targetGrid){ _grid[_dragFromSlot] = -1; PaintSlot(_slots[_dragFromSlot], -1); }
+        }
+        else if(targetResult){
+            _result = _dragIng; PaintSlot(_resultBtn, _result);
+            if(_dragFromSlot >= 0 && _dragFromSlot < 9){ _grid[_dragFromSlot] = -1; PaintSlot(_slots[_dragFromSlot], -1); }
+        }
+        else { // dropped outside any slot -> remove from source
+            if(_dragFromSlot >= 0 && _dragFromSlot < 9){ _grid[_dragFromSlot] = -1; PaintSlot(_slots[_dragFromSlot], -1); }
+            else if(_dragFromSlot == SRC_RESULT){ _result = -1; PaintSlot(_resultBtn, -1); }
+        }
+        RegenRecipe();
+    }
+
+    private void EnsureGhost()
+    {
+        if(_dragGhost != null) return;
+        _dragGhost = new Label(); _dragGhost.style.position = Position.Absolute; _dragGhost.pickingMode = PickingMode.Ignore;
+        _dragGhost.style.width = 46; _dragGhost.style.height = 46; Round(_dragGhost, 8);
+        _dragGhost.style.unityTextAlign = TextAnchor.MiddleCenter; _dragGhost.style.fontSize = 22;
+        _dragGhost.style.display = DisplayStyle.None;
+        rootVisualElement.Add(_dragGhost);
+    }
+    private void ShowGhost(int ing, Vector2 pos)
+    {
+        EnsureGhost();
+        if(ing < 0){ _dragGhost.text = "✕"; _dragGhost.style.color = TEXT; _dragGhost.style.backgroundColor = new Color(0,0,0,0.5f); }
+        else { _dragGhost.text = INGS[ing].icon; var c = INGS[ing].col; _dragGhost.style.color = Color.white; _dragGhost.style.backgroundColor = new Color(c.r,c.g,c.b,0.9f); }
+        _dragGhost.style.display = DisplayStyle.Flex;
+        _dragGhost.BringToFront();
+        MoveGhost(pos);
+    }
+    private void MoveGhost(Vector2 pos)
+    {
+        if(_dragGhost == null) return;
+        var local = rootVisualElement.WorldToLocal(pos);
+        _dragGhost.style.left = local.x - 23; _dragGhost.style.top = local.y - 23;
+    }
+    private void HideGhost(){ if(_dragGhost != null) _dragGhost.style.display = DisplayStyle.None; }
 
     private void RegenRecipe()
     {
