@@ -1,9 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<ui:UXML xmlns:ui="UnityEngine.UIElements" xmlns:uie="UnityEditor.UIElements" noNamespaceSchemaLocation="../../../UIElementsSchema/UIElementsSchema.xsd">
-    <ui:TextField label="Zirh ID:" name="input-armor-id" value="custom_ruby_helmet" />
-    <ui:TextField label="Ko'rinadigan Nomi:" name="input-armor-name" value="Ruby Helmet" />
-    <ui:DropdownField label="Zirh Qismi (Slot):" name="input-armor-slot" choices="Helmet,Chestplate,Leggings,Boots" value="Helmet" />
-    <ui:Slider label="Himoya (Defense):" start-value="0" end-value="30" name="slider-armor-defense" show-input-value="true" />
-    <ui:Slider label="Mustahkamlik (Toughness):" start-value="0" end-value="10" name="slider-armor-toughness" show-input-value="true" />
-    <ui:Slider label="Knockback Qarshiligi:" start-value="0" end-value="1" name="slider-armor-knockback" show-input-value="true" />
-</ui:UXML>
