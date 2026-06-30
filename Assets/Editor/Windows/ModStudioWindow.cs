@@ -55,10 +55,99 @@ public class ModStudioWindow : EditorWindow
     private Button _runBtn;
 
     // Cheksiz sikldan saqlovchi xavfsizlik bayrog'i (Infinite Loop Guard)
-    private bool _isUpdating = false;
+    // Counter-based: nested chaqiruvlarni to'g'ri boshqaradi
+    private int _updateGuardCount = 0;
+    private bool _isUpdating
+    {
+        get => _updateGuardCount > 0;
+        set
+        {
+            if (value)
+                _updateGuardCount++;
+            else
+                _updateGuardCount = Mathf.Max(0, _updateGuardCount - 1);
+        }
+    }
 
-    // Loyiha eksport yo'li — foydalanuvchi tanlaydi
-    private string _dummyProjectPath = @"C:\MinecraftMods\TestFabricMod";
+    /// <summary>
+    /// Xavfsiz guard bloki — try/finally orqali _isUpdating doim reset bo'lishini kafolatlaydi.
+    /// Qo'llanilishi: using (new UpdateGuard(this)) { ... }
+    /// </summary>
+    private struct UpdateGuard : IDisposable
+    {
+        private ModStudioWindow _window;
+        public UpdateGuard(ModStudioWindow window) { _window = window; _window._updateGuardCount++; }
+        public void Dispose() { _window._updateGuardCount = Mathf.Max(0, _window._updateGuardCount - 1); }
+    }
+
+    // Loyiha eksport yo'li — EditorPrefs da saqlanadi (cross-platform)
+    private const string PREF_KEY_PROJECT_PATH = "ModStudio_ProjectPath";
+    private string _projectPath;
+
+    private string ProjectPath
+    {
+        get
+        {
+            if (string.IsNullOrEmpty(_projectPath))
+            {
+                _projectPath = EditorPrefs.GetString(PREF_KEY_PROJECT_PATH, GetDefaultProjectPath());
+            }
+            return _projectPath;
+        }
+        set
+        {
+            _projectPath = value;
+            EditorPrefs.SetString(PREF_KEY_PROJECT_PATH, value);
+        }
+    }
+
+    /// <summary>
+    /// OS ga mos standart loyiha papkasini qaytaradi.
+    /// Windows: Documents/MinecraftMods/MyMod
+    /// macOS/Linux: ~/MinecraftMods/MyMod
+    /// </summary>
+    private static string GetDefaultProjectPath()
+    {
+        string basePath;
+
+        switch (Application.platform)
+        {
+            case RuntimePlatform.WindowsEditor:
+            case RuntimePlatform.WindowsPlayer:
+                basePath = System.Environment.GetFolderPath(System.Environment.SpecialFolder.MyDocuments);
+                break;
+            case RuntimePlatform.OSXEditor:
+            case RuntimePlatform.OSXPlayer:
+                basePath = System.Environment.GetFolderPath(System.Environment.SpecialFolder.Personal);
+                break;
+            default: // Linux va boshqalar
+                basePath = System.Environment.GetFolderPath(System.Environment.SpecialFolder.Personal);
+                break;
+        }
+
+        return Path.Combine(basePath, "MinecraftMods", "MyMod");
+    }
+
+    /// <summary>
+    /// Foydalanuvchiga loyiha papkasini tanlash dialogini ko'rsatadi.
+    /// </summary>
+    private void BrowseProjectFolder()
+    {
+        string currentPath = ProjectPath;
+        string startDir = Directory.Exists(currentPath) ? currentPath : GetDefaultProjectPath();
+        
+        string selectedPath = EditorUtility.OpenFolderPanel(
+            "Minecraft Mod Loyiha Papkasini Tanlang",
+            startDir,
+            ""
+        );
+
+        if (!string.IsNullOrEmpty(selectedPath))
+        {
+            ProjectPath = selectedPath;
+            LogToTerminal($"[Loyiha] Yangi loyiha yo'li o'rnatildi: {selectedPath}");
+        }
+    }
 
     // Tekstura chizgich xususiyatlari
     private Color[] _pixels = new Color[256];
@@ -145,10 +234,10 @@ public class ModStudioWindow : EditorWindow
         WorkspaceManager.workspace.recipes.Add(recipe);
         
         // Save and compile/export
-        string testPath = @"C:\MinecraftMods\TestFabricMod";
+        string testPath = GetDefaultProjectPath();
         WorkspaceManager.SaveWorkspace(testPath);
         WorkspaceManager.CompileAndExportAll(testPath);
-        Debug.Log("[BatchExport] Batch export finished successfully!");
+        Debug.Log($"[BatchExport] Batch export finished successfully! Path: {testPath}");
     }
 
     public void CreateGUI()
@@ -159,11 +248,11 @@ public class ModStudioWindow : EditorWindow
         StudioDatabase.Initialize();
 
         // 1. Workspace-ni papkadan yuklaymiz yoki yangi yaratamiz
-        bool loaded = WorkspaceManager.LoadWorkspace(_dummyProjectPath);
+        bool loaded = WorkspaceManager.LoadWorkspace(ProjectPath);
         if (!loaded)
         {
             WorkspaceManager.workspace = new WorkspaceData();
-            WorkspaceManager.SaveWorkspace(_dummyProjectPath);
+            WorkspaceManager.SaveWorkspace(ProjectPath);
         }
 
         // Ma'lumotlar strukturasining izchilligini kafolatlaymiz
@@ -244,6 +333,18 @@ public class ModStudioWindow : EditorWindow
         _codeLocalSaveBtn = root.Q<Button>("btn-code-save");
         _runBtn = root.Q<Button>("btn-run");
 
+        // 📁 Papka tanlash tugmasi va yo'l ko'rsatgich
+        var browseBtn = root.Q<Button>("btn-browse");
+        var pathLabel = root.Q<Label>("label-project-path");
+        if (browseBtn != null)
+        {
+            browseBtn.clicked += () => {
+                BrowseProjectFolder();
+                if (pathLabel != null) pathLabel.text = ProjectPath;
+            };
+        }
+        if (pathLabel != null) pathLabel.text = ProjectPath;
+
         if (_codePreviewField == null)
         {
             Debug.LogError("Xato: UXML ichida 'code-field' topilmadi!");
@@ -277,7 +378,7 @@ public class ModStudioWindow : EditorWindow
             _runBtn.clicked += () => {
                 var data = StudioDatabase.GetVersionData(WorkspaceManager.workspace.mcVersion);
                 int javaVer = data != null ? data.requiredJavaVersion : 17;
-                _gradleCompiler.RunMinecraftClient(_dummyProjectPath, javaVer);
+                _gradleCompiler.RunMinecraftClient(ProjectPath, javaVer);
             };
         }
 
@@ -473,6 +574,13 @@ if (transformController != null && pivotX != null && rotX != null)
         var visualTree = AssetDatabase.LoadAssetAtPath<VisualTreeAsset>(uxmlPath);
         if (visualTree != null)
         {
+            // Navigatsiya bari qo'shamiz (faqat element turlari uchun — TexturePainter va ProjectSettings emas)
+            bool hasNavigation = mode != EditorMode.TexturePainter && mode != EditorMode.ProjectSettings;
+            if (hasNavigation)
+            {
+                formScroll.Add(CreateElementNavigationBar(mode));
+            }
+
             formScroll.Add(visualTree.Instantiate());
         }
         else
@@ -493,6 +601,8 @@ if (transformController != null && pivotX != null && rotX != null)
         var root = rootVisualElement;
         _isUpdating = true; // Callbacklar o'rnatilayotganda cheksiz sikldan saqlaydi
 
+        try
+        {
         switch (mode)
         {
             case EditorMode.Block:
@@ -641,6 +751,8 @@ if (transformController != null && pivotX != null && rotX != null)
                     var hpS = root.Q<Slider>("slider-mob-health");
                     var spdS = root.Q<Slider>("slider-mob-speed");
                     var dmgS = root.Q<Slider>("slider-mob-damage");
+                    var widthS = root.Q<Slider>("slider-mob-width");
+                    var heightS = root.Q<Slider>("slider-mob-height");
 
                     if (idF != null) idF.value = _currentEntity.entityId;
                     if (nameF != null) nameF.value = _currentEntity.displayName;
@@ -648,6 +760,8 @@ if (transformController != null && pivotX != null && rotX != null)
                     if (hpS != null) hpS.value = _currentEntity.health;
                     if (spdS != null) spdS.value = _currentEntity.movementSpeed;
                     if (dmgS != null) dmgS.value = _currentEntity.attackDamage;
+                    if (widthS != null) widthS.value = _currentEntity.width;
+                    if (heightS != null) heightS.value = _currentEntity.height;
 
                     idF?.RegisterValueChangedCallback(evt => { if (!_isUpdating) { _currentEntity.entityId = evt.newValue; OnModelChanged(); } });
                     nameF?.RegisterValueChangedCallback(evt => { if (!_isUpdating) { _currentEntity.displayName = evt.newValue; OnModelChanged(); } });
@@ -655,6 +769,8 @@ if (transformController != null && pivotX != null && rotX != null)
                     hpS?.RegisterValueChangedCallback(evt => { if (!_isUpdating) { _currentEntity.health = evt.newValue; OnModelChanged(); } });
                     spdS?.RegisterValueChangedCallback(evt => { if (!_isUpdating) { _currentEntity.movementSpeed = evt.newValue; OnModelChanged(); } });
                     dmgS?.RegisterValueChangedCallback(evt => { if (!_isUpdating) { _currentEntity.attackDamage = evt.newValue; OnModelChanged(); } });
+                    widthS?.RegisterValueChangedCallback(evt => { if (!_isUpdating) { _currentEntity.width = evt.newValue; OnModelChanged(); } });
+                    heightS?.RegisterValueChangedCallback(evt => { if (!_isUpdating) { _currentEntity.height = evt.newValue; OnModelChanged(); } });
                 }
                 break;
 
@@ -874,15 +990,308 @@ if (transformController != null && pivotX != null && rotX != null)
                 break;
         }
 
-        _isUpdating = false;
+        } // end try
+        finally
+        {
+            _isUpdating = false;
+        }
     }
 
     private void SaveProjectAndExport()
     {
-        WorkspaceManager.SaveWorkspace(_dummyProjectPath);
-        WorkspaceManager.CompileAndExportAll(_dummyProjectPath);
-        LogToTerminal("[Workspace] Loyiha muvaffaqiyatli saqlandi va barcha Java/JSON assetlari eksport qilindi.");
-        EditorUtility.DisplayDialog("Workspace Saqlandi ✓", "Workspace JSON saqlandi va Fabric loyihasi eksport qilindi!", "OK");
+        WorkspaceManager.SaveWorkspace(ProjectPath);
+        WorkspaceManager.CompileAndExportAll(ProjectPath);
+        LogToTerminal($"[Workspace] Loyiha muvaffaqiyatli saqlandi: {ProjectPath}");
+        EditorUtility.DisplayDialog("Workspace Saqlandi ✓", $"Workspace JSON saqlandi va loyiha eksport qilindi!\n\nYo'l: {ProjectPath}", "OK");
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // MULTI-ELEMENT NAVIGATSIYA TIZIMI
+    // ═══════════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Har bir editor rejimi uchun elementlar orasida navigatsiya paneli yaratadi.
+    /// ← → tugmalari, element nomi, qo'shish va o'chirish tugmalari.
+    /// </summary>
+    private VisualElement CreateElementNavigationBar(EditorMode mode)
+    {
+        int currentIndex = GetCurrentIndex(mode);
+        int totalCount = GetTotalCount(mode);
+        string elementName = GetCurrentElementName(mode);
+
+        // Asosiy konteyner
+        var navBar = new VisualElement();
+        navBar.name = "element-nav-bar";
+        navBar.style.flexDirection = FlexDirection.Row;
+        navBar.style.alignItems = Align.Center;
+        navBar.style.justifyContent = Justify.SpaceBetween;
+        navBar.style.backgroundColor = new StyleColor(new Color(0.17f, 0.17f, 0.19f, 1f));
+        navBar.style.paddingTop = 6;
+        navBar.style.paddingBottom = 6;
+        navBar.style.paddingLeft = 10;
+        navBar.style.paddingRight = 10;
+        navBar.style.marginBottom = 10;
+        navBar.style.borderBottomWidth = 1;
+        navBar.style.borderBottomColor = new StyleColor(new Color(0.24f, 0.24f, 0.24f, 1f));
+        navBar.style.borderTopLeftRadius = 4;
+        navBar.style.borderTopRightRadius = 4;
+
+        // Chap qism: ← → tugmalari va element nomi
+        var leftGroup = new VisualElement();
+        leftGroup.style.flexDirection = FlexDirection.Row;
+        leftGroup.style.alignItems = Align.Center;
+
+        var prevBtn = new Button(() => NavigateElement(mode, -1)) { text = "◀" };
+        prevBtn.style.width = 28;
+        prevBtn.style.height = 24;
+        prevBtn.style.fontSize = 12;
+        prevBtn.style.marginRight = 4;
+        prevBtn.style.backgroundColor = new StyleColor(new Color(0.25f, 0.25f, 0.27f, 1f));
+        prevBtn.style.color = new StyleColor(Color.white);
+        prevBtn.style.borderTopWidth = prevBtn.style.borderBottomWidth = prevBtn.style.borderLeftWidth = prevBtn.style.borderRightWidth = 0;
+        prevBtn.style.borderTopLeftRadius = prevBtn.style.borderTopRightRadius = prevBtn.style.borderBottomLeftRadius = prevBtn.style.borderBottomRightRadius = 3;
+        prevBtn.SetEnabled(currentIndex > 0);
+
+        var indexLabel = new Label($"{currentIndex + 1} / {totalCount}");
+        indexLabel.style.color = new StyleColor(new Color(0.7f, 0.85f, 1f, 1f));
+        indexLabel.style.fontSize = 12;
+        indexLabel.style.unityFontStyleAndWeight = FontStyle.Bold;
+        indexLabel.style.marginLeft = 6;
+        indexLabel.style.marginRight = 6;
+        indexLabel.style.minWidth = 40;
+        indexLabel.style.unityTextAlign = TextAnchor.MiddleCenter;
+
+        var nextBtn = new Button(() => NavigateElement(mode, +1)) { text = "▶" };
+        nextBtn.style.width = 28;
+        nextBtn.style.height = 24;
+        nextBtn.style.fontSize = 12;
+        nextBtn.style.marginLeft = 4;
+        nextBtn.style.backgroundColor = new StyleColor(new Color(0.25f, 0.25f, 0.27f, 1f));
+        nextBtn.style.color = new StyleColor(Color.white);
+        nextBtn.style.borderTopWidth = nextBtn.style.borderBottomWidth = nextBtn.style.borderLeftWidth = nextBtn.style.borderRightWidth = 0;
+        nextBtn.style.borderTopLeftRadius = nextBtn.style.borderTopRightRadius = nextBtn.style.borderBottomLeftRadius = nextBtn.style.borderBottomRightRadius = 3;
+        nextBtn.SetEnabled(currentIndex < totalCount - 1);
+
+        // Element nomi labeli
+        var nameLabel = new Label(elementName);
+        nameLabel.style.color = new StyleColor(new Color(0.85f, 0.85f, 0.85f, 1f));
+        nameLabel.style.fontSize = 12;
+        nameLabel.style.marginLeft = 12;
+        nameLabel.style.overflow = Overflow.Hidden;
+        nameLabel.style.textOverflow = TextOverflow.Ellipsis;
+        nameLabel.style.maxWidth = 150;
+
+        leftGroup.Add(prevBtn);
+        leftGroup.Add(indexLabel);
+        leftGroup.Add(nextBtn);
+        leftGroup.Add(nameLabel);
+
+        // O'ng qism: qo'shish va o'chirish tugmalari
+        var rightGroup = new VisualElement();
+        rightGroup.style.flexDirection = FlexDirection.Row;
+        rightGroup.style.alignItems = Align.Center;
+
+        var addBtn = new Button(() => AddNewElement(mode)) { text = "＋ Yangi" };
+        addBtn.style.height = 24;
+        addBtn.style.fontSize = 11;
+        addBtn.style.paddingLeft = 8;
+        addBtn.style.paddingRight = 8;
+        addBtn.style.marginRight = 6;
+        addBtn.style.backgroundColor = new StyleColor(new Color(0.18f, 0.49f, 0.2f, 1f));
+        addBtn.style.color = new StyleColor(Color.white);
+        addBtn.style.borderTopWidth = addBtn.style.borderBottomWidth = addBtn.style.borderLeftWidth = addBtn.style.borderRightWidth = 0;
+        addBtn.style.borderTopLeftRadius = addBtn.style.borderTopRightRadius = addBtn.style.borderBottomLeftRadius = addBtn.style.borderBottomRightRadius = 3;
+
+        var deleteBtn = new Button(() => DeleteCurrentElement(mode)) { text = "🗑" };
+        deleteBtn.style.width = 28;
+        deleteBtn.style.height = 24;
+        deleteBtn.style.fontSize = 13;
+        deleteBtn.style.backgroundColor = new StyleColor(new Color(0.55f, 0.15f, 0.15f, 1f));
+        deleteBtn.style.color = new StyleColor(Color.white);
+        deleteBtn.style.borderTopWidth = deleteBtn.style.borderBottomWidth = deleteBtn.style.borderLeftWidth = deleteBtn.style.borderRightWidth = 0;
+        deleteBtn.style.borderTopLeftRadius = deleteBtn.style.borderTopRightRadius = deleteBtn.style.borderBottomLeftRadius = deleteBtn.style.borderBottomRightRadius = 3;
+        deleteBtn.SetEnabled(totalCount > 1); // Oxirgi elementni o'chirib bo'lmaydi
+
+        rightGroup.Add(addBtn);
+        rightGroup.Add(deleteBtn);
+
+        navBar.Add(leftGroup);
+        navBar.Add(rightGroup);
+
+        return navBar;
+    }
+
+    private int GetCurrentIndex(EditorMode mode)
+    {
+        switch (mode)
+        {
+            case EditorMode.Block:       return _currentBlockIdx;
+            case EditorMode.Item:        return _currentItemIdx;
+            case EditorMode.Tool:        return _currentToolIdx;
+            case EditorMode.Armor:       return _currentArmorIdx;
+            case EditorMode.Recipe:      return _currentRecipeIdx;
+            case EditorMode.Mob:         return _currentEntityIdx;
+            case EditorMode.Biome:       return _currentBiomeIdx;
+            case EditorMode.CreativeTab: return _currentTabIdx;
+            default: return 0;
+        }
+    }
+
+    private int GetTotalCount(EditorMode mode)
+    {
+        var ws = WorkspaceManager.workspace;
+        switch (mode)
+        {
+            case EditorMode.Block:       return ws.blocks.Count;
+            case EditorMode.Item:        return ws.items.Count;
+            case EditorMode.Tool:        return ws.tools.Count;
+            case EditorMode.Armor:       return ws.armors.Count;
+            case EditorMode.Recipe:      return ws.recipes.Count;
+            case EditorMode.Mob:         return ws.entities.Count;
+            case EditorMode.Biome:       return ws.biomes.Count;
+            case EditorMode.CreativeTab: return ws.creativeTabs.Count;
+            default: return 0;
+        }
+    }
+
+    private string GetCurrentElementName(EditorMode mode)
+    {
+        switch (mode)
+        {
+            case EditorMode.Block:       return _currentBlock.displayName;
+            case EditorMode.Item:        return _currentItem.displayName;
+            case EditorMode.Tool:        return _currentTool.displayName;
+            case EditorMode.Armor:       return _currentArmor.displayName;
+            case EditorMode.Recipe:      return _currentRecipe.resultItem;
+            case EditorMode.Mob:         return _currentEntity.displayName;
+            case EditorMode.Biome:       return _currentBiome.displayName;
+            case EditorMode.CreativeTab: return _currentTab.displayName;
+            default: return "";
+        }
+    }
+
+    private void NavigateElement(EditorMode mode, int direction)
+    {
+        int total = GetTotalCount(mode);
+        if (total <= 0) return;
+
+        switch (mode)
+        {
+            case EditorMode.Block:       _currentBlockIdx  = Mathf.Clamp(_currentBlockIdx  + direction, 0, total - 1); break;
+            case EditorMode.Item:        _currentItemIdx   = Mathf.Clamp(_currentItemIdx   + direction, 0, total - 1); break;
+            case EditorMode.Tool:        _currentToolIdx   = Mathf.Clamp(_currentToolIdx   + direction, 0, total - 1); break;
+            case EditorMode.Armor:       _currentArmorIdx  = Mathf.Clamp(_currentArmorIdx  + direction, 0, total - 1); break;
+            case EditorMode.Recipe:      _currentRecipeIdx = Mathf.Clamp(_currentRecipeIdx + direction, 0, total - 1); break;
+            case EditorMode.Mob:         _currentEntityIdx = Mathf.Clamp(_currentEntityIdx + direction, 0, total - 1); break;
+            case EditorMode.Biome:       _currentBiomeIdx  = Mathf.Clamp(_currentBiomeIdx  + direction, 0, total - 1); break;
+            case EditorMode.CreativeTab: _currentTabIdx    = Mathf.Clamp(_currentTabIdx    + direction, 0, total - 1); break;
+        }
+
+        // UI ni qayta yuklash
+        SwitchEditorMode(mode);
+    }
+
+    private void AddNewElement(EditorMode mode)
+    {
+        var ws = WorkspaceManager.workspace;
+
+        switch (mode)
+        {
+            case EditorMode.Block:
+                ws.blocks.Add(new BlockDataModel { blockId = $"new_block_{ws.blocks.Count}", displayName = $"New Block {ws.blocks.Count}" });
+                _currentBlockIdx = ws.blocks.Count - 1;
+                break;
+            case EditorMode.Item:
+                ws.items.Add(new ItemDataModel { itemId = $"new_item_{ws.items.Count}", displayName = $"New Item {ws.items.Count}" });
+                _currentItemIdx = ws.items.Count - 1;
+                break;
+            case EditorMode.Tool:
+                ws.tools.Add(new ToolDataModel { toolId = $"new_tool_{ws.tools.Count}", displayName = $"New Tool {ws.tools.Count}" });
+                _currentToolIdx = ws.tools.Count - 1;
+                break;
+            case EditorMode.Armor:
+                ws.armors.Add(new ArmorDataModel { armorId = $"new_armor_{ws.armors.Count}", displayName = $"New Armor {ws.armors.Count}" });
+                _currentArmorIdx = ws.armors.Count - 1;
+                break;
+            case EditorMode.Recipe:
+                ws.recipes.Add(new RecipeDataModel { resultItem = $"new_result_{ws.recipes.Count}" });
+                _currentRecipeIdx = ws.recipes.Count - 1;
+                break;
+            case EditorMode.Mob:
+                ws.entities.Add(new EntityDataModel { entityId = $"new_entity_{ws.entities.Count}", displayName = $"New Entity {ws.entities.Count}" });
+                _currentEntityIdx = ws.entities.Count - 1;
+                break;
+            case EditorMode.Biome:
+                ws.biomes.Add(new BiomeDataModel { biomeId = $"new_biome_{ws.biomes.Count}", displayName = $"New Biome {ws.biomes.Count}" });
+                _currentBiomeIdx = ws.biomes.Count - 1;
+                break;
+            case EditorMode.CreativeTab:
+                ws.creativeTabs.Add(new CreativeTabDataModel { tabId = $"new_tab_{ws.creativeTabs.Count}", displayName = $"New Tab {ws.creativeTabs.Count}" });
+                _currentTabIdx = ws.creativeTabs.Count - 1;
+                break;
+        }
+
+        LogToTerminal($"[Workspace] Yangi {mode} elementi qo'shildi.");
+        SwitchEditorMode(mode);
+    }
+
+    private void DeleteCurrentElement(EditorMode mode)
+    {
+        var ws = WorkspaceManager.workspace;
+        int total = GetTotalCount(mode);
+        if (total <= 1)
+        {
+            LogToTerminal($"[Ogohlantirish] Oxirgi {mode} elementini o'chirib bo'lmaydi!");
+            return;
+        }
+
+        string elementName = GetCurrentElementName(mode);
+        bool confirmed = EditorUtility.DisplayDialog(
+            "Elementni o'chirish",
+            $"'{elementName}' elementini o'chirishni xohlaysizmi?\nBu amalni qaytarib bo'lmaydi!",
+            "Ha, o'chir", "Bekor qilish"
+        );
+
+        if (!confirmed) return;
+
+        switch (mode)
+        {
+            case EditorMode.Block:
+                ws.blocks.RemoveAt(_currentBlockIdx);
+                _currentBlockIdx = Mathf.Clamp(_currentBlockIdx, 0, ws.blocks.Count - 1);
+                break;
+            case EditorMode.Item:
+                ws.items.RemoveAt(_currentItemIdx);
+                _currentItemIdx = Mathf.Clamp(_currentItemIdx, 0, ws.items.Count - 1);
+                break;
+            case EditorMode.Tool:
+                ws.tools.RemoveAt(_currentToolIdx);
+                _currentToolIdx = Mathf.Clamp(_currentToolIdx, 0, ws.tools.Count - 1);
+                break;
+            case EditorMode.Armor:
+                ws.armors.RemoveAt(_currentArmorIdx);
+                _currentArmorIdx = Mathf.Clamp(_currentArmorIdx, 0, ws.armors.Count - 1);
+                break;
+            case EditorMode.Recipe:
+                ws.recipes.RemoveAt(_currentRecipeIdx);
+                _currentRecipeIdx = Mathf.Clamp(_currentRecipeIdx, 0, ws.recipes.Count - 1);
+                break;
+            case EditorMode.Mob:
+                ws.entities.RemoveAt(_currentEntityIdx);
+                _currentEntityIdx = Mathf.Clamp(_currentEntityIdx, 0, ws.entities.Count - 1);
+                break;
+            case EditorMode.Biome:
+                ws.biomes.RemoveAt(_currentBiomeIdx);
+                _currentBiomeIdx = Mathf.Clamp(_currentBiomeIdx, 0, ws.biomes.Count - 1);
+                break;
+            case EditorMode.CreativeTab:
+                ws.creativeTabs.RemoveAt(_currentTabIdx);
+                _currentTabIdx = Mathf.Clamp(_currentTabIdx, 0, ws.creativeTabs.Count - 1);
+                break;
+        }
+
+        LogToTerminal($"[Workspace] '{elementName}' elementi o'chirildi.");
+        SwitchEditorMode(mode);
     }
 
     private void BindToolSelection(VisualElement root, string name)
@@ -980,8 +1389,8 @@ if (transformController != null && pivotX != null && rotX != null)
             if (hexField != null)
             {
                 _isUpdating = true;
-                hexField.value = hex;
-                _isUpdating = false;
+                try { hexField.value = hex; }
+                finally { _isUpdating = false; }
             }
             SelectPaintTool(rootVisualElement, "pencil");
         }
@@ -1138,18 +1547,28 @@ if (transformController != null && pivotX != null && rotX != null)
 
         _isUpdating = true;
 
-        // Qo'lda yozilgan kodni tahlil qilib, modelni yangilaymiz
-        JavaCodeParser.ParseJavaIntoModel(userWrittenCode, _currentBlock);
-        
-        // UI-ni yangilaymiz
-        UpdateUiFromModel();
+        try
+        {
+            // Qo'lda yozilgan kodni tahlil qilib, modelni yangilaymiz
+            JavaCodeParser.ParseJavaIntoModel(userWrittenCode, _currentBlock);
+            
+            // UI-ni yangilaymiz
+            UpdateUiFromModel();
 
-        // Kod oynasidagi rangli teglarni qayta chizamiz
-        string rawJavaCode = JavaCodeGenerator.GenerateFabricBlockCode(_currentBlock);
-        string highlightedCode = JavaSyntaxHighlighter.HighlightJavaCode(rawJavaCode);
-        _codePreviewField.value = highlightedCode;
-
-        _isUpdating = false;
+            // Kod oynasidagi rangli teglarni qayta chizamiz
+            string rawJavaCode = JavaCodeGenerator.GenerateFabricBlockCode(_currentBlock);
+            string highlightedCode = JavaSyntaxHighlighter.HighlightJavaCode(rawJavaCode);
+            _codePreviewField.value = highlightedCode;
+        }
+        catch (Exception ex)
+        {
+            Debug.LogError($"[ModStudio] TwoWaySync xatolik: {ex.Message}");
+            LogToTerminal($"[Xato] Sinxronizatsiya amalga oshmadi: {ex.Message}");
+        }
+        finally
+        {
+            _isUpdating = false;
+        }
         
         LogToTerminal("[Muvaffaqiyat] Java kodi tahlil qilindi va barcha panellar sinxronlashtirildi.");
     }
@@ -1165,51 +1584,61 @@ if (transformController != null && pivotX != null && rotX != null)
 
         _isUpdating = true;
 
-        string loader    = WorkspaceManager.workspace.modloader;
-        string mcVersion = WorkspaceManager.workspace.mcVersion;
-        string modId     = WorkspaceManager.workspace.modId;
-        string rawCode   = "";
-
-        switch (_currentMode)
+        try
         {
-            case EditorMode.Block:
-                // Single-block live preview — always Fabric-style for simplicity
-                _currentBlock.textureNamespace = string.IsNullOrEmpty(modId) ? "mymod" : modId;
-                rawCode = JavaCodeGenerator.GenerateFabricBlockCode(_currentBlock);
-                break;
-            case EditorMode.Item:
-                rawCode = _currentItem.GenerateFabricCode();
-                break;
-            case EditorMode.Tool:
-                rawCode = _currentTool.GenerateFabricCode();
-                break;
-            case EditorMode.Armor:
-                rawCode = _currentArmor.GenerateFabricCode();
-                break;
-            case EditorMode.Recipe:
-                rawCode = _currentRecipe.GenerateFabricCode();
-                break;
-            case EditorMode.Mob:
-                rawCode = _currentEntity.GenerateFabricCode();
-                break;
-            case EditorMode.Biome:
-                rawCode = _currentBiome.GenerateFabricCode();
-                break;
-            case EditorMode.CreativeTab:
-                rawCode = _currentTab.GenerateFabricCode();
-                break;
-            case EditorMode.TexturePainter:
-                rawCode = GenerateTextureManifestJson();
-                break;
-            case EditorMode.ProjectSettings:
-                rawCode = GenerateFabricModJson();
-                break;
-        }
+            string loader    = WorkspaceManager.workspace.modloader;
+            string mcVersion = WorkspaceManager.workspace.mcVersion;
+            string modId     = WorkspaceManager.workspace.modId;
+            string rawCode   = "";
 
-        string highlighted = JavaSyntaxHighlighter.HighlightJavaCode(rawCode);
-        _codePreviewField.value = highlighted;
-        _codePreviewField.MarkDirtyRepaint();
-        _isUpdating = false;
+            switch (_currentMode)
+            {
+                case EditorMode.Block:
+                    // Single-block live preview — always Fabric-style for simplicity
+                    _currentBlock.textureNamespace = string.IsNullOrEmpty(modId) ? "mymod" : modId;
+                    rawCode = JavaCodeGenerator.GenerateFabricBlockCode(_currentBlock);
+                    break;
+                case EditorMode.Item:
+                    rawCode = _currentItem.GenerateFabricCode();
+                    break;
+                case EditorMode.Tool:
+                    rawCode = _currentTool.GenerateFabricCode();
+                    break;
+                case EditorMode.Armor:
+                    rawCode = _currentArmor.GenerateFabricCode();
+                    break;
+                case EditorMode.Recipe:
+                    rawCode = _currentRecipe.GenerateFabricCode();
+                    break;
+                case EditorMode.Mob:
+                    rawCode = _currentEntity.GenerateFabricCode();
+                    break;
+                case EditorMode.Biome:
+                    rawCode = _currentBiome.GenerateFabricCode();
+                    break;
+                case EditorMode.CreativeTab:
+                    rawCode = _currentTab.GenerateFabricCode();
+                    break;
+                case EditorMode.TexturePainter:
+                    rawCode = GenerateTextureManifestJson();
+                    break;
+                case EditorMode.ProjectSettings:
+                    rawCode = GenerateFabricModJson();
+                    break;
+            }
+
+            string highlighted = JavaSyntaxHighlighter.HighlightJavaCode(rawCode);
+            _codePreviewField.value = highlighted;
+            _codePreviewField.MarkDirtyRepaint();
+        }
+        catch (Exception ex)
+        {
+            Debug.LogError($"[ModStudio] OnModelChanged xatolik: {ex.Message}");
+        }
+        finally
+        {
+            _isUpdating = false;
+        }
     }
 
     private string GenerateTextureManifestJson()

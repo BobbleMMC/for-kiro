@@ -6,7 +6,9 @@
         <ui:VisualElement name="toolbar-panel" style="flex-direction: row; background-color: #2d2d2d; padding: 5px; min-height: 35px; align-items: center;">
             <ui:Button text="Yangi Loyiha" name="btn-new" class="toolbar-btn" />
             <ui:Button text="Saqlash" name="btn-save" class="toolbar-btn" />
+            <ui:Button text="📁 Papkani Tanlash" name="btn-browse" class="toolbar-btn" />
             <ui:Button text="Minecraft-ni Ishga Tushirish" name="btn-run" class="toolbar-btn run-btn" />
+            <ui:Label name="label-project-path" text="" style="color: #888888; font-size: 10px; margin-left: 10px; flex-grow: 1; overflow: hidden; text-overflow: ellipsis;" />
         </ui:VisualElement>
 
         <!-- ASOSIY SPLITTER (main-split): EXACTLY 2 CHILDREN -->

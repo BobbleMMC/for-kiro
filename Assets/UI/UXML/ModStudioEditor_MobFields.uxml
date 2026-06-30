@@ -2,8 +2,15 @@
 <ui:UXML xmlns:ui="UnityEngine.UIElements" xmlns:uie="UnityEditor.UIElements" noNamespaceSchemaLocation="../../../UIElementsSchema/UIElementsSchema.xsd">
     <ui:TextField label="Mob ID:" name="input-mob-id" value="custom_ruby_golem" />
     <ui:TextField label="Ko'rinadigan Nomi:" name="input-mob-name" value="Ruby Golem" />
-    <ui:DropdownField label="Mob Guruhi (Category):" name="input-mob-category" choices="Monster,Creature,Ambient,WaterCreature" value="Monster" />
+    <ui:DropdownField label="Mob Guruhi (Category):" name="input-mob-category" choices="Monster,Creature,Ambient,WaterCreature,Boss" value="Monster" />
     <ui:Slider label="Sog'lig'i (Max Health):" start-value="1" end-value="500" name="slider-mob-health" show-input-value="true" />
     <ui:Slider label="Harakat Tezligi (Speed):" start-value="0.05" end-value="2" name="slider-mob-speed" show-input-value="true" />
     <ui:Slider label="Hujum Kuchi (Damage):" start-value="0" end-value="100" name="slider-mob-damage" show-input-value="true" />
+
+    <!-- Entity O'lchamlari -->
+    <ui:VisualElement style="margin-top: 12px; padding: 8px; background-color: #252526; border-radius: 4px; border-width: 1px; border-color: #2d2d2d;">
+        <ui:Label text="ENTITY O'LCHAMLARI (blok birliklarda)" style="color: #aeaeae; font-size: 10px; -unity-font-style: bold; margin-bottom: 6px;" />
+        <ui:Slider label="Kengligi (Width):" start-value="0.2" end-value="5" name="slider-mob-width" show-input-value="true" />
+        <ui:Slider label="Balandligi (Height):" start-value="0.2" end-value="8" name="slider-mob-height" show-input-value="true" />
+    </ui:VisualElement>
 </ui:UXML>
